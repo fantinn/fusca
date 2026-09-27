@@ -198,19 +198,23 @@ function updatePeople(dt){for(const p of people){if(updateFall(p.g,dt))continue;
 function obbContact(a,b){const axes=[[Math.cos(a.a||0),-Math.sin(a.a||0)],[Math.sin(a.a||0),Math.cos(a.a||0)],[Math.cos(b.a||0),-Math.sin(b.a||0)],[Math.sin(b.a||0),Math.cos(b.a||0)]];let depth=Infinity,normal=null;const dx=a.x-b.x,dz=a.z-b.z;for(const [x,z]of axes){const projection=(r)=>r.w*Math.abs(x*Math.cos(r.a||0)-z*Math.sin(r.a||0))+r.d*Math.abs(x*Math.sin(r.a||0)+z*Math.cos(r.a||0));const overlap=projection(a)+projection(b)-Math.abs(dx*x+dz*z);if(overlap<=0)return null;if(overlap<depth){depth=overlap;const sign=dx*x+dz*z<0?-1:1;normal={x:x*sign,z:z*sign}}}return{...normal,depth:depth+.002}}
 function carContacts(v){const a=rectFor(v),hits=[];for(const b of localStatics(a,3)){if(Math.abs(a.x-b.x)>b.w+3||Math.abs(a.z-b.z)>b.d+3)continue;const h=obbContact(a,b);if(h)hits.push(h)}for(const other of vehicleList()){if(other===v||v.position.distanceTo(other.position)>5)continue;const h=obbContact(a,rectFor(other));if(h)hits.push({...h,other})}return hits}
 function hitPedestrians(v,speed,dt){if(Math.abs(speed)<3)return;for(const p of people){if(p.g.userData.rag||simTime<p.hitUntil)continue;if(contactCircle(p.g.position,.34,rectFor(v))){const dir=p.g.position.clone().sub(v.position).setY(0);beginFall(p.g,dir,Math.min(8,2+Math.abs(speed)*.10),p);p.hitUntil=simTime+6;p.mode='fallen';p.stun=5;if(v===car&&inCar){velocity*=.82;reactToFight(p,p.g.position);crime(24,'Pedestre atingido')}}}if(!inCar&&!player.userData.rag&&v!==car&&contactCircle(player.position,.34,rectFor(v))&&simTime-lastHit>2){lastHit=simTime;health-=15;beginFall(player,player.position.clone().sub(v.position),Math.min(7,Math.abs(speed)*.2));if(health<=0)arrested('Você foi socorrido.')}}
-function drive(dt){const slices=Math.max(1,Math.ceil(dt*120));for(let i=0;i<slices;i++)driveStep(dt/slices)}
+function drive(dt){const slices=Math.max(1,Math.ceil(dt*120));for(let i=0;i<slices;i++)driveStep(dt/slices);updateCarFX(dt)}
+
+// ===== FÍSICA DE DIREÇÃO =====
+// Contrato: driveStep integra forças/direção, mantém car.userData.vel {x,z} (m/s, mundo) e
+// car.userData.yawRate (rad/s), atualiza `angle`/car.rotation.y e chama moveCar(dt,oldAngle).
+// `velocity` é a velocidade longitudinal (usada por HUD, polícia, saída do carro...).
+// Preenche car.userData.fx={steerAngle,skidRear,skidFront,accelLong,accelLat,slipAngle,turbo,hand,brake}.
 function driveStep(dt){
  const forward=keys.w||keys.ArrowUp,back=keys.s||keys.ArrowDown,hand=keys[' '],turbo=keys.Shift&&forward&&nitro>1;
  const offroad=!roads.some(r=>Math.abs(car.position.x-r)<9||Math.abs(car.position.z-r)<9);
  const input=(keys.a||keys.ArrowLeft?1:0)-(keys.d||keys.ArrowRight?1:0);
- // Fast response when changing direction; the wheel recenters faster on release.
  steer=T.MathUtils.lerp(steer,input,1-Math.exp(-dt*(input===0?18:13)));
  const amount=Math.abs(steer),speed=Math.abs(velocity);
  const cornerSpeed=(turbo?28:18)+65*Math.pow(1-amount,2);
  nitro=turbo?Math.max(0,nitro-dt*23):Math.min(100,nitro+dt*11);
  const acceleration=forward?(velocity<0?42:velocity>cornerSpeed&&amount>.2?0:turbo?39:23):back?(velocity>1?-48:-15):0;
  velocity+=acceleration*dt;
- // Cornering assist slows a committed turn without making the steering unresponsive.
  if(velocity>cornerSpeed&&amount>.2&&!hand)velocity+=(cornerSpeed-velocity)*(1-Math.exp(-dt*3.8));
  velocity*=Math.exp(-dt*(hand?.68:offroad?.80:.24));
  velocity=T.MathUtils.clamp(velocity,-13,turbo?83:57);
@@ -218,12 +222,37 @@ function driveStep(dt){
  const yawLimit=2.15/(1+speed*.015)*(hand?1.38:1);
  const yaw=T.MathUtils.clamp(velocity/2.45*Math.tan(wheelAngle),-yawLimit,yawLimit);
  const oldAngle=angle;angle+=yaw*dt;car.rotation.y=angle;
- if(carContacts(car).length){angle=oldAngle;car.rotation.y=angle}
  const slipTarget=hand&&speed>6?steer*Math.min(.34,speed*.014)*Math.sign(velocity):0;
  car.userData.slip=T.MathUtils.lerp(car.userData.slip||0,slipTarget,1-Math.exp(-dt*(hand?5:10)));
  const travelAngle=angle-car.userData.slip;
- const steps=Math.max(1,Math.ceil(Math.abs(velocity)*dt/.22));for(let i=0;i<steps;i++){const old=car.position.clone(),speedBefore=velocity;car.position.x+=Math.sin(travelAngle)*velocity*dt/steps;car.position.z+=Math.cos(travelAngle)*velocity*dt/steps;let hits=carContacts(car);if(hits.length){for(let k=0;k<3;k++){for(const h of hits){car.position.x+=h.x*h.depth;car.position.z+=h.z*h.depth}hits=carContacts(car)}const h=carContacts(car)[0];if(h)car.position.copy(old);const travel=car.position.clone().sub(old);const solid=travel.length()<Math.abs(speedBefore)*dt/steps*.45;velocity*=solid?-.12:.55;shake=Math.min(.22,Math.abs(speedBefore)*.009);if(simTime-crimeCollision>2&&Math.abs(speedBefore)>8){crimeCollision=simTime;crime(9,'Colisão perigosa')}break}hitPedestrians(car,velocity,dt/steps);if(Math.abs(car.position.x)>259.7||Math.abs(car.position.z)>259.7){car.position.x=T.MathUtils.clamp(car.position.x,-259.7,259.7);car.position.z=T.MathUtils.clamp(car.position.z,-259.7,259.7);velocity*=-.12;car.userData.slip=0;break}}
- distance+=Math.abs(velocity)*dt;heading=angle;car.userData.body.rotation.z=T.MathUtils.lerp(car.userData.body.rotation.z,-steer*velocity*.0017,dt*6);for(const w of car.userData.wheels){w.w.rotation.x+=velocity*dt*2;if(w.front)w.pivot.rotation.y=wheelAngle}cam.fov=T.MathUtils.lerp(cam.fov,turbo?72:58,dt*2);cam.updateProjectionMatrix();}
+ car.userData.vel={x:Math.sin(travelAngle)*velocity,z:Math.cos(travelAngle)*velocity};car.userData.yawRate=yaw;
+ moveCar(dt,oldAngle);
+ const v=car.userData.vel;velocity=(Math.sin(angle)*v.x+Math.cos(angle)*v.z<0?-1:1)*Math.hypot(v.x,v.z);
+ distance+=Math.abs(velocity)*dt;heading=angle;
+ car.userData.fx={steerAngle:wheelAngle,skidRear:hand&&speed>6?1:0,skidFront:0,accelLong:acceleration,accelLat:velocity*yaw,slipAngle:car.userData.slip,turbo,hand,brake:back&&velocity>1};
+}
+// ===== FIM FÍSICA DE DIREÇÃO =====
+
+// ===== COLISÃO =====
+// Contrato: moveCar(dt,oldAngle) move car.position com car.userData.vel em sub-passos, resolve contatos
+// com estáticos (physicalObstacles), outros veículos, pedestres (hitPedestrians) e limites do mapa,
+// alterando car.userData.vel / car.userData.yawRate (e `angle` se precisar desfazer rotação).
+// Também cuida de shake e crime por colisão. updateLooseVehicles(dt) anima veículos empurrados.
+function moveCar(dt,oldAngle){
+ if(carContacts(car).length){angle=oldAngle;car.rotation.y=angle}
+ const vel=car.userData.vel,sp=Math.hypot(vel.x,vel.z);
+ const steps=Math.max(1,Math.ceil(sp*dt/.22));for(let i=0;i<steps;i++){const old=car.position.clone(),speedBefore=sp;car.position.x+=vel.x*dt/steps;car.position.z+=vel.z*dt/steps;let hits=carContacts(car);if(hits.length){for(let k=0;k<3;k++){for(const h of hits){car.position.x+=h.x*h.depth;car.position.z+=h.z*h.depth}hits=carContacts(car)}const h=carContacts(car)[0];if(h)car.position.copy(old);const travel=car.position.clone().sub(old);const solid=travel.length()<speedBefore*dt/steps*.45;const f=solid?-.12:.55;vel.x*=f;vel.z*=f;shake=Math.min(.22,speedBefore*.009);if(simTime-crimeCollision>2&&speedBefore>8){crimeCollision=simTime;crime(9,'Colisão perigosa')}break}hitPedestrians(car,velocity,dt/steps);if(Math.abs(car.position.x)>259.7||Math.abs(car.position.z)>259.7){car.position.x=T.MathUtils.clamp(car.position.x,-259.7,259.7);car.position.z=T.MathUtils.clamp(car.position.z,-259.7,259.7);vel.x*=-.12;vel.z*=-.12;car.userData.slip=0;break}}
+}
+function updateLooseVehicles(dt){}
+// ===== FIM COLISÃO =====
+
+// ===== VISUAL DO CARRO =====
+// Contrato: updateCarFX(dt) só lê o estado (car.userData.fx, vel, velocity, angle) e cuida de
+// visual/áudio: rodas, rolagem/arfagem da carroceria, marcas de pneu, fumaça, som, FOV.
+function updateCarFX(dt){
+ const fx=car.userData.fx||{};car.userData.body.rotation.z=T.MathUtils.lerp(car.userData.body.rotation.z,-steer*velocity*.0017,dt*6);for(const w of car.userData.wheels){w.w.rotation.x+=velocity*dt*2;if(w.front)w.pivot.rotation.y=fx.steerAngle||0}cam.fov=T.MathUtils.lerp(cam.fov,fx.turbo?72:58,dt*2);cam.updateProjectionMatrix();
+}
+// ===== FIM VISUAL DO CARRO =====
 function updateTraffic(dt){for(const t of traffic){if(t.g===car||stolenCars.has(t.g))continue;t.g.rotation.y=t.axis?t.dir*Math.PI/2:t.dir<0?Math.PI:0;const dir=new T.Vector3(Math.sin(t.g.rotation.y),0,Math.cos(t.g.rotation.y)),ahead=t.g.position.clone().addScaledVector(dir,5);let caution=vehicleList().some(v=>v!==t.g&&v.position.distanceTo(ahead)<3.4)||people.some(p=>!p.g.userData.rag&&p.g.position.distanceTo(ahead)<2)||(!inCar&&player.position.distanceTo(ahead)<2);t.actual=T.MathUtils.lerp(t.actual??t.speed,caution?0:t.speed,Math.min(1,dt*(caution?9:2)));const steps=Math.max(1,Math.ceil(t.actual*dt/.3));for(let i=0;i<steps;i++){const old=t.g.position.clone();t.g.position.addScaledVector(dir,t.actual*dt/steps);if(carContacts(t.g).length){t.g.position.copy(old);t.actual=0;break}hitPedestrians(t.g,t.actual,dt/steps)}t.pos=t.axis?t.g.position.x:t.g.position.z;if(Math.abs(t.pos)>266){t.pos=-Math.sign(t.pos)*265;t.g.position.set(t.axis?t.pos:t.road+t.dir*4,0,t.axis?t.road-t.dir*4:t.pos)}for(const w of t.g.userData.wheels)w.w.rotation.x+=t.actual*dt*2;}}
 function walk(dt){if(updateFall(player,dt))return;const turn=(keys.a||keys.ArrowLeft?1:0)-(keys.d||keys.ArrowRight?1:0);heading+=turn*dt*2.6;const dir=(keys.w||keys.ArrowUp?1:0)-(keys.s||keys.ArrowDown?1:0),speed=player.userData.stagger>0?0:dir*(keys[' ']?2:keys.Shift&&!cargo?10:5)*(player.userData.attack?.6:1);moveActor(player,Math.sin(heading)*speed*dt,Math.cos(heading)*speed*dt);player.rotation.y=heading;animatePerson(player,Math.abs(speed),simTime);if(keys[' ']&&!player.userData.attack){for(let i=0;i<2;i++){player.userData.arms[i].rotation.x=-1.15;player.userData.elbows[i].rotation.x=-1.8}}distance+=Math.abs(speed)*dt;heldBox.visible=cargo;cam.fov=T.MathUtils.lerp(cam.fov,58,dt*3);cam.updateProjectionMatrix();}
 function resetLivingState(){if(player.userData.rag){player.userData.rag.visual.group.visible=false;player.userData.rag=null;player.userData.rig.visible=true}player.userData.attack=null;player.userData.stagger=0;for(const p of people){p.calmAfterFall=true;p.fear=0;p.moodUntil=0;p.g.userData.attack=null;if(!p.g.userData.rag){p.mode='rest';p.taskUntil=simTime+3}}}
@@ -235,7 +264,7 @@ const clock=new T.Clock(),target=new T.Vector3(),look=new T.Vector3();let elapse
 function update(dt){
  if(!paused){elapsed+=dt;simTime+=dt;
   for(const c of clouds){c.position.x+=dt*.6;if(c.position.x>600)c.position.x=-600}
-  updateTraffic(dt);updatePeople(dt);shopGoods.visible=simTime>=shopRestock;
+  updateTraffic(dt);updateLooseVehicles(dt);updatePeople(dt);shopGoods.visible=simTime>=shopRestock;
   if(started){updateCombat(dt);if(inCar)drive(dt);else walk(dt);updatePolice(dt);
    const pos=actorPos(),a=inCar?angle:heading,behind=inCar?(cameraMode?7.5:12):(cameraMode?5:7);
    target.set(pos.x-Math.sin(a)*behind,pos.y+(inCar?5.5:4.4),pos.z-Math.cos(a)*behind);cam.position.lerp(target,1-Math.exp(-dt*(inCar?7:5)));
