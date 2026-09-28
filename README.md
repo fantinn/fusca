@@ -24,7 +24,12 @@ Baixe `index.html` e abra no Chrome, Edge ou Firefox com WebGL habilitado. O arq
 
 ## O que tem no jogo
 
-- Fusca com direção arcade, assistência em curvas e freio de mão.
+- Fusca com física de derrapagem, assistência em curvas e freio de mão para drifts.
+- Colisões com impulso: batidas empurram carros e sacodem a câmera.
+- Carroceria com suspensão (rola nas curvas, mergulha ao frear, agacha ao acelerar), rodas que travam no freio de mão e patinam no arranque.
+- Marcas de pneu que ficam no asfalto e fumaça nas derrapagens fortes.
+- Câmera que acompanha a derrapagem com leve atraso e abre o campo de visão com a velocidade e o turbo.
+- Som opcional (botão SOM): motor com troca de marchas, pneus cantando e batidas.
 - Cidade aberta, praia, trânsito, pedestres e minimapa.
 - Entregas pagas e interações com moradores.
 - Moradores com rotinas, temperamentos e reações a confusões.
