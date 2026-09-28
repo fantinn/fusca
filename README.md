@@ -33,7 +33,7 @@ Baixe `index.html` e abra no Chrome, Edge ou Firefox com WebGL habilitado. O arq
 - Corrida de rua com aposta: pare o Fusca no anel laranja à frente do ponto inicial e aperte E. Aposta até R$ 100 (a primeira corrida sem dinheiro vale R$ 40); passe pelos checkpoints antes do rival para levar o dobro.
 - Cidade aberta, praia, trânsito, pedestres e minimapa.
 - Bairro novo a leste, do outro lado de um canal, ligado por uma ponte estaiada na avenida central, com roda-gigante no parque.
-- Cadillacs 1959 rabo de peixe circulando nos dois bairros (dá para furtar um com E); o bairro novo tem trânsito e moradores próprios.
+- Carros antigos na rua: Fusca, Kombi, Opala SS, Mustang 67 e Cadillac 1959. Chegue perto de qualquer um a pé (ele para) e aperte E para furtar; cada modelo tem aceleração, velocidade e peso próprios.
 - Entregas pagas e interações com moradores.
 - Moradores com rotinas, temperamentos e reações a confusões.
 - Combate com alcance, direção, defesa e perda gradual de equilíbrio. Um soco não mata nem derruba automaticamente; quedas são temporárias.
