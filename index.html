@@ -195,8 +195,8 @@ function updatePeople(dt){for(const p of people){if(updateFall(p.g,dt))continue;
  if(['rest','phone','chat','buy'].includes(p.mode)){animatePerson(p.g,0,simTime);if(p.mode==='phone'){p.g.userData.phone.visible=true;p.g.userData.arms[1].rotation.x=-.85;p.g.userData.elbows[1].rotation.x=-1.5}if(p.mode==='chat'){p.social=Math.max(0,p.social-dt*.12);p.g.userData.arms[0].rotation.x=-.5+Math.sin(simTime*3+p.phase)*.2;if(p.partner)p.g.rotation.y=Math.atan2(p.partner.g.position.x-p.g.position.x,p.partner.g.position.z-p.g.position.z)}if(simTime>p.taskUntil){if(p.mode==='buy')arrive(p);else chooseTask(p)}continue}
  if(!p.goal||simTime>p.decision&&rand()<dt*.35)chooseTask(p);if(p.goal&&followGoal(p,p.goal,p.mode==='jog'?4.3:1.2+p.curiosity,dt)<1.4)arrive(p);
  }separateCrowd();}
-function obbContact(a,b){const axes=[[Math.cos(a.a||0),-Math.sin(a.a||0)],[Math.sin(a.a||0),Math.cos(a.a||0)],[Math.cos(b.a||0),-Math.sin(b.a||0)],[Math.sin(b.a||0),Math.cos(b.a||0)]];let depth=Infinity,normal=null;const dx=a.x-b.x,dz=a.z-b.z;for(const [x,z]of axes){const projection=(r)=>r.w*Math.abs(x*Math.cos(r.a||0)-z*Math.sin(r.a||0))+r.d*Math.abs(x*Math.sin(r.a||0)+z*Math.cos(r.a||0));const overlap=projection(a)+projection(b)-Math.abs(dx*x+dz*z);if(overlap<=0)return null;if(overlap<depth){depth=overlap;const sign=dx*x+dz*z<0?-1:1;normal={x:x*sign,z:z*sign}}}return{...normal,depth:depth+.002}}
-function carContacts(v){const a=rectFor(v),hits=[];for(const b of localStatics(a,3)){if(Math.abs(a.x-b.x)>b.w+3||Math.abs(a.z-b.z)>b.d+3)continue;const h=obbContact(a,b);if(h)hits.push(h)}for(const other of vehicleList()){if(other===v||v.position.distanceTo(other.position)>5)continue;const h=obbContact(a,rectFor(other));if(h)hits.push({...h,other})}return hits}
+function obbContact(a,b){const ca=Math.cos(a.a||0),sa=Math.sin(a.a||0),cb=Math.cos(b.a||0),sb=Math.sin(b.a||0),dx=a.x-b.x,dz=a.z-b.z;let depth=Infinity,nx=0,nz=0;for(let i=0;i<4;i++){const x=i===0?ca:i===1?sa:i===2?cb:sb,z=i===0?-sa:i===1?ca:i===2?-sb:cb,s=dx*x+dz*z,overlap=a.w*Math.abs(x*ca-z*sa)+a.d*Math.abs(x*sa+z*ca)+b.w*Math.abs(x*cb-z*sb)+b.d*Math.abs(x*sb+z*cb)-Math.abs(s);if(overlap<=0)return null;if(overlap<depth){depth=overlap;nx=s<0?-x:x;nz=s<0?-z:z}}return{x:nx,z:nz,depth:depth+.002}}
+function carContacts(v){const a=rectFor(v),hits=[];for(const b of localStatics(a,3)){if(Math.abs(a.x-b.x)>b.w+3||Math.abs(a.z-b.z)>b.d+3)continue;const h=obbContact(a,b);if(h){h.r=b;hits.push(h)}}for(const other of vehicleList()){if(other===v||v.position.distanceTo(other.position)>5)continue;const r=rectFor(other),h=obbContact(a,r);if(h){h.other=other;h.r=r;hits.push(h)}}return hits}
 function hitPedestrians(v,speed,dt){if(Math.abs(speed)<3)return;for(const p of people){if(p.g.userData.rag||simTime<p.hitUntil)continue;if(contactCircle(p.g.position,.34,rectFor(v))){const dir=p.g.position.clone().sub(v.position).setY(0);beginFall(p.g,dir,Math.min(8,2+Math.abs(speed)*.10),p);p.hitUntil=simTime+6;p.mode='fallen';p.stun=5;if(v===car&&inCar){velocity*=.82;reactToFight(p,p.g.position);crime(24,'Pedestre atingido')}}}if(!inCar&&!player.userData.rag&&v!==car&&contactCircle(player.position,.34,rectFor(v))&&simTime-lastHit>2){lastHit=simTime;health-=15;beginFall(player,player.position.clone().sub(v.position),Math.min(7,Math.abs(speed)*.2));if(health<=0)arrested('Você foi socorrido.')}}
 function drive(dt){const slices=Math.max(1,Math.ceil(dt*120));for(let i=0;i<slices;i++)driveStep(dt/slices);updateCarFX(dt)}
 
@@ -238,12 +238,87 @@ function driveStep(dt){
 // com estáticos (physicalObstacles), outros veículos, pedestres (hitPedestrians) e limites do mapa,
 // alterando car.userData.vel / car.userData.yawRate (e `angle` se precisar desfazer rotação).
 // Também cuida de shake e crime por colisão. updateLooseVehicles(dt) anima veículos empurrados.
+// Resposta por impulso no ponto de contato (restituição + atrito de Coulomb + giro). Veículos de trânsito e
+// estacionados ganham userData.loose/vel{x,z}/spin quando atingidos; polícia é cinemática (massa infinita).
+// Sinais para o visual: car.userData.lastImpact={speed,time,x,z,nx,nz} (objeto novo a cada batida > 1,2 m/s;
+// n aponta do obstáculo para o carro) e car.userData.scrape={speed,time,x,z} enquanto raspa.
+const CAR_INERTIA=1.83,BODY_A={},BODY_B={},WALL={kind:0,im:0,ii:0,vx:0,vz:0,w:0,x:0,z:0},CP={x:0,z:0},TA=new T.Vector3();let cpx=0,cpz=0,cpn=0,slide=0;
+function massOf(v){return v.scale.x<.99?700:820}
+function wrapAngle(a){return a-Math.round(a/(Math.PI*2))*Math.PI*2}
+// Rigid-body view of a vehicle. kind 0: immovable (walls, police) · 1: player car · 2: traffic/parked (turns loose when hit).
+function bodyLoad(B,v){const u=v.userData,m=massOf(v);B.v=v;B.x=v.position.x;B.z=v.position.z;B.im=1/m;B.ii=1/(m*CAR_INERTIA);B.hit=false;
+ if(v===car&&inCar){const vel=u.vel||(u.vel={x:0,z:0});B.kind=1;B.vx=vel.x;B.vz=vel.z;B.w=u.yawRate||0}
+ else if(v!==originalCar&&!u.traffic){B.kind=0;B.im=B.ii=B.vx=B.vz=B.w=0}
+ else{B.kind=2;if(u.loose){B.vx=u.vel.x;B.vz=u.vel.z;B.w=u.spin||0}else{const t=u.traffic,sp=t&&v!==car&&!stolenCars.has(v)&&!t.align?t.actual||0:0;B.vx=Math.sin(v.rotation.y)*sp;B.vz=Math.cos(v.rotation.y)*sp;B.w=0}}
+ return B}
+function bodyStore(B){if(!B.hit||!B.kind)return;const u=B.v.userData;if(!(Math.abs(B.vx)+Math.abs(B.vz)+Math.abs(B.w)<1e4))B.vx=B.vz=B.w=0;
+ if(B.kind===1){u.vel.x=B.vx;u.vel.z=B.vz;u.yawRate=B.w;return} // driveStep re-reads vel/yawRate and derives `velocity`
+ if(!u.loose){u.loose=true;u.looseT=0;if(u.traffic)u.traffic.actual=0}const vel=u.vel||(u.vel={x:0,z:0});vel.x=B.vx;vel.z=B.vz;u.spin=B.w}
+function applyImpulse(B,jx,jz,rx,rz){if(!B.kind)return;B.vx+=jx*B.im;B.vz+=jz*B.im;B.w+=(jx*rz-jz*rx)*B.ii;B.hit=true}
+// Contact point: average of the corners of each box lying inside the other (face contact -> middle of the overlap).
+function addInside(r,o){const c=Math.cos(r.a||0),s=Math.sin(r.a||0),oc=Math.cos(o.a||0),os=Math.sin(o.a||0);for(let i=0;i<4;i++){const lx=i&1?r.w:-r.w,lz=i&2?r.d:-r.d,x=r.x+c*lx+s*lz,z=r.z-s*lx+c*lz,dx=x-o.x,dz=z-o.z;if(Math.abs(dx*oc-dz*os)<=o.w+.02&&Math.abs(dx*os+dz*oc)<=o.d+.02){cpx+=x;cpz+=z;cpn++}}}
+function contactPoint(a,b,h){cpx=cpz=cpn=0;addInside(a,b);addInside(b,a);if(cpn){CP.x=cpx/cpn;CP.z=cpz/cpn}else{const c=Math.cos(a.a||0),s=Math.sin(a.a||0),ext=a.w*Math.abs(h.x*c-h.z*s)+a.d*Math.abs(h.x*s+h.z*c)-h.depth*.5;CP.x=a.x-h.x*ext;CP.z=a.z-h.z*ext}return CP}
+// Normal impulse with restitution e (fades out below ~1 m/s) plus Coulomb friction mu; n points from B to A. Returns approach speed.
+function solveContact(A,B,nx,nz,px,pz,e,mu){const rax=px-A.x,raz=pz-A.z,rbx=px-B.x,rbz=pz-B.z;
+ let rvx=A.vx+A.w*raz-B.vx-B.w*rbz,rvz=A.vz-A.w*rax-B.vz+B.w*rbx;const vn=rvx*nx+rvz*nz;slide=Math.hypot(rvx-vn*nx,rvz-vn*nz);if(vn>=0)return 0;
+ const an=raz*nx-rax*nz,bn=rbz*nx-rbx*nz,jn=-(1+e*T.MathUtils.clamp((-vn-1)/3,0,1))*vn/(A.im+B.im+an*an*A.ii+bn*bn*B.ii);
+ applyImpulse(A,jn*nx,jn*nz,rax,raz);applyImpulse(B,-jn*nx,-jn*nz,rbx,rbz);
+ rvx=A.vx+A.w*raz-B.vx-B.w*rbz;rvz=A.vz-A.w*rax-B.vz+B.w*rbx;const vn2=rvx*nx+rvz*nz;let tx=rvx-vn2*nx,tz=rvz-vn2*nz;const st=Math.hypot(tx,tz);
+ if(st>1e-4){tx/=st;tz/=st;const at=raz*tx-rax*tz,bt=rbz*tx-rbx*tz,jt=-Math.min(st/(A.im+B.im+at*at*A.ii+bt*bt*B.ii),mu*jn);applyImpulse(A,jt*tx,jt*tz,rax,raz);applyImpulse(B,-jt*tx,-jt*tz,rbx,rbz)}
+ return -vn}
+function staticHit(v){const a=rectFor(v);for(const b of localStatics(a,3))if(Math.abs(a.x-b.x)<=b.w+3&&Math.abs(a.z-b.z)<=b.d+3&&obbContact(a,b))return true;return false}
+// Split the penetration by inverse mass; a body pinned against a static does not yield.
+function separate(A,B,nx,nz,d){let share=B.kind?B.im/(A.im+B.im):0;if(share){const q=B.v.position;q.x-=nx*d*share;q.z-=nz*d*share;if(staticHit(B.v)){q.x+=nx*d*share;q.z+=nz*d*share;share=0}else B.hit=true}const p=A.v.position;p.x+=nx*d*(1-share);p.z+=nz*d*(1-share);A.hit=true}
+function reportImpact(sp,x,z,nx,nz,byPlayer){const u=car.userData;if(slide>1.5){const s=u.scrape||(u.scrape={});s.speed=slide;s.time=simTime;s.x=x;s.z=z}if(sp<1.2)return;
+ shake=Math.max(shake,Math.min(.22,sp*.01));const li=u.lastImpact;if(!li||li.time!==simTime||li.speed<sp)u.lastImpact={speed:sp,time:simTime,x,z,nx,nz};
+ if(byPlayer&&sp>8&&simTime-crimeCollision>2){crimeCollision=simTime;crime(9,'Colisão perigosa')}}
+// Resolve one contact of vehicle v (from carContacts): impulse, then positional separation.
+function collidePair(v,c,byPlayer){const a=rectFor(v),r=c.other?rectFor(c.other):c.r,h=obbContact(a,r);if(!h)return 0;
+ const A=bodyLoad(BODY_A,v),B=c.other?bodyLoad(BODY_B,c.other):WALL,p=contactPoint(a,r,h),px=p.x,pz=p.z,hit=solveContact(A,B,h.x,h.z,px,pz,c.other?.3:.2,c.other?.35:.45);
+ separate(A,B,h.x,h.z,h.depth);bodyStore(A);bodyStore(B);if(A.kind===1||B.kind===1){const s=A.kind===1?1:-1;reportImpact(hit,px,pz,h.x*s,h.z*s,byPlayer)}return hit}
 function moveCar(dt,oldAngle){
- if(carContacts(car).length){angle=oldAngle;car.rotation.y=angle}
- const vel=car.userData.vel,sp=Math.hypot(vel.x,vel.z);
- const steps=Math.max(1,Math.ceil(sp*dt/.22));for(let i=0;i<steps;i++){const old=car.position.clone(),speedBefore=sp;car.position.x+=vel.x*dt/steps;car.position.z+=vel.z*dt/steps;let hits=carContacts(car);if(hits.length){for(let k=0;k<3;k++){for(const h of hits){car.position.x+=h.x*h.depth;car.position.z+=h.z*h.depth}hits=carContacts(car)}const h=carContacts(car)[0];if(h)car.position.copy(old);const travel=car.position.clone().sub(old);const solid=travel.length()<speedBefore*dt/steps*.45;const f=solid?-.12:.55;vel.x*=f;vel.z*=f;shake=Math.min(.22,speedBefore*.009);if(simTime-crimeCollision>2&&speedBefore>8){crimeCollision=simTime;crime(9,'Colisão perigosa')}break}hitPedestrians(car,velocity,dt/steps);if(Math.abs(car.position.x)>259.7||Math.abs(car.position.z)>259.7){car.position.x=T.MathUtils.clamp(car.position.x,-259.7,259.7);car.position.z=T.MathUtils.clamp(car.position.z,-259.7,259.7);vel.x*=-.12;vel.z*=-.12;car.userData.slip=0;break}}
+ const u=car.userData,vel=u.vel||(u.vel={x:0,z:0}),p=car.position;if(!(Math.abs(vel.x)+Math.abs(vel.z)<1e4))vel.x=vel.z=0;
+ const steps=Math.max(1,Math.ceil(Math.hypot(vel.x,vel.z)*dt/.22)),h=dt/steps;
+ for(let i=0;i<steps;i++){const ox=p.x,oz=p.z;p.x+=vel.x*h;p.z+=vel.z*h;
+  let hits=carContacts(car);for(let k=0;k<4&&hits.length;k++){for(const c of hits)collidePair(car,c,true);hits=carContacts(car)}
+  // Still wedged after the iterations: fall back to the last safe pose (and undo this step's rotation if needed).
+  if(hits.some(c=>c.depth>.03)){p.x=ox;p.z=oz;if(carContacts(car).length){angle=oldAngle;car.rotation.y=angle;u.yawRate=0}}
+  hitPedestrians(car,Math.hypot(vel.x,vel.z),h);
+  if(Math.abs(p.x)>259.7){const s=Math.sign(p.x);p.x=s*259.7;if(vel.x*s>0)vel.x*=-.2;u.slip=0}
+  if(Math.abs(p.z)>259.7){const s=Math.sign(p.z);p.z=s*259.7;if(vel.z*s>0)vel.z*=-.2;u.slip=0}}
+ if(!(Math.abs(u.yawRate)<50))u.yawRate=0;
 }
-function updateLooseVehicles(dt){}
+// Pushed vehicles slide freely: axle friction (strong lateral grip, weak rolling), collisions, until they stop.
+function updateLooseVehicles(dt){
+ for(const v of vehicleList()){const u=v.userData;if(v===car&&inCar){u.loose=false;continue}if(!u.loose)continue;
+  const vel=u.vel,p=v.position,m=massOf(v),im=1/m,ii=1/(m*CAR_INERTIA),kl=im+1.44*ii,steps=Math.max(Math.ceil(dt*120),Math.ceil(Math.hypot(vel.x,vel.z)*dt/.22)),h=dt/steps,grip=.9*9.81*m*.5*h;
+  for(let i=0;i<steps;i++){const s=Math.sin(v.rotation.y),c=Math.cos(v.rotation.y);let vf=vel.x*s+vel.z*c,vl=vel.x*c-vel.z*s,w=u.spin||0;
+   for(let k=-1.2;k<2;k+=2.4){const j=-T.MathUtils.clamp((vl+w*k)/kl,-grip,grip);vl+=j*im;w+=j*k*ii}
+   const roll=(2.4+.3*Math.abs(vf))*h;vf=Math.abs(vf)<=roll?0:vf-Math.sign(vf)*roll;w*=1-h*.8;
+   vel.x=vf*s+vl*c;vel.z=vf*c-vl*s;u.spin=w;
+   const ox=p.x,oz=p.z,oa=v.rotation.y;p.x+=vel.x*h;p.z+=vel.z*h;v.rotation.y+=w*h;
+   let hits=carContacts(v);for(let k=0;k<3&&hits.length;k++){for(const q of hits)collidePair(v,q,false);hits=carContacts(v)}
+   if(hits.some(q=>q.depth>.03)){p.x=ox;p.z=oz;v.rotation.y=oa}
+   hitPedestrians(v,Math.hypot(vel.x,vel.z),h);
+   if(Math.abs(p.x)>264){const s=Math.sign(p.x);p.x=s*264;if(vel.x*s>0)vel.x*=-.2}if(Math.abs(p.z)>264){const s=Math.sign(p.z);p.z=s*264;if(vel.z*s>0)vel.z*=-.2}}
+  const roll=vel.x*Math.sin(v.rotation.y)+vel.z*Math.cos(v.rotation.y);for(const wh of u.wheels)wh.w.rotation.x+=roll*dt*2;
+  u.looseT=(u.looseT||0)+dt;if(Math.hypot(vel.x,vel.z)<.15&&Math.abs(u.spin)<.15||u.looseT>12){vel.x=vel.z=0;u.spin=0;u.loose=false;if(u.traffic)u.traffic.align=1}}
+}
+// After a crash a traffic car picks the closest lane/heading and eases back into it before driving again.
+function alignTraffic(t,dt){const g=t.g,p=g.position;
+ if(t.align===1){let best=1e9;for(let axis=0;axis<2;axis++){const lat=axis?p.z:p.x,road=roads.reduce((a,b)=>Math.abs(b-lat)<Math.abs(a-lat)?b:a);for(let dir=-1;dir<2;dir+=2){const lane=axis?road-dir*4:road+dir*4,cost=Math.abs(lat-lane)+4*Math.abs(wrapAngle((axis?dir*Math.PI/2:dir<0?Math.PI:0)-g.rotation.y));if(cost<best){best=cost;t.axis=axis;t.dir=dir;t.road=road}}}t.align=2;t.stuck=0}
+ const ra=t.axis?t.dir*Math.PI/2:t.dir<0?Math.PI:0,lane=t.axis?t.road-t.dir*4:t.road+t.dir*4,el=lane-(t.axis?p.z:p.x),ea=wrapAngle(ra-g.rotation.y),ox=p.x,oz=p.z,oa=g.rotation.y;
+ // Close enough: snap. Off the road or blocked for a while: once the player is far away, drop it on a free spot of the lane.
+ const far=(Math.abs(el)>8||t.stuck>3)&&p.distanceTo(actorPos())>130;
+ if(Math.abs(el)<.03&&Math.abs(ea)<.01||far){let ok=false;for(let o=0;o<(far?5:1)&&!ok;o++){const s=(o+1>>1)*(o&1?6:-6);if(t.axis){p.z=lane;p.x=ox+s}else{p.x=lane;p.z=oz+s}g.rotation.y=ra;ok=!carContacts(g).length}
+  if(ok){t.align=0;t.actual=0;t.stuck=0}else{p.x=ox;p.z=oz;g.rotation.y=oa;t.stuck+=dt}}
+ else if(Math.abs(el)>8)t.stuck+=dt;
+ else{const k=1-Math.exp(-dt*2.5),ml=Math.sign(el)*Math.min(Math.abs(el),T.MathUtils.clamp(Math.abs(el)*k,.3*dt,1.6*dt)),ma=Math.sign(ea)*Math.min(Math.abs(ea),T.MathUtils.clamp(Math.abs(ea)*k,.12*dt,1.1*dt)),mf=1.2*dt*t.dir*(t.creep||1);
+  // Slide and turn together; if that touches something try each alone, then creep along the lane to get clear.
+  let o=0;for(;o<5;o++){const l=o<2?ml:0,a=o===0||o===2?ma:0,f=o===3?mf:o===4?-mf:0;if(!l&&!a&&!f)continue;if(t.axis){p.z=oz+l;p.x=ox+f}else{p.x=ox+l;p.z=oz+f}g.rotation.y=oa+a;if(!carContacts(g).length)break}
+  if(o===4)t.creep=-(t.creep||1);if(o<3)t.stuck=Math.max(0,t.stuck-dt);else t.stuck+=dt;if(o===5){p.x=ox;p.z=oz;g.rotation.y=oa}}
+ t.pos=t.axis?p.x:p.z;
+}
 // ===== FIM COLISÃO =====
 
 // ===== VISUAL DO CARRO =====
@@ -253,7 +328,7 @@ function updateCarFX(dt){
  const fx=car.userData.fx||{};car.userData.body.rotation.z=T.MathUtils.lerp(car.userData.body.rotation.z,-steer*velocity*.0017,dt*6);for(const w of car.userData.wheels){w.w.rotation.x+=velocity*dt*2;if(w.front)w.pivot.rotation.y=fx.steerAngle||0}cam.fov=T.MathUtils.lerp(cam.fov,fx.turbo?72:58,dt*2);cam.updateProjectionMatrix();
 }
 // ===== FIM VISUAL DO CARRO =====
-function updateTraffic(dt){for(const t of traffic){if(t.g===car||stolenCars.has(t.g))continue;t.g.rotation.y=t.axis?t.dir*Math.PI/2:t.dir<0?Math.PI:0;const dir=new T.Vector3(Math.sin(t.g.rotation.y),0,Math.cos(t.g.rotation.y)),ahead=t.g.position.clone().addScaledVector(dir,5);let caution=vehicleList().some(v=>v!==t.g&&v.position.distanceTo(ahead)<3.4)||people.some(p=>!p.g.userData.rag&&p.g.position.distanceTo(ahead)<2)||(!inCar&&player.position.distanceTo(ahead)<2);t.actual=T.MathUtils.lerp(t.actual??t.speed,caution?0:t.speed,Math.min(1,dt*(caution?9:2)));const steps=Math.max(1,Math.ceil(t.actual*dt/.3));for(let i=0;i<steps;i++){const old=t.g.position.clone();t.g.position.addScaledVector(dir,t.actual*dt/steps);if(carContacts(t.g).length){t.g.position.copy(old);t.actual=0;break}hitPedestrians(t.g,t.actual,dt/steps)}t.pos=t.axis?t.g.position.x:t.g.position.z;if(Math.abs(t.pos)>266){t.pos=-Math.sign(t.pos)*265;t.g.position.set(t.axis?t.pos:t.road+t.dir*4,0,t.axis?t.road-t.dir*4:t.pos)}for(const w of t.g.userData.wheels)w.w.rotation.x+=t.actual*dt*2;}}
+function updateTraffic(dt){for(const t of traffic){const g=t.g,u=g.userData;u.traffic=t;if(g===car||stolenCars.has(g))continue;if(u.loose){t.actual=0;t.align=1;continue}if(t.align){alignTraffic(t,dt);continue}const ra=t.axis?t.dir*Math.PI/2:t.dir<0?Math.PI:0;g.rotation.y=ra;const dx=Math.sin(ra),dz=Math.cos(ra),ahead=TA.set(g.position.x+dx*5,0,g.position.z+dz*5);let caution=vehicleList().some(v=>v!==g&&v.position.distanceTo(ahead)<3.4)||people.some(p=>!p.g.userData.rag&&p.g.position.distanceTo(ahead)<2)||(!inCar&&player.position.distanceTo(ahead)<2);t.actual=T.MathUtils.lerp(t.actual??t.speed,caution?0:t.speed,Math.min(1,dt*(caution?9:2)));const steps=Math.max(1,Math.ceil(t.actual*dt/.3));for(let i=0;i<steps;i++){const ox=g.position.x,oz=g.position.z;g.position.x+=dx*t.actual*dt/steps;g.position.z+=dz*t.actual*dt/steps;const hits=carContacts(g);if(hits.length){g.position.x=ox;g.position.z=oz;if(t.actual>2.5&&hits.some(h=>h.other)){const vel=u.vel||(u.vel={x:0,z:0});vel.x=dx*t.actual;vel.z=dz*t.actual;u.spin=0;u.loose=true;u.looseT=0;t.align=1}t.actual=0;break}hitPedestrians(g,t.actual,dt/steps)}t.pos=t.axis?g.position.x:g.position.z;if(Math.abs(t.pos)>266){t.pos=-Math.sign(t.pos)*265;g.position.set(t.axis?t.pos:t.road+t.dir*4,0,t.axis?t.road-t.dir*4:t.pos)}for(const w of u.wheels)w.w.rotation.x+=t.actual*dt*2;}}
 function walk(dt){if(updateFall(player,dt))return;const turn=(keys.a||keys.ArrowLeft?1:0)-(keys.d||keys.ArrowRight?1:0);heading+=turn*dt*2.6;const dir=(keys.w||keys.ArrowUp?1:0)-(keys.s||keys.ArrowDown?1:0),speed=player.userData.stagger>0?0:dir*(keys[' ']?2:keys.Shift&&!cargo?10:5)*(player.userData.attack?.6:1);moveActor(player,Math.sin(heading)*speed*dt,Math.cos(heading)*speed*dt);player.rotation.y=heading;animatePerson(player,Math.abs(speed),simTime);if(keys[' ']&&!player.userData.attack){for(let i=0;i<2;i++){player.userData.arms[i].rotation.x=-1.15;player.userData.elbows[i].rotation.x=-1.8}}distance+=Math.abs(speed)*dt;heldBox.visible=cargo;cam.fov=T.MathUtils.lerp(cam.fov,58,dt*3);cam.updateProjectionMatrix();}
 function resetLivingState(){if(player.userData.rag){player.userData.rag.visual.group.visible=false;player.userData.rag=null;player.userData.rig.visible=true}player.userData.attack=null;player.userData.stagger=0;for(const p of people){p.calmAfterFall=true;p.fear=0;p.moodUntil=0;p.g.userData.attack=null;if(!p.g.userData.rag){p.mode='rest';p.taskUntil=simTime+3}}}
 // Existing world assets become collidable at their actual footprints.
