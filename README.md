@@ -30,6 +30,7 @@ Baixe `index.html` e abra no Chrome, Edge ou Firefox com WebGL habilitado. O arq
 - Marcas de pneu que ficam no asfalto e fumaça nas derrapagens fortes.
 - Câmera que acompanha a derrapagem com leve atraso e abre o campo de visão com a velocidade e o turbo.
 - Som opcional (botão SOM): motor com troca de marchas, pneus cantando e batidas.
+- Corrida de rua com aposta: pare o Fusca no anel laranja à frente do ponto inicial e aperte E. Aposta até R$ 100 (a primeira corrida sem dinheiro vale R$ 40); passe pelos checkpoints antes do rival para levar o dobro.
 - Cidade aberta, praia, trânsito, pedestres e minimapa.
 - Entregas pagas e interações com moradores.
 - Moradores com rotinas, temperamentos e reações a confusões.
