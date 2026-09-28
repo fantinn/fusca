@@ -209,8 +209,9 @@ function drive(dt){const slices=Math.max(1,Math.ceil(dt*120));for(let i=0;i<slic
 // saturating curve, throttle/brake eat into the friction circle. Arcade assists fade out while the handbrake works.
 // Car frame: u forward, v left, r>0 turns left. slipAngle = rear-axle sideslip (0 rolling clean, <0 = tail out to the right).
 // SI units. a/b: CG to front/rear axle, h: load shift per m/s², vMin: slip-angle speed floor, hb*: handbrake,
-// esc: yaw pull-back (N·m/rad), tract: throttle that saturates the rear friction circle, corner*: slowdown on full lock.
-const CAR={m:820,I:1500,L:2.4,a:1.44,b:.96,cg:.24,h:.005,mu:2.5,off:.7,rear:1.06,Bf:16,Br:14,shape:1.3,lock:.6,vMin:4,acc:23,turbo:39,brake:48,rev:15,revMax:13,vmax:57,vmaxTurbo:83,drag:.24,dragOff:.8,roll:.35,hbGrip:.55,hbBrake:4,hbTorque:2000,hbRecover:6,latDamp:2.4,counter:.55,esc:16000,tract:60,tractMin:.15,cornerDecel:40,cornerRate:3.2,yawFollow:1,yawCenter:4,hbYaw:.05,hbStick:.8},drv={car:null,vel:0,angle:0,t:-1,grip:1,hold:0,ax:0,al:0,at:0};
+// esc: yaw pull-back (N·m/rad), tract: throttle that saturates the rear friction circle, corner*: slowdown on full lock,
+// imp*: post-crash assist fade (s) and tyre grip cut while skidding.
+const CAR={m:820,I:1500,L:2.4,a:1.44,b:.96,cg:.24,h:.005,mu:2.5,off:.7,rear:1.06,Bf:16,Br:14,shape:1.3,lock:.6,vMin:4,acc:23,turbo:39,brake:48,rev:15,revMax:13,vmax:57,vmaxTurbo:83,drag:.24,dragOff:.8,roll:.35,hbGrip:.55,hbBrake:4,hbTorque:2000,hbRecover:6,latDamp:2.4,counter:.55,esc:16000,tract:60,tractMin:.15,cornerDecel:40,cornerRate:3.2,yawFollow:1,yawCenter:4,hbYaw:.05,hbStick:.8,impHold:.5,impGrip:.25},drv={car:null,vel:0,angle:0,t:-1,grip:1,hold:0,ax:0,al:0,at:0};
 // Lateral force / (mu*load): linear at small slip, peaks near 2.4/B rad, then sags ~11%.
 const tyreCurve=(al,B)=>Math.sin(CAR.shape*Math.atan(B*al));
 function driveStep(dt){
@@ -226,14 +227,18 @@ function driveStep(dt){
  const s=Math.sin(angle),c=Math.cos(angle);let r=ud.yawRate||0;
  // The CG sits K.cg behind the model origin: v_cg = v_origin - cg*r*left, left=(cos,-sin).
  const gx0=ud.vel.x-K.cg*r*c,gz0=ud.vel.z+K.cg*r*s;let u=gx0*s+gz0*c,v=gx0*c-gz0*s;const u0=u;
- const speed=Math.hypot(u,v),amount=Math.abs(steer),mu=K.mu*(offroad?K.off:1);
+ const speed=Math.hypot(u,v),amount=Math.abs(steer),mu=K.mu*(offroad?K.off:1),us=Math.max(Math.abs(u),.1);
+ // After a crash (collision stamps ud.lastImpact) the tyres, not the assists, bleed off the slide and spin: kinematic
+ // blend and yaw/slip assists fade out for ~1 s, up to 2 s while the car still slides against its kinematic motion.
+ const ti=ud.lastImpact?simTime-ud.lastImpact.time:9,off0=Math.max(Math.abs(v-K.b*r),1.2*Math.abs(r-M.clamp(u/K.L*Math.tan(steer*K.lock),-1.1*mu*g/us,1.1*mu*g/us)));
+ const post=ti>=0&&ti<2?Math.max(1-M.smoothstep(ti,K.impHold,K.impHold+.4),(1-M.smoothstep(ti,1.5,2))*M.smoothstep(off0,.8,2.5)):0,free=1-post;
  // Handbrake drops rear grip quickly; releasing brings it back smoothly.
  drv.grip+=((hand&&speed>1.5?K.hbGrip:1)-drv.grip)*(1-Math.exp(-dt*(hand?9:K.hbRecover)));
  const hb=(1-drv.grip)/(1-K.hbGrip),assist=1-hb,rearSlip=u>2?Math.atan2(v-K.b*r,u):0;
  // Speed-sensitive lock (full lock ~ grip limit at speed). Once the tail steps out the front wheels swing
  // towards the front-axle velocity (auto counter-steer) and the key only trims around it.
- const us=Math.max(Math.abs(u),.1),lock=Math.min(K.lock,1.1*K.L*mu*g/(us*us)+.09);
- const slideW=M.clamp((Math.abs(rearSlip)-.08)/.25,0,1)*(K.counter*assist+.35),frontVel=u>2?Math.atan2(v+K.a*r,u):0;
+ const lock=Math.min(K.lock,1.1*K.L*mu*g/(us*us)+.09);
+ const slideW=M.clamp((Math.abs(rearSlip)-.08)/.25,0,1)*(K.counter*assist+.35)*free,frontVel=u>2?Math.atan2(v+K.a*r,u):0;
  const delta=M.clamp((1-slideW)*steer*lock+slideW*(frontVel+.4*steer*lock),-K.lock,K.lock);
  // Drive/brake demand (m/s²). Braking to a stop holds briefly before reverse engages.
  const vmax=turbo?K.vmaxTurbo:K.vmax,cornerSpeed=(turbo?28:18)+65*Math.pow(1-amount,2);drv.hold=Math.max(0,drv.hold-dt);
@@ -246,24 +251,24 @@ function driveStep(dt){
  const tu=Math.min(.7,Math.abs(accel)/K.tract*M.clamp(speed/6,0,1)),bu=brake?.45:0,fCap=Math.sqrt(1-bu*bu),rCap=Math.sqrt(1-tu*tu)*fCap*drv.grip;
  const cd=Math.cos(delta),sd=Math.sin(delta),vf=v+K.a*r,wx=u*cd+vf*sd,wy=vf*cd-u*sd;
  const af=Math.atan2(wy,Math.max(Math.abs(wx),K.vMin)),ar=Math.atan2(v-K.b*r,Math.max(Math.abs(u),K.vMin));
- const Ff=-mu*Nf*fCap*tyreCurve(af,K.Bf),Fr=-mu*Nr*K.rear*rCap*tyreCurve(ar,K.Br*(.6+.4*drv.grip));
+ const muT=mu*(1-K.impGrip*post),Ff=-muT*Nf*fCap*tyreCurve(af,K.Bf),Fr=-muT*Nr*K.rear*rCap*tyreCurve(ar,K.Br*(.6+.4*drv.grip));
  // Yaw moment: tyres + a nudge towards the steer while the handbrake is on + ESC-like pull out of big slides.
- let Mz=K.a*Ff*cd-K.b*Fr+hb*steer*K.hbTorque*Math.min(1,speed/8)*(u<0?-1:1)+K.esc*assist*assist*Math.sign(rearSlip)*Math.max(0,Math.abs(rearSlip)-.1);
+ let Mz=K.a*Ff*cd-K.b*Fr+hb*steer*K.hbTorque*Math.min(1,speed/8)*(u<0?-1:1)+K.esc*assist*assist*free*Math.sign(rearSlip)*Math.max(0,Math.abs(rearSlip)-.1);
  // Resistances never reverse the motion: drag, rolling, brakes and the locked rear axle.
  const drag=offroad?K.dragOff:K.drag,stopA=brake+K.roll+hb*K.hbBrake;
  drv.ax+=(accel-Ff*sd/K.m-drag*u-Math.sign(u)*stopA-drv.ax)*(1-Math.exp(-dt*6)); // pitch lag for load transfer
  u+=(accel-Ff*sd/K.m)*dt;v+=(Ff*cd+Fr)/K.m*dt;r+=Mz/K.I*dt;
  u*=Math.exp(-dt*drag);u=Math.sign(u)*Math.max(0,Math.abs(u)-stopA*dt);
  // Arcade: damp rear sideslip (keeping most of the speed) and ease off a committed high-speed turn.
- const vs=v-K.b*r,vs2=vs*Math.exp(-dt*K.latDamp*(offroad?.5:1)*(K.hbStick+(1-K.hbStick)*assist));
+ const vs=v-K.b*r,vs2=vs*Math.exp(-dt*K.latDamp*(offroad?.5:1)*(K.hbStick+(1-K.hbStick)*assist)*free);
  if(Math.abs(u)>1)u=Math.sign(u)*Math.sqrt(u*u+.7*(vs*vs-vs2*vs2));v+=vs2-vs;
  if(u>cornerSpeed&&amount>.2&&hb<.5)u-=Math.min((u-cornerSpeed)*(1-Math.exp(-dt*K.cornerRate*amount)),Math.max(8,K.cornerDecel-drag*u)*dt);
  // Yaw follows the front wheels (grip-limited), firmly once the key is released so the car settles.
- if(u>2){const ry=M.clamp(u/K.L*Math.tan(delta),-mu*g/u,mu*g/u);r+=(ry-r)*(1-Math.exp(-dt*(input?K.yawFollow:K.yawCenter)*assist))}
+ if(u>2){const ry=M.clamp(u/K.L*Math.tan(delta),-mu*g/u,mu*g/u);r+=(ry-r)*(1-Math.exp(-dt*(input?K.yawFollow:K.yawCenter)*assist*free))}
  // Low speed: blend into the kinematic bicycle so it neither spins in place nor jitters.
- const rk=M.clamp(u/K.L*Math.tan(steer*K.lock),-1.1*mu*g/us,1.1*mu*g/us),wk=Math.max(1-M.smoothstep(Math.abs(u),1,5),u<-1?(hand?.3:.9):0);
+ const rk=M.clamp(u/K.L*Math.tan(steer*K.lock),-1.1*mu*g/us,1.1*mu*g/us),wk=free*Math.max(1-M.smoothstep(Math.abs(u),1,5),u<-1?(hand?.3:.9):0);
  if(wk>0){const e=1-Math.exp(-dt*40*wk);r+=(rk-r)*e;v+=(K.b*rk-v)*e}
- const rmax=2.5/(1+speed*.012)*(1+K.hbYaw*hb);if(Math.abs(r)>rmax)r+=(Math.sign(r)*rmax-r)*(1-Math.exp(-dt*10));
+ const rmax=2.5/(1+speed*.012)*(1+K.hbYaw*hb+post);if(Math.abs(r)>rmax)r+=(Math.sign(r)*rmax-r)*(1-Math.exp(-dt*10));
  if(u>vmax)u=u0<=vmax?vmax:vmax+(u-vmax)*Math.exp(-dt*.6);if(u<-K.revMax)u=-K.revMax;
  if(!accel&&Math.hypot(u,v)<.05&&Math.abs(r)<.05)u=v=r=0;
  if(!Number.isFinite(u+v+r))u=v=r=0;
