@@ -36,6 +36,9 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 - Som opcional (botão SOM): motor com troca de marchas, pneus cantando e batidas.
 - Corrida de rua com aposta: pare o Fusca no anel laranja à frente do ponto inicial e aperte E. Aposta até R$ 100 (a primeira corrida sem dinheiro vale R$ 40); passe pelos checkpoints antes do rival para levar o dobro.
 - Cidade aberta, praia, trânsito, pedestres e minimapa.
+- Serra do Sol ao norte: três montanhas acessíveis, estrada sinuosa, mirantes, terreno livre e altitude no painel. Siga ao norte pela avenida central (x=0), pela avenida x=216 ou pelo bairro leste (x=518).
+- Quebra-molas listrados em dez pontos da cidade, com elevação real e reação da suspensão.
+- Carros acompanham a inclinação do terreno nas quatro rodas; subidas seguram a velocidade, descidas aceleram e a câmera evita entrar nas encostas.
 - Ciclo de dia e noite (um dia dura 6 minutos): pôr do sol no mar, lua e estrelas, postes, janelas e faróis acesos à noite.
 - Semáforos em todos os cruzamentos; o trânsito para no vermelho.
 - Bairro novo a leste, do outro lado de um canal, ligado por uma ponte estaiada na avenida central, com roda-gigante no parque.
