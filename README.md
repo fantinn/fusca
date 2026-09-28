@@ -32,6 +32,7 @@ Baixe `index.html` e abra no Chrome, Edge ou Firefox com WebGL habilitado. O arq
 - Som opcional (botão SOM): motor com troca de marchas, pneus cantando e batidas.
 - Corrida de rua com aposta: pare o Fusca no anel laranja à frente do ponto inicial e aperte E. Aposta até R$ 100 (a primeira corrida sem dinheiro vale R$ 40); passe pelos checkpoints antes do rival para levar o dobro.
 - Cidade aberta, praia, trânsito, pedestres e minimapa.
+- Bairro novo a leste, do outro lado de um canal, ligado por uma ponte estaiada na avenida central, com roda-gigante no parque.
 - Entregas pagas e interações com moradores.
 - Moradores com rotinas, temperamentos e reações a confusões.
 - Combate com alcance, direção, defesa e perda gradual de equilíbrio. Um soco não mata nem derruba automaticamente; quedas são temporárias.
