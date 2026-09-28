@@ -85,7 +85,7 @@ $('start').onclick=start;$('resume').onclick=pause;$('pause').onclick=pause;$('r
 addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();const k=e.key.length===1?e.key.toLowerCase():e.key;keys[k]=true;if(e.repeat)return;if(k==='Escape')pause();if(k==='Enter'&&!started)start();if(started&&!paused)actions[k]?.()});addEventListener('keyup',e=>keys[e.key.length===1?e.key.toLowerCase():e.key]=false);addEventListener('blur',()=>{keysClear();if(started&&!paused)pause()});
 for(const b of document.querySelectorAll('[data-key]')){b.onpointerdown=e=>{e.preventDefault();b.setPointerCapture(e.pointerId);if(!started)start();keys[b.dataset.key]=true};b.onpointerup=b.onpointercancel=()=>keys[b.dataset.key]=false}
 for(const b of document.querySelectorAll('[data-action]'))b.onclick=()=>actions[b.dataset.action]?.();
-let ac,osc,gain,sound=false;function audioStart(){if(!sound)return;if(!ac){ac=new AudioContext();osc=ac.createOscillator();gain=ac.createGain();osc.type='sawtooth';gain.gain.value=.018;osc.connect(gain).connect(ac.destination);osc.start()}ac.resume()}$('sound').onclick=()=>{sound=!sound;$('sound').textContent=sound?'SOM ON':'SOM OFF';audioStart();if(gain)gain.gain.value=sound?.018:0};
+let ac,osc,gain,sound=false,aud=null;function audioStart(){if(!sound)return;if(!ac){ac=new AudioContext();gain=ac.createGain();gain.gain.value=0;gain.connect(ac.destination);const node=(type,props)=>Object.assign(ac['create'+type](),props),osc2=node('Oscillator',{type:'square'}),lp=node('BiquadFilter',{type:'lowpass'}),eng=node('Gain'),sub=node('Gain'),whine=node('Oscillator',{type:'sine'}),whG=node('Gain'),noise=node('BufferSource',{loop:true}),bp=node('BiquadFilter',{type:'bandpass'}),sq=node('Gain'),crLp=node('BiquadFilter',{type:'lowpass'}),cr=node('Gain'),th=node('Oscillator',{type:'sine'}),thG=node('Gain'),lfo=node('Oscillator',{type:'sine'}),lfoG=node('Gain');osc=node('Oscillator',{type:'sawtooth'});lp.Q.value=1.4;sub.gain.value=.55;bp.Q.value=9;crLp.frequency.value=1100;for(const g of [eng,whG,sq,cr,thG,lfoG])g.gain.value=0;const buf=ac.createBuffer(1,ac.sampleRate,ac.sampleRate),d=buf.getChannelData(0);for(let k=0;k<d.length;k++)d[k]=Math.random()*2-1;noise.buffer=buf;osc.connect(lp);osc2.connect(sub).connect(lp);lp.connect(eng).connect(gain);whine.connect(whG).connect(gain);noise.connect(bp).connect(sq).connect(gain);noise.connect(crLp).connect(cr).connect(gain);th.connect(thG).connect(gain);lfo.connect(lfoG).connect(eng.gain);for(const o of [osc,osc2,whine,noise,th,lfo])o.start();aud={sub:osc2,lp,eng,whine,whG,bp,sq,cr,th,thG,lfo,lfoG}}ac.resume()}$('sound').onclick=()=>{sound=!sound;$('sound').textContent=sound?'SOM ON':'SOM OFF';audioStart();if(gain)gain.gain.value=0};
 const map=$('map').getContext('2d');function dot(pos,color,r=3){map.fillStyle=color;map.beginPath();map.arc(90+pos.x*.31,90+pos.z*.31,r,0,Math.PI*2);map.fill()}
 function drawMap(){map.fillStyle='#8ca894';map.fillRect(0,0,180,180);map.fillStyle='#62acbc';map.fillRect(0,0,12,180);map.strokeStyle='#d4d2b9';map.lineWidth=4;for(const r of roads){let q=90+r*.31;map.beginPath();map.moveTo(q,0);map.lineTo(q,180);map.moveTo(0,q);map.lineTo(180,q);map.stroke()}for(const t of traffic)dot(t.g.position,'#f4e8c3',1);dot(depot,'#ffdb64',4);dot(shop,'#f59365',3);if(cargo)dot(destination(),'#43ffc4',4);if(dropped)dot(dropped,'#43ffc4',4);if(!inCar)dot(car.position,'#ffe488',3);for(const p of police){dot(p.g.position,'#ff4b66',3);dot(p.v.position,'#487dff',3)}const pos=actorPos();map.save();map.translate(90+pos.x*.31,90+pos.z*.31);map.rotate(-(inCar?angle:heading));map.fillStyle='#fff';map.strokeStyle='#25444b';map.lineWidth=2;map.beginPath();map.moveTo(0,7);map.lineTo(-5,-5);map.lineTo(5,-5);map.closePath();map.fill();map.stroke();map.restore()}
 function updateHUD(){updateResidentTags();document.body.classList.toggle('onfoot',!inCar);const pos=actorPos();$('speed').textContent=inCar?String(Math.round(Math.abs(velocity)*3.6)).padStart(3,'0'):'A PÉ';$('nitro').style.width=nitro+'%';$('distance').textContent=(distance/1000).toFixed(2)+' KM EXPLORADOS';$('cash').textContent='R$ '+cash;$('health').textContent='VIDA '+Math.round(health)+'%';$('wanted').textContent=wanted?'★'.repeat(wanted)+'☆'.repeat(3-wanted):'☆☆☆';$('wanted').classList.toggle('hot',wanted>0);$('heatbar').style.width=heat+'%';$('lawstatus').textContent=arrest>0?'DETENÇÃO '+Math.round(arrest/2.4*100)+'%':wanted?(escapedFor>0?'DESPISTANDO…':'POLÍCIA NA SUA COLA'):heat>0?'INFRAÇÕES '+Math.round(heat)+'/50':'SEM OCORRÊNCIAS';$('inventory').textContent=(cargo?'ENCOMENDA EM MÃOS':dropped?'ENCOMENDA NO CHÃO':'SEM ENCOMENDA')+(stolenGoods?' • FURTOS '+stolenGoods:'');$('mission').textContent=cargo?'Entregue no ponto verde • '+Math.round(pos.distanceTo(destination()))+' m':dropped?'Recupere sua encomenda • '+Math.round(pos.distanceTo(dropped))+' m':'Balcão amarelo: pegue uma entrega • '+Math.round(pos.distanceTo(depot))+' m';$('delivered').textContent=missionCount+' ENTREGAS';$('hint').textContent=inCar?'E • Descer do carro (pare primeiro)':cargo&&pos.distanceTo(destination())<4?'E • Entregar encomenda (+R$ 120)':dropped&&pos.distanceTo(dropped)<3?'E • Pegar encomenda':!cargo&&!dropped&&pos.distanceTo(depot)<4?'E • Pegar entrega':nearestVehicle()?'E • '+(nearestVehicle()===originalCar?'Entrar no seu Fusca':'Furtar este carro'):nearestPerson()?'E • Conversar   Q • Socar   Espaço • Defender':pos.distanceTo(shop)<4?'F • Furtar mercadoria':'W/S • Andar   A/D • Virar   Q • Soco   Espaço • Defender';drawMap()}
@@ -376,9 +376,90 @@ function alignTraffic(t,dt){const g=t.g,p=g.position;
 // ===== VISUAL DO CARRO =====
 // Contrato: updateCarFX(dt) só lê o estado (car.userData.fx, vel, velocity, angle) e cuida de
 // visual/áudio: rodas, rolagem/arfagem da carroceria, marcas de pneu, fumaça, som, FOV.
+// Also owns the chase-camera rig (carCam) and the engine/tyre/crash mix (carAudio). No per-frame allocations.
+const fxO=new T.Object3D(),fxC=new T.Color(),fxZero={x:0,z:0},fxPv={x:0,z:0},fxPos={x:0,z:0},fxTrail=[0,1,2,3].map(()=>({on:false,x:0,z:0})),hubBar=new T.BoxGeometry(.075,.325,.44);
+let fxCar=null,fxT=-1,fxHitT=-9,fxImpactT=-9,impactNow=0,roll=0,rollV=0,pitch=0,pitchV=0,smokeAcc=0,smokeHead=0,smokeClock=0,smokeLive=0;
+// Tyre marks: ring of flat quads multiplied over whatever surface they land on (white = invisible).
+const MARKS=1600,MARK_FADE=240,markBase=new Float32Array(MARKS),markGeo=new T.PlaneGeometry(1,1).rotateX(-Math.PI/2);
+const marks=new T.InstancedMesh(markGeo,new T.MeshBasicMaterial({transparent:true,blending:T.MultiplyBlending,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-4,toneMapped:false,fog:false}),MARKS);
+let markHead=0,markUsed=0,markLo=MARKS,markHi=-1;marks.count=0;marks.frustumCulled=false;marks.renderOrder=1;for(let i=0;i<MARKS;i++)marks.setColorAt(i,fxC.setRGB(1,1,1));marks.instanceMatrix.setUsage(T.DynamicDrawUsage);marks.instanceColor.setUsage(T.DynamicDrawUsage);scene.add(marks);
+// Height of the walkable top at (x,z): asphalt, painted edge lines, block pavement, park lawns, beach, grass.
+function groundTop(x,z){let road=false,line=false;for(const r of roads){const dx=Math.abs(x-r),dz=Math.abs(z-r);if(dx<10.6||dz<10.6){road=true;if(Math.abs(dx-10)<.6||Math.abs(dz-10)<.6)line=true}}if(road)return line?.11:.08;
+ const ix=Math.round((x+180)/72),iz=Math.round((z+180)/72);if(ix>=0&&ix<6&&iz>=0&&iz<6){const ox=Math.abs(x+180-ix*72),oz=Math.abs(z+180-iz*72);if(ox<25&&oz<25)return (ix+iz)%5===0&&ox<22&&oz<22?.325:.19}return x<-249.5?.005:-.135}
+function addMark(x0,z0,x1,z1,k){const dx=x1-x0,dz=z1-z0,len=Math.hypot(dx,dz),i=markHead;
+ fxO.position.set((x0+x1)*.5,groundTop(x1,z1),(z0+z1)*.5);fxO.rotation.set(0,Math.atan2(dx,dz),0);fxO.scale.set(.27,1,len+.015);fxO.updateMatrix();marks.setMatrixAt(i,fxO.matrix);
+ markBase[i]=k;marks.setColorAt(i,fxC.setRGB(1-k*.52,1-k*.52,1-k*.5,T.SRGBColorSpace));markLo=Math.min(markLo,i);markHi=Math.max(markHi,i);markHead=(i+1)%MARKS;if(markUsed<MARKS)marks.count=++markUsed}
+function flushMarks(){if(markHi<0)return;const m=marks.instanceMatrix,c=marks.instanceColor;
+ // Oldest segments fade out before the ring overwrites them.
+ if(markUsed===MARKS)for(let j=0;j<MARK_FADE;j++){const i=(markHead+j)%MARKS,v=1-markBase[i]*.52*(j+1)/MARK_FADE;marks.setColorAt(i,fxC.setRGB(v,v,v,T.SRGBColorSpace))}
+ m.addUpdateRange(markLo*16,(markHi-markLo+1)*16);m.needsUpdate=true;c.needsUpdate=true;markLo=MARKS;markHi=-1}
+// Tyre smoke: soft round points with per-particle size/alpha, simulated in onBeforeRender so puffs keep drifting on foot.
+const SMOKE=80,smokeP=new Float32Array(SMOKE*3),smokeSA=new Float32Array(SMOKE*2),smokeV=new Float32Array(SMOKE*3),smokeL=new Float32Array(SMOKE*3),smokeGeo=new T.BufferGeometry();
+smokeGeo.setAttribute('position',new T.BufferAttribute(smokeP,3).setUsage(T.DynamicDrawUsage));smokeGeo.setAttribute('sa',new T.BufferAttribute(smokeSA,2).setUsage(T.DynamicDrawUsage));
+const smoke=new T.Points(smokeGeo,new T.ShaderMaterial({uniforms:{scale:{value:500}},transparent:true,depthWrite:false,
+ vertexShader:'attribute vec2 sa;varying float va;uniform float scale;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mv;gl_PointSize=sa.x*scale/max(.5,-mv.z);va=sa.y;}',
+ fragmentShader:'varying float va;void main(){vec2 p=gl_PointCoord*2.-1.;float d=1.-dot(p,p);if(d<=0.)discard;gl_FragColor=vec4(.93,.92,.89,va*d*d);}'}));
+smoke.frustumCulled=false;smoke.renderOrder=2;scene.add(smoke);
+function puff(x,z,vx,vz,k){const i=smokeHead,j=i*3;smokeHead=(i+1)%SMOKE;smokeP[j]=x+(Math.random()-.5)*.3;smokeP[j+1]=.35;smokeP[j+2]=z+(Math.random()-.5)*.3;smokeV[j]=vx*.3+(Math.random()-.5)*1.6;smokeV[j+1]=.5+Math.random()*.7;smokeV[j+2]=vz*.3+(Math.random()-.5)*1.6;smokeL[j]=0;smokeL[j+1]=.9+Math.random()*.7;smokeL[j+2]=k}
+smoke.onBeforeRender=()=>{const dt=Math.min(.05,Math.max(0,simTime-smokeClock));smokeClock=simTime;if(!dt)return;
+ // Car left behind (player on foot): let the body springs settle instead of freezing mid-roll.
+ if(fxCar&&simTime-fxT>.1)springs(dt,0,0,fxCar);
+ if(!smokeLive)return;smokeLive=0;const drag=Math.exp(-dt*2.4);for(let i=0;i<SMOKE;i++){const j=i*3;if(smokeL[j]>=smokeL[j+1]){smokeSA[i*2+1]=0;continue}smokeLive++;const t=(smokeL[j]+=dt)/smokeL[j+1];
+  smokeV[j]*=drag;smokeV[j+2]*=drag;smokeV[j+1]=smokeV[j+1]*drag+.35*dt;smokeP[j]+=smokeV[j]*dt;smokeP[j+1]+=smokeV[j+1]*dt;smokeP[j+2]+=smokeV[j+2]*dt;
+  smokeSA[i*2]=1+2.6*Math.sqrt(Math.min(1,t));smokeSA[i*2+1]=smokeL[j+2]*.34*Math.min(1,t*9)*(1-t)*(1-t)}
+ smokeGeo.attributes.position.needsUpdate=smokeGeo.attributes.sa.needsUpdate=true};
+// Body roll/pitch as damped springs pivoting near axle height (kept small: cartoon but contained).
+function springs(dt,rollT,pitchT,c){const n=Math.ceil(dt/.009),h=dt/n;for(let i=0;i<n;i++){rollV+=(110*(rollT-roll)-11.5*rollV)*h;roll+=rollV*h;pitchV+=(120*(pitchT-pitch)-12*pitchV)*h;pitch+=pitchV*h}
+ roll=T.MathUtils.clamp(roll,-.085,.085);pitch=T.MathUtils.clamp(pitch,-.07,.08);const b=c.userData.body;b.rotation.set(pitch,0,roll);b.position.set(.5*Math.sin(roll),0,-.5*Math.sin(pitch))}
 function updateCarFX(dt){
- const fx=car.userData.fx||{};car.userData.body.rotation.z=T.MathUtils.lerp(car.userData.body.rotation.z,-steer*velocity*.0017,dt*6);for(const w of car.userData.wheels){w.w.rotation.x+=velocity*dt*2;if(w.front)w.pivot.rotation.y=fx.steerAngle||0}cam.fov=T.MathUtils.lerp(cam.fov,fx.turbo?72:58,dt*2);cam.updateProjectionMatrix();
+ const u=car.userData,fx=u.fx||fxZero,v=u.vel||fxZero,sp=Math.hypot(v.x,v.z),a=car.rotation.y,s=car.scale.x,sa=Math.sin(a),ca=Math.cos(a);
+ const skidR=fx.skidRear||0,skidF=fx.skidFront||0,accL=fx.accelLong||0,hand=!!fx.hand;
+ // Car swap or teleport (reset/arrest): restart trails and springs without a fake crash.
+ const jump=Math.abs(v.x-fxPv.x)+Math.abs(v.z-fxPv.z),gap=simTime-fxT>.2;
+ if(fxCar!==car){if(fxCar){fxCar.userData.body.rotation.set(0,0,0);fxCar.userData.body.position.set(0,0,0)}fxCar=car;roll=rollV=pitch=pitchV=0;for(const w of u.wheels){w.spin=0;if(!w.bar){w.bar=new T.Mesh(hubBar,mat('#7f8a84'));w.w.add(w.bar)}}}
+ const moved=Math.hypot(car.position.x-fxPos.x,car.position.z-fxPos.z),tele=gap||moved>8;fxPos.x=car.position.x;fxPos.z=car.position.z;
+ // Impacts: collision event from the COLISÃO region, else a sudden velocity change (only dv direction is used for the kick).
+ let hit=0;const li=u.lastImpact;if(li&&li.time>fxImpactT){fxImpactT=li.time;if(simTime-li.time<.3)hit=li.speed||0}
+ if(!hit&&!tele&&jump>Math.max(6,150*dt)&&simTime-fxHitT>.3)hit=jump;
+ if(hit>1.5&&simTime-fxHitT>.12){fxHitT=simTime;impactNow=Math.max(impactNow,hit);const k=Math.min(hit,22)/Math.max(.5,jump),dl=(v.x-fxPv.x)*sa+(v.z-fxPv.z)*ca,dlat=(v.x-fxPv.x)*ca-(v.z-fxPv.z)*sa;
+  if(jump>1){pitchV-=dl*k*.045;rollV+=dlat*k*.045}else pitchV+=Math.sign(velocity||1)*Math.min(hit,22)*.05}
+ fxPv.x=v.x;fxPv.z=v.z;
+ // Lateral accel rolls the body outwards (+z lifts the local left side), braking dives the nose (+x).
+ springs(dt,T.MathUtils.clamp((fx.accelLat||0)*.0035,-.06,.06),T.MathUtils.clamp(-accL*.0013,-.045,.06),car);
+ const idle=Math.max(0,1-sp/4);u.body.position.y=Math.sin(simTime*71)*.007*idle+Math.sin(simTime*23)*.004*idle;
+ // Wheels: roll with the ground, rear locks on handbrake and spins up on a burnout, front locks under hard braking.
+ for(const w of u.wheels){let target=velocity/.47;if(w.front){if(fx.brake&&skidF>.3)target*=1-skidF;w.pivot.rotation.y=fx.steerAngle||0}else if(hand)target=0;else if(skidR>.05&&accL>0)target=(velocity+skidR*24*Math.sign(velocity||1))/.47;
+  w.spin+=(target-w.spin)*(1-Math.exp(-dt*(hand?30:14)));w.w.rotation.x=(w.w.rotation.x+w.spin*dt)%(Math.PI*2);w.bar.visible=Math.abs(w.spin)<32}
+ // Trails from each tyre contact patch; intensity follows the skid of that axle.
+ for(let i=0;i<4;i++){const w=u.wheels[i],tr=fxTrail[i],px=w.pivot.position.x*s,pz=w.pivot.position.z*s,x=car.position.x+px*ca+pz*sa,z=car.position.z-px*sa+pz*ca,k=(w.front?skidF:skidR)*Math.min(1,(sp-1.5)/5);
+  if(k<.12||tele){tr.on=false;tr.x=x;tr.z=z;continue}if(!tr.on){tr.on=true;tr.x=x;tr.z=z;continue}const d=Math.hypot(x-tr.x,z-tr.z);if(d<.35)continue;if(d<3)addMark(tr.x,tr.z,x,z,Math.min(1,k));tr.x=x;tr.z=z}
+ flushMarks();
+ // Smoke only in strong drifts or burnouts, from the rear tyres.
+ const smokeK=skidR>.4&&(sp>7||accL>0)?skidR*Math.min(1,Math.max(sp,accL>0?6:0)/12):0;smokeAcc+=smokeK*dt*34;
+ while(smokeAcc>=1){smokeAcc--;const side=Math.random()<.5?-1.02:1.02,rz=-1.2;puff(car.position.x+(side*ca+rz*sa)*s,car.position.z+(-side*sa+rz*ca)*s,v.x,v.z,Math.min(1,smokeK+.2));smokeLive=1}
+ // FOV opens with speed and turbo.
+ cam.fov=T.MathUtils.lerp(cam.fov,58+Math.min(sp,60)*.17+(fx.turbo?6:0),1-Math.exp(-dt*2.5));cam.updateProjectionMatrix();smoke.material.uniforms.scale.value=renderer.domElement.height*.5/Math.tan(cam.fov*Math.PI/360);
+ fxT=simTime;
 }
+// Chase camera: yaw lags the car and leans toward the travel direction in a drift; target partly leads the velocity.
+let camYaw=Math.PI;const camRig={pull:0,look:0,x:0,z:0,px:0,pz:0};
+function carCam(dt){const v=car.userData.vel||fxZero,sp=Math.hypot(v.x,v.z),e=1-Math.exp(-dt*5);let drift=0;
+ if(velocity>3&&sp>3){drift=Math.atan2(v.x,v.z)-angle;drift=T.MathUtils.clamp(Math.atan2(Math.sin(drift),Math.cos(drift)),-.8,.8)*Math.min(1,(sp-3)/6)}
+ let d=angle+drift*.55-camYaw;d=Math.atan2(Math.sin(d),Math.cos(d));const tele=Math.abs(car.position.x-camRig.px)+Math.abs(car.position.z-camRig.pz)>12;camRig.px=car.position.x;camRig.pz=car.position.z;
+ camYaw=tele?camYaw+d:camYaw+d*(1-Math.exp(-dt*(4.2+sp*.03)));camYaw=Math.atan2(Math.sin(camYaw),Math.cos(camYaw));
+ camRig.pull+=(Math.min(sp,60)*.03-camRig.pull)*e;camRig.look+=(T.MathUtils.clamp(drift*.5+(car.userData.yawRate||0)*.06,-.4,.4)-camRig.look)*e;
+ camRig.x+=(v.x*.06-camRig.x)*(tele?1:e);camRig.z+=(v.z*.06-camRig.z)*(tele?1:e);return camYaw}
+// Engine with a simulated gearbox, tyre squeal (band-passed noise) and a crash thump; everything goes through `gain`.
+const gearTop=[9,17,27,39,53,95];let gear=0,rpm=.2;
+function carAudio(dt){const hit=impactNow;impactNow=0;if(!aud)return;gain.gain.value=sound&&inCar?.6:0;if(!sound||!inCar)return;
+ const t=ac.currentTime,fx=car.userData.fx||fxZero,A=aud,sp=Math.abs(velocity),thr=(fx.accelLong||0)>.5,skidR=fx.skidRear||0;
+ let r;if(velocity<-.5){gear=0;r=.22+Math.min(1,sp/13)*.55}else{while(gear<5&&sp>gearTop[gear])gear++;while(gear>0&&sp<gearTop[gear-1]*.82)gear--;r=gear?sp/gearTop[gear]:.18+.8*sp/gearTop[0]}
+ if(skidR>.05&&thr&&!fx.hand)r+=skidR*.35;if(fx.hand&&thr)r=Math.max(r,.62);r=T.MathUtils.clamp(r,.16,1.05);rpm+=(r-rpm)*(1-Math.exp(-dt*9));
+ const f=(30+rpm*118)*(fx.turbo?1.05:1);osc.frequency.setTargetAtTime(f,t,.03);A.sub.frequency.setTargetAtTime(f*.5,t,.03);A.lp.frequency.setTargetAtTime(240+rpm*900+(thr?520:0),t,.05);const eg=.035+rpm*.025+(thr?.025:0);A.eng.gain.setTargetAtTime(eg,t,.06);A.lfo.frequency.setTargetAtTime(f*.25,t,.03);A.lfoG.gain.setTargetAtTime(eg*.45*Math.max(0,1-rpm*1.4),t,.08);
+ A.whG.gain.setTargetAtTime(fx.turbo?.01:0,t,.12);A.whine.frequency.setTargetAtTime(600+sp*16,t,.1);
+ const sk=Math.min(1,Math.max(skidR,fx.skidFront||0)*Math.min(1,Math.max(0,sp-2)/8));A.sq.gain.setTargetAtTime(sk*.95,t,.05);A.bp.frequency.setTargetAtTime(1150+sk*420+Math.random()*140,t,.04);
+ if(hit>1.5){const k=Math.min(1,hit/16);for(const p of [A.th.frequency,A.thG.gain,A.cr.gain])p.cancelScheduledValues(t);A.th.frequency.setValueAtTime(90+k*45,t);A.th.frequency.exponentialRampToValueAtTime(36,t+.3);
+  A.thG.gain.setValueAtTime(.1+k*.4,t);A.thG.gain.exponentialRampToValueAtTime(.0005,t+.45);A.cr.gain.setValueAtTime(.08+k*.35,t);A.cr.gain.exponentialRampToValueAtTime(.0005,t+.2)}}
 // ===== FIM VISUAL DO CARRO =====
 function updateTraffic(dt){for(const t of traffic){const g=t.g,u=g.userData;u.traffic=t;if(g===car||stolenCars.has(g))continue;if(u.loose){t.actual=0;t.align=1;continue}if(t.align){alignTraffic(t,dt);continue}const ra=t.axis?t.dir*Math.PI/2:t.dir<0?Math.PI:0;g.rotation.y=ra;const dx=Math.sin(ra),dz=Math.cos(ra),ahead=TA.set(g.position.x+dx*5,0,g.position.z+dz*5);let caution=vehicleList().some(v=>v!==g&&v.position.distanceTo(ahead)<3.4)||people.some(p=>!p.g.userData.rag&&p.g.position.distanceTo(ahead)<2)||(!inCar&&player.position.distanceTo(ahead)<2);t.actual=T.MathUtils.lerp(t.actual??t.speed,caution?0:t.speed,Math.min(1,dt*(caution?9:2)));const steps=Math.max(1,Math.ceil(t.actual*dt/.3));for(let i=0;i<steps;i++){const ox=g.position.x,oz=g.position.z;g.position.x+=dx*t.actual*dt/steps;g.position.z+=dz*t.actual*dt/steps;const hits=carContacts(g);if(hits.length){g.position.x=ox;g.position.z=oz;if(t.actual>2.5&&hits.some(h=>h.other)){const vel=u.vel||(u.vel={x:0,z:0});vel.x=dx*t.actual;vel.z=dz*t.actual;u.spin=0;u.loose=true;u.looseT=0;t.align=1}t.actual=0;break}hitPedestrians(g,t.actual,dt/steps)}t.pos=t.axis?g.position.x:g.position.z;if(Math.abs(t.pos)>266){t.pos=-Math.sign(t.pos)*265;g.position.set(t.axis?t.pos:t.road+t.dir*4,0,t.axis?t.road-t.dir*4:t.pos)}for(const w of u.wheels)w.w.rotation.x+=t.actual*dt*2;}}
 function walk(dt){if(updateFall(player,dt))return;const turn=(keys.a||keys.ArrowLeft?1:0)-(keys.d||keys.ArrowRight?1:0);heading+=turn*dt*2.6;const dir=(keys.w||keys.ArrowUp?1:0)-(keys.s||keys.ArrowDown?1:0),speed=player.userData.stagger>0?0:dir*(keys[' ']?2:keys.Shift&&!cargo?10:5)*(player.userData.attack?.6:1);moveActor(player,Math.sin(heading)*speed*dt,Math.cos(heading)*speed*dt);player.rotation.y=heading;animatePerson(player,Math.abs(speed),simTime);if(keys[' ']&&!player.userData.attack){for(let i=0;i<2;i++){player.userData.arms[i].rotation.x=-1.15;player.userData.elbows[i].rotation.x=-1.8}}distance+=Math.abs(speed)*dt;heldBox.visible=cargo;cam.fov=T.MathUtils.lerp(cam.fov,58,dt*3);cam.updateProjectionMatrix();}
@@ -393,11 +474,11 @@ function update(dt){
   for(const c of clouds){c.position.x+=dt*.6;if(c.position.x>600)c.position.x=-600}
   updateTraffic(dt);updateLooseVehicles(dt);updatePeople(dt);shopGoods.visible=simTime>=shopRestock;
   if(started){updateCombat(dt);if(inCar)drive(dt);else walk(dt);updatePolice(dt);
-   const pos=actorPos(),a=inCar?angle:heading,behind=inCar?(cameraMode?7.5:12):(cameraMode?5:7);
-   target.set(pos.x-Math.sin(a)*behind,pos.y+(inCar?5.5:4.4),pos.z-Math.cos(a)*behind);cam.position.lerp(target,1-Math.exp(-dt*(inCar?7:5)));
-   look.set(pos.x+Math.sin(a)*(inCar?6:2),1.4,pos.z+Math.cos(a)*(inCar?6:2));cam.lookAt(look);
+   const pos=actorPos(),a=inCar?carCam(dt):(camYaw=heading),behind=inCar?(cameraMode?7.5:12)+camRig.pull:(cameraMode?5:7),lead=inCar?camRig.look:0;
+   target.set(pos.x-Math.sin(a)*behind+(inCar?camRig.x:0),pos.y+(inCar?5.5+camRig.pull*.3:4.4),pos.z-Math.cos(a)*behind+(inCar?camRig.z:0));cam.position.lerp(target,1-Math.exp(-dt*(inCar?8:5)));
+   look.set(pos.x+Math.sin(a+lead)*(inCar?6:2),1.4,pos.z+Math.cos(a+lead)*(inCar?6:2));cam.lookAt(look);
    if(shake>0){cam.position.x+=Math.sin(simTime*91)*shake*.17;cam.position.y+=Math.cos(simTime*79)*shake*.12}
-   if(osc)osc.frequency.value=45+Math.abs(velocity)*2.8;if(gain)gain.gain.value=sound&&inCar?.013+Math.abs(velocity)*.00013:0;
+   carAudio(dt);
   }else{target.set(car.position.x+10+Math.sin(elapsed*.1)*2,5.5,car.position.z-11);cam.position.lerp(target,dt*2);cam.lookAt(car.position.x-2,1.3,car.position.z+1)}
   const pos=actorPos();sun.position.set(pos.x-60,100,pos.z+40);sun.target.position.copy(pos);
  }else if(gain)gain.gain.value=0;
