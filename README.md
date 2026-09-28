@@ -29,6 +29,7 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 
 - Fusca com física de derrapagem, assistência em curvas e freio de mão para drifts.
 - Colisões com impulso: batidas empurram carros e sacodem a câmera.
+- Batidas fortes derrubam postes, semáforos e coqueiros (a prefeitura conserta depois de uns minutos, longe de você). Derrubar conta como infração.
 - Carroceria com suspensão (rola nas curvas, mergulha ao frear, agacha ao acelerar), rodas que travam no freio de mão e patinam no arranque.
 - Marcas de pneu que ficam no asfalto e fumaça nas derrapagens fortes.
 - Câmera que acompanha a derrapagem com leve atraso e abre o campo de visão com a velocidade e o turbo.
