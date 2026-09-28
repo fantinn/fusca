@@ -21,6 +21,7 @@ Baixe `index.html` e abra no Chrome, Edge ou Firefox com WebGL habilitado. O arq
 | C | Alternar câmera |
 | R | Reposicionar fora de perseguições |
 | Esc | Pausar |
+
 No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e mostra botões de direção, pedais (acelerar, freio/ré, turbo e freio de mão) e ações. Com a tela em pé, ele pausa e pede para girar o aparelho.
 
 
