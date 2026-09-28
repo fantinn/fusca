@@ -45,7 +45,7 @@ const roads=[-216,-144,-72,0,72,144,216],obstacles=[],RE=[-270,...roads,270];for
  for(let z=-261;z<=261;z+=12){if(roads.some(s=>Math.abs(z-s)<17))continue;sh('flat',.24,4.2,'#f0c03a',r,.075,z,.8);if(z>-226)sh('flat',4.2,.24,'#f0c03a',z,.075,r,.8)}for(const s of roads)for(const sg2 of [-1,1])for(let k=-6;k<=6;k++){sh('flat',.62,3,'#f3f0e6',r+k*1.3,.075,s+sg2*12.6,.8);if(s+sg2*12.6>-226)sh('flat',3,.62,'#f3f0e6',s+sg2*12.6,.075,r+k*1.3,.8)}}
 let seed=48;function rand(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}const PALMS=[],LAMPS=[],BUSH=[];function palm(x,z,s=1){physicalObstacles.push({x,z,w:.35*s,d:.35*s});PALMS.push(x,z,s)}function lamp(x,z,ry){physicalObstacles.push({x,z,w:.2,d:.2});LAMPS.push(x,z,ry)}
 const TRIMS=['#fbf7ee','#f6efe0','#fffaf1','#efe5d3'],GLS=['#3b6978','#335e6d','#43788a','#2e5563','#4a7282'],ACC=['#2f8f83','#2f6f96','#c65a3c','#5d8a3a','#e0a33c','#8a5aa8','#d04f6a'],ROOF=['#c4643f','#b4553a','#cf7a4c','#a9573d'],AW=['#e0703e','#2f8f83','#d6453d','#3e7cc0','#e8b23a','#6aa84f','#e46f95'];
-function building(x,z,w,h,d,col){const tr=pick(TRIMS),gl=pick(GLS),ac=pick(ACC),low=h<10,tall=h>=13,shut=low||r2()<.25,balc=tall&&r2()<.7,rows=[];for(let y=2.1;y<h-1.3;y+=3.4)rows.push(y);
+const BLD=[];function building(x,z,w,h,d,col){BLD.push({x,z,w,h,d});const tr=pick(TRIMS),gl=pick(GLS),ac=pick(ACC),low=h<10,tall=h>=13,shut=low||r2()<.25,balc=tall&&r2()<.7,rows=[];for(let y=2.1;y<h-1.3;y+=3.4)rows.push(y);
  sb('wall',w,h,d,col,x,h/2,z);sb('wall',w+.14,.75,d+.14,'#'+_C2.set(col).multiplyScalar(.7).getHexString(),x,.375,z);for(let k=1;k<rows.length;k++)sb('wall',w+.1,.2,d+.1,tr,x,rows[k]-1.7,z);
  for(const [fx,fz] of [[0,1],[0,-1],[1,0],[-1,0]]){const len=fz?w:d,dep=fz?d/2:w/2,ry=Math.atan2(fx,fz),n=Math.max(1,Math.floor((len-2.5)/4)),front=fz>0,at=(a,o)=>[x+fx*(dep+o)+fz*a,z+fz*(dep+o)-fx*a];
   for(let ki=0;ki<rows.length;ki++){const y=rows[ki];for(let i=0;i<n;i++){const a=(i-(n-1)/2)*4;if(ki===0&&front&&(low||Math.abs(a)<2.6))continue;let p=at(a,.04);sq('wall',1.9,2.25,tr,p[0],y,p[1],ry);p=at(a,.06);const v=r2();sq('glass',1.46,1.82,v<.1?'#d8c7a3':v<.25?'#6e98a6':gl,p[0],y+.02,p[1],ry);
@@ -148,6 +148,50 @@ const ROADX2=[446,518],WHEEL=new T.Vector3(),_E2=new T.Vector3();
   lamp(a+1.2,cz,Math.PI);lamp(b-1.2,cz,0);
   const nx=W>40?2:1,nz=D>40?2:1;for(let ix=0;ix<nx;ix++)for(let iz=0;iz<nz;iz++){const bw=W/nx-9,bd=D/nz-9;if(bw<8||bd<8)continue;const x=a+(ix+.5)*W/nx,z=z0+(iz+.5)*D/nz,h=bi===1&&Math.abs(cz)<80?20+r2()*16:6+r2()*14,w=Math.min(bw,14+r2()*8),d=Math.min(bd,14+r2()*8);building(x,z,w,h,d,pick(pal));obstacles.push({x,z,w:w/2+1.2,d:d/2+1.8});physicalObstacles.push({x,z,w:w/2,d:d/2})}}
  for(const [x,z,s,h] of [[690,-240,60,70],[720,40,80,95],[680,250,50,55]])hill(new T.IcosahedronGeometry(1,2),x,-6,z,s,h,s*.8,2)}
+// "fantin" billboards: roadside outdoors on steel masts (parks, beach, bridge approach) and rooftop ones on the tallest towers facing the avenues.
+// Steelwork is batched with the city; each face is a canvas texture (3 looks: sunset, night teal, beach awning) that lights up at night in updateDay.
+function bbTex(v){const c=document.createElement('canvas'),W=1024,H=330;c.width=W;c.height=H;const x=c.getContext('2d');let g;
+ const word=(cx,cy,size,maxW,fill,shadow,dot)=>{const f=s=>`900 ${s}px 'Segoe UI Black','Arial Black',Arial,sans-serif`;x.font=f(size);const wt=x.measureText('fantın').width;if(wt>maxW){size*=maxW/wt;x.font=f(size)}
+  const w0=x.measureText('fantın').width,x0=cx-w0/2,wa=x.measureText('fant').width,wb=x.measureText('fantı').width;x.save();x.shadowColor=shadow;x.shadowOffsetY=size*.05;x.fillStyle=fill;x.fillText('fantın',x0,cy);x.fillStyle=dot;x.beginPath();x.arc(x0+(wa+wb)/2,cy-size*.74,size*.085,0,Math.PI*2);x.fill();x.restore()};
+ if(v===0){g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#ffb347');g.addColorStop(.55,'#ff7a59');g.addColorStop(1,'#e8487f');x.fillStyle=g;x.fillRect(0,0,W,H);
+  const sx=846,sy=205,sr=122,sg2=x.createLinearGradient(0,sy-sr,0,sy+sr);sg2.addColorStop(0,'#fff6c2');sg2.addColorStop(1,'#ffc53d');x.fillStyle=sg2;x.beginPath();x.arc(sx,sy,sr,0,Math.PI*2);x.fill();
+  x.fillStyle=g;for(let k=0;k<5;k++)x.fillRect(sx-sr-2,sy+8+k*16,sr*2+4,3+k*2.2);
+  g=x.createLinearGradient(0,270,0,H);g.addColorStop(0,'#1f97b8');g.addColorStop(1,'#12609a');x.fillStyle=g;x.fillRect(0,270,W,H-270);
+  x.fillStyle='rgba(255,246,194,.55)';for(let k=0;k<7;k++)x.fillRect(sx-70+k*9-(k%2)*30,282+k*6,60-k*6,3);
+  word(380,232,190,660,'#fffaf1','#b8325f','#ffd254')}
+ else if(v===1){g=x.createRadialGradient(330,150,20,330,150,620);g.addColorStop(0,'#24545d');g.addColorStop(1,'#122a30');x.fillStyle=g;x.fillRect(0,0,W,H);
+  for(const [k,col] of [[0,'#ffd254'],[1,'#ff7a59'],[2,'#2f8f83']]){x.fillStyle=col;x.beginPath();x.moveTo(820+k*58,0);x.lineTo(868+k*58,0);x.lineTo(788+k*58,H);x.lineTo(740+k*58,H);x.fill()}
+  x.strokeStyle='#ffd254';x.lineWidth=5;x.strokeRect(18,18,W-36,H-36);x.lineWidth=2;x.strokeRect(30,30,W-60,H-60);
+  word(390,236,210,620,'#ffd254','#07161a','#ff7a59')}
+ else{x.fillStyle='#fbf2df';x.fillRect(0,0,W,H);
+  for(let i=0;i<16;i++){x.fillStyle=i%2?'#ffd254':'#2f8f83';x.fillRect(i*64,0,64,44);x.beginPath();x.arc(i*64+32,44,32,0,Math.PI);x.fill()}
+  for(const [y0,col] of [[282,'#3fcfc2'],[300,'#1f97b8']]){x.fillStyle=col;x.beginPath();x.moveTo(0,H);for(let px=0;px<=W;px+=8)x.lineTo(px,y0+Math.sin(px/52+y0)*7);x.lineTo(W,H);x.fill()}
+  word(512,246,200,800,'#e0703e','#f2c9a5','#2f8f83')}
+ const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.anisotropy=renderer.capabilities.getMaxAnisotropy();return t}
+const BBM=[0,1,2].map(v=>{const t=bbTex(v);return new T.MeshStandardMaterial({map:t,emissiveMap:t,emissive:'#ffffff',emissiveIntensity:.05,roughness:.6})}),BBG=[],BBGEO=new T.PlaneGeometry(1,1);
+// Local frame: a runs along the face (left→right), o toward the viewer. y0 ground/roof level, L clearance under the face, W face width (3.1:1).
+function billboard(x,y0,z,ry,W,L,v,roof){const H=W/3.1,c=Math.cos(ry),s=Math.sin(ry),at=(a,o)=>[x+c*a+s*o,z-s*a+c*o],yb=y0+L,yt=yb+H,trim=['#fbf7ee','#ffd254','#2f8f83'][v],steel='#59636b';let p;
+ const nL=Math.max(2,Math.round(W/3.5)+1),legs=roof?Array.from({length:nL},(_,i)=>(i/(nL-1)-.5)*(W-.8)):[-W*.3,W*.3];
+ for(const a of legs){p=at(a,-.4);const top=roof?yt-.3:yb+H*.55;sg('wall',C12,steel,p[0],(y0+top)/2,p[1],roof?.12:.3,top-y0,roof?.12:.3);
+  if(!roof){sg('wall',GB,'#cfc8b8',p[0],y0+.2,p[1],1.2,.5,1.2,0,ry);p=at(a,.5);sg('wall',GB,steel,p[0],yb-.42,p[1],.14,.14,1.9,0,ry);p=at(a,-.4);physicalObstacles.push({x:p[0],z:p[1],w:.6,d:.6})}}
+ if(roof){p=at(0,-.4);sg('wall',GB,steel,p[0],y0+.9,p[1],W-.6,.12,.12,0,ry)}
+ for(const y of [yb+.35,yt-.35]){p=at(0,-.4);sg('wall',GB,steel,p[0],y,p[1],W-.2,.14,.14,0,ry)}
+ p=at(0,-.05);sg('wall',GB,'#2b3238',p[0],yb+H/2,p[1],W+.5,H+.5,.3,0,ry);
+ p=at(0,.2);for(const y of [yt+.11,yb-.11])sg('wall',GB,trim,p[0],y,p[1],W+.44,.22,.16,0,ry);for(const sd of [-1,1]){p=at(sd*(W/2+.11),.2);sg('wall',GB,trim,p[0],yb+H/2,p[1],.22,H,.16,0,ry)}
+ p=at(0,.8);sg('wall',GB,'#6b747a',p[0],yb-.3,p[1],W+.3,.1,1.3,0,ry);p=at(0,1.4);sg('wall',GB,'#8a939a',p[0],yb+.3,p[1],W+.3,.06,.06,0,ry);
+ const ns=Math.ceil(W/2.4);for(let i=0;i<=ns;i++){p=at((i/ns-.5)*(W+.2),1.4);sg('wall',GB,'#8a939a',p[0],yb,p[1],.06,.6,.06,0,ry)}
+ const nl=Math.max(3,Math.round(W/3.6));for(let i=0;i<nl;i++){const a=(i/(nl-1)-.5)*(W-1.6);p=at(a,.2);sg('wall',GB,'#44545a',p[0],yt+.25,p[1],.08,.45,.08,0,ry);p=at(a,.75);sg('wall',GB,'#44545a',p[0],yt+.45,p[1],.08,.08,1.3,0,ry);
+  p=at(a,1.45);sg('wall',GB,'#44545a',p[0],yt+.38,p[1],.7,.2,.4,0,ry);sg('wall',GB,'#fbf4dc',p[0],yt+.27,p[1],.6,.04,.3,0,ry);BBG.push(p[0],yt+.2,p[1])}
+ const m=new T.Mesh(BBGEO,BBM[v]);p=at(0,.13);m.position.set(p[0],yb+H/2,p[1]);m.rotation.y=ry;m.scale.set(W,H,1);m.castShadow=m.receiveShadow=true;scene.add(m)}
+{// Park corners facing the crossings (palms in the way are mirrored to the far corner, keeping the random streams intact), beach, bridge approach.
+ for(const [cx,cz,sx,sz,v] of [[36,-36,-1,1,0],[-108,108,1,-1,2]]){const x=cx+sx*19,z=cz+sz*19;
+  for(let i=0;i<PALMS.length;i+=3)if(Math.hypot(PALMS[i]-x,PALMS[i+1]-z)<7){const o=physicalObstacles.find(q=>q.x===PALMS[i]&&q.z===PALMS[i+1]);PALMS[i]=2*cx-PALMS[i];PALMS[i+1]=2*cz-PALMS[i+1];if(o){o.x=PALMS[i];o.z=PALMS[i+1]}}
+  billboard(x,.3,z,Math.atan2(sx,sz),13,6.6,v)}
+ billboard(-257,sandY(-257,-92),-92,Math.PI/2,12,5.2,1);billboard(246,0,30,Math.atan2(-.87,-.5),13,7,2);
+ // Rooftops: tallest tower on the z=0 avenue, on the x=0 avenue, and in the east district skyline facing the bridge.
+ const top=f=>BLD.filter(f).sort((a,b)=>b.h-a.h)[0],roofBB=(b,fx,fz,v)=>{if(!b)return;const dep=fz?b.d/2:b.w/2;billboard(b.x+fx*(dep-.95),b.h,b.z+fz*(dep-.95),Math.atan2(fx,fz),Math.min((fz?b.w:b.d)-2.2,15),1.8,v,true)};
+ const r1=top(b=>b.h>=13&&b.x<260&&Math.abs(Math.abs(b.z)-23)<.1),r2b=top(b=>b.h>=13&&b.x<260&&b!==r1&&Math.abs(Math.abs(b.x)-23)<.1),r3=top(b=>b.h>=13&&b.x>440&&Math.abs(b.z)<80);
+ if(r1)roofBB(r1,0,-Math.sign(r1.z),1);if(r2b)roofBB(r2b,-Math.sign(r2b.x),0,0);roofBB(r3,-1,0,2)}
 // Traffic lights at every intersection (old grid + east district): 4 poles per crossing, each head facing one approach.
 // Bulbs are a single instanced mesh recoloured by updateSignals; sigState drives both the lamps and the traffic AI.
 const SIGS=[];for(const X of roads)for(const Z of roads)SIGS.push(X,Z);for(const X of ROADX2)for(const Z of roads)SIGS.push(X,Z);
@@ -236,6 +280,7 @@ const lampGlow=(()=>{const g=new T.BufferGeometry();g.setAttribute('position',ne
 const lampPools=new T.InstancedMesh(new T.PlaneGeometry(12,12).rotateX(-Math.PI/2),new T.MeshBasicMaterial({map:glowTex,color:'#ffcf85',transparent:true,depthWrite:false,blending:T.AdditiveBlending,toneMapped:false,polygonOffset:true,polygonOffsetFactor:-3}),LH.length/3);
 for(let i=0;i<LH.length;i+=3){mx(LH[i],LH[i+1]-5.66,LH[i+2]);lampPools.setMatrixAt(i/3,_M)}lampPools.computeBoundingSphere();lampPools.renderOrder=1;scene.add(lampPools);
 const headlight=new T.SpotLight('#fff1c9',0,55,.52,.55,1);scene.add(headlight,headlight.target);KM.glass.emissive.set('#ffc56b');
+const bbGlow=(()=>{const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(BBG,3));return new T.Points(g,new T.PointsMaterial({map:glowTex,color:'#fff1c9',size:3.2,transparent:true,depthWrite:false,blending:T.AdditiveBlending,toneMapped:false}))})();scene.add(bbGlow);
 function updateDay(dt){dayT=(dayT+dt/DAY_LEN)%1;const hr=dayT*24,th=(hr-6)/12*Math.PI;SUND.set(Math.cos(th),Math.sin(th)*.75,.32).normalize();
  const el=SUND.y,S=T.MathUtils.smoothstep,day=S(el,-.1,.16),dusk=Math.max(0,1-Math.abs(el-.03)/.2);night=1-day;
  const up=el>-.02,src=up?SUND:MOONV.set(-SUND.x,-SUND.y,SUND.z).normalize();SUNOFF.copy(src).multiplyScalar(136);SX.crossVectors(_Y,SUND).normalize();SY.crossVectors(SUND,SX);
@@ -243,7 +288,7 @@ function updateDay(dt){dayT=(dayT+dt/DAY_LEN)%1;const hr=dayT*24,th=(hr-6)/12*Ma
  skyU.zen.value.copy(DC.zN).lerp(DC.zD,day).lerp(DC.zS,dusk*.55);scene.fog.color.copy(DC.hN).lerp(DC.hD,day).lerp(DC.hS,dusk*.75);skyU.sunC.value.set('#fff0cc').lerp(_C.set('#ff9d5c'),dusk*.6);
  CLM.color.setScalar(.18+.82*day).lerp(_C.set('#ffb07a'),dusk*.3);sunSprite.material.opacity=S(el,-.07,.03);SUNV.set(SUND.x,Math.max(-1,SUND.y-.12),SUND.z).normalize();
  moon.position.copy(cam.position).addScaledVector(_LT.set(-SUND.x,Math.max(.15,-SUND.y*.8),SUND.z).normalize(),700);moon.material.opacity=night;stars.position.copy(cam.position);stars.material.opacity=Math.max(0,night*1.3-.3);
- const lit=S(night,.35,.7);lampGlow.material.opacity=lit;lampPools.material.opacity=lit*.55;lampGlow.visible=lampPools.visible=lit>.01;KM.glass.emissiveIntensity=lit*.55;
+ const lit=S(night,.35,.7);lampGlow.material.opacity=lit;lampPools.material.opacity=lit*.55;lampGlow.visible=lampPools.visible=lit>.01;KM.glass.emissiveIntensity=lit*.55;bbGlow.material.opacity=lit;bbGlow.visible=lit>.01;for(const m of BBM)m.emissiveIntensity=.05+lit*.75;
  if(inCar&&lit>.01){const s=Math.sin(angle),c=Math.cos(angle);headlight.position.set(car.position.x+s*2.2,car.position.y+1,car.position.z+c*2.2);headlight.target.position.set(car.position.x+s*22,car.position.y,car.position.z+c*22);headlight.intensity=lit*90}else headlight.intensity=0;
  clockTimer-=dt;if(clockTimer<=0){clockTimer=1;const sp=document.querySelector('footer span');if(sp){const h=Math.floor(hr),m=Math.floor((hr-h)*60);sp.firstChild.textContent=(lit>.5?'☾ ':'☀ ')+String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+' ';sp.querySelector('b').textContent=dusk>.35?(hr<12?'AMANHECER':'PÔR DO SOL'):lit>.5?'NOITE':'CÉU LIMPO'}}}
 function updateDistrict(dt){updateSky(dt);wheelRim.rotation.z+=dt*.12;for(const c of cabins)c.rotation.z=-wheelRim.rotation.z}

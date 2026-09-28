@@ -35,6 +35,7 @@ Baixe `index.html` e abra no Chrome, Edge ou Firefox com WebGL habilitado. O arq
 - Ciclo de dia e noite (um dia dura 6 minutos): pôr do sol no mar, lua e estrelas, postes, janelas e faróis acesos à noite.
 - Semáforos em todos os cruzamentos; o trânsito para no vermelho.
 - Bairro novo a leste, do outro lado de um canal, ligado por uma ponte estaiada na avenida central, com roda-gigante no parque.
+- Outdoors da Fantin pela cidade: nas praças do centro, na orla, na entrada da ponte e no topo dos prédios mais altos, iluminados à noite.
 - Carros antigos na rua: Fusca, Kombi, Opala SS, Mustang 67 e Cadillac 1959. Chegue perto de qualquer um a pé (ele para) e aperte E para furtar; cada modelo tem aceleração, velocidade e peso próprios.
 - Entregas pagas e interações com moradores.
 - Moradores com rotinas, temperamentos e reações a confusões.
