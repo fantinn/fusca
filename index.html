@@ -60,10 +60,57 @@ function sb(k,w,h,d,c,x,y,z,ry=0,a=1){sadd(k,G5,c,mx(x,y,z,w,h,d,0,ry),cellOf(x,
 let r2s=7;const r2=()=>(r2s=(r2s*1664525+1013904223)>>>0)/4294967296,pick=a=>a[Math.floor(r2()*a.length)];
 sadd('flat',GH,'#8fb872',mx(475,-.15,0,1450,1,2600),'G',.4);
 {const g=new T.PlaneGeometry(90,2600,30,260).rotateX(-Math.PI/2).translate(-294.5,0,0),P=g.attributes.position,c=[];_C.set('#efd9a6');for(let i=0;i<P.count;i++){P.setY(i,sandY(P.getX(i),P.getZ(i)));c.push(_C.r,_C.g,_C.b,0)}g.computeVertexNormals();g.setAttribute('color',new T.Float32BufferAttribute(c,4));const m=new T.Mesh(g,KM.flat);m.receiveShadow=true;scene.add(m)}
-const seaMat=new T.MeshStandardMaterial({roughness:.1,metalness:0,envMap:ENV,envMapIntensity:.95}),seaU={cA:{value:new T.Color('#3fcfc2')},cB:{value:new T.Color('#1f97b8')},cC:{value:new T.Color('#12609a')}};seaMat.onBeforeCompile=s=>{Object.assign(s.uniforms,seaU,{uT:UW.uT});s.vertexShader='varying vec3 vW;\n'+s.vertexShader.replace('#include <project_vertex>','#include <project_vertex>\nvW=(modelMatrix*vec4(transformed,1.)).xyz;');
- s.fragmentShader='varying vec3 vW;uniform float uT;uniform vec3 cA,cB,cC;\n'+NOISE+s.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\nfloat xr=shore(vW.z)-vW.x,fd=1.-smoothstep(60.,420.,distance(vW,cameraPosition)),n1=vn(vW.xz*.09+vec2(uT*.05,uT*.03));vec3 sc=mix(cA,cB,smoothstep(0.,45.,xr));sc=mix(sc,cC,smoothstep(40.,320.,xr));float wl=smoothstep(.74,1.,sin(xr*.5+uT*1.5+n1*4.))*(1.-smoothstep(1.,16.,xr))*(.4+.6*vn(vW.xz*.7+uT*.3)),sw=.9+.7*sin(uT*.8+vW.z*.05)+.5*n1,foam=clamp(max(wl,1.-smoothstep(sw-.7,sw,xr)),0.,1.);sc*=1.+.12*(vn(vW.xz*.2+uT*.08)-.5)*fd;diffuseColor.rgb=mix(sc,vec3(.95,.98,.97),foam);')
- .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=mix(roughnessFactor,.9,foam);').replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\nvec2 gp=vW.xz;vec2 gr=vec2(cos(gp.x*.45+uT*1.2)*.6+cos(gp.x*.31+gp.y*.23-uT*.9)*.4+cos(gp.x*1.7+gp.y*.9+uT*2.1)*.25,sin(gp.y*.37+uT)*.5+cos(gp.y*.21-gp.x*.28+uT*.8)*.4+sin(gp.y*1.5-gp.x*1.1+uT*1.8)*.25)*mix(.12,1.,fd)*(1.-foam);normal=normalize((viewMatrix*vec4(normalize(vec3(-gr.x*.09,1.,-gr.y*.09)),0.)).xyz);')};
-const sea=new T.Mesh(new T.PlaneGeometry(1700,2600).rotateX(-Math.PI/2),seaMat);sea.position.set(-1150,-.25,0);scene.add(sea);
+// Shared animated water: shallow turquoise, rolling swells and broken shore foam.
+const seaU={cA:{value:new T.Color('#63d6bf')},cB:{value:new T.Color('#168fa3')},cC:{value:new T.Color('#08466c')}};
+const WATER_WAVES=`vec3 waterWave(vec2 p,float t){
+ float a=dot(p,vec2(.24,.075))-t*1.25,b=dot(p,vec2(.13,-.19))-t*.86,c=dot(p,vec2(.49,.28))-t*1.7;
+ return vec3(.16*sin(a)+.09*sin(b)+.035*sin(c),.0384*cos(a)+.0117*cos(b)+.01715*cos(c),.012*cos(a)-.0171*cos(b)+.0098*cos(c));
+}`;
+function waterMaterial(canal=false){
+ const m=new T.MeshStandardMaterial({roughness:.19,metalness:0,envMap:ENV,envMapIntensity:.8});
+ m.onBeforeCompile=s=>{
+ Object.assign(s.uniforms,seaU,{uT:UW.uT});
+ const depth=canal?'min(vW.x-296.,344.-vW.x)':'shore(vW.z)-vW.x';
+ s.vertexShader='varying vec3 vW;uniform float uT;\n'+SHORE+WATER_WAVES+'\n'+s.vertexShader
+ .replace('#include <begin_vertex>',`#include <begin_vertex>
+ vec3 wp=(modelMatrix*vec4(position,1.)).xyz;
+ float depth=${canal?'min(wp.x-296.,344.-wp.x)':'shore(wp.z)-wp.x'};
+ transformed.y+=waterWave(wp.xz,uT).x*smoothstep(0.,12.,depth)*${canal?'.12':'1.'};`)
+ .replace('#include <project_vertex>','#include <project_vertex>\nvW=(modelMatrix*vec4(transformed,1.)).xyz;');
+ s.fragmentShader='varying vec3 vW;uniform float uT;uniform vec3 cA,cB,cC;\n'+NOISE+WATER_WAVES+'\n'+s.fragmentShader
+ .replace('#include <color_fragment>',`#include <color_fragment>
+ float depth=${depth};
+ ${canal?'':'if(depth<0.)discard;'}
+ float fd=1.-smoothstep(70.,360.,distance(vW,cameraPosition));
+ float broad=vn(vW.xz*.055+vec2(uT*.018,-uT*.024));
+ vec3 waterColor=mix(cA,cB,smoothstep(0.,${canal?'10.':'38.'},depth));
+ waterColor=mix(waterColor,cC,smoothstep(${canal?'8.,45.':'35.,240.'},depth));
+ waterColor*=.94+.12*broad;
+ float surge=1.1+.8*sin(uT*.85+vW.z*.035);
+ float crest=sin(depth*.62-uT*1.35+broad*1.5);
+ float lace=vn(vW.xz*2.2+vec2(-uT*.3,uT*.13));
+ float breaker=smoothstep(.68,.97,crest)*(1.-smoothstep(2.,15.,depth));
+ float edge=1.-smoothstep(.15,surge,depth);
+ float foam=clamp((edge*.8+breaker*.65)*smoothstep(.22,.72,lace),0.,.9)*${canal?'.18':'1.'};
+ float caustic=pow(max(0.,sin(vW.x*1.7+vW.z*.8+uT*.6)*sin(vW.z*1.4-vW.x*.6-uT*.5)),7.);
+ waterColor+=vec3(.09,.15,.10)*caustic*(1.-smoothstep(1.,13.,depth))*fd;
+ diffuseColor.rgb=mix(waterColor,vec3(.88,.96,.92),foam);`)
+ .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=mix(.17,.72,foam);')
+ .replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
+ vec3 swell=waterWave(vW.xz,uT);
+ float rippleFade=fd*(1.-foam*.85);
+ vec2 ripple=vec2(cos(dot(vW.xz,vec2(2.1,1.3))-uT*2.1),sin(dot(vW.xz,vec2(-1.4,2.6))+uT*1.8))*.032*rippleFade;
+ vec2 slope=swell.yz*${canal?'.3':'1.'}+ripple;
+ normal=normalize((viewMatrix*vec4(normalize(vec3(-slope.x,1.,-slope.y)),0.)).xyz);`);
+ };
+ m.customProgramCacheKey=()=>canal?'canal-water-v2':'sea-water-v2';return m;
+}
+const seaMat=waterMaterial(),canalMat=waterMaterial(true);
+const seaGeo=new T.PlaneGeometry(1700,2600,LOW?100:220,LOW?160:320).rotateX(-Math.PI/2);
+// Concentrate vertices along the playable beach, keeping the distant ocean cheap.
+{const p=seaGeo.attributes.position;for(let i=0;i<p.count;i++){const q=(850-p.getX(i))/1700;p.setX(i,850-1700*q*q)}seaGeo.computeBoundingSphere();}
+const sea=new T.Mesh(seaGeo,seaMat);sea.position.set(-1150,-.25,0);sea.receiveShadow=true;scene.add(sea);
+function seaHeight(x,z,t){const d=T.MathUtils.smoothstep(shore(z)-x,0,12);return -.25+d*(.16*Math.sin(x*.24+z*.075-t*1.25)+.09*Math.sin(x*.13-z*.19-t*.86)+.035*Math.sin(x*.49+z*.28-t*1.7));}
 const roads=[-216,-144,-72,0,72,144,216],obstacles=[],RE=[-270,...roads,270];for(const r of roads){for(let j=0;j<8;j++){const z0=RE[j],z1=RE[j+1],x0=RE[j]+(j?9.5:0),x1=RE[j+1]-(j<7?9.5:0),y0=RE[j]+(j?9.5:0),y1=RE[j+1]-(j<7?9.5:0),q0=RE[j]+(j?10.3:0),q1=RE[j+1]-(j<7?10.3:0);sb('flat',19,.26,z1-z0,'#596165',r,-.07,(z0+z1)/2,0,.8);if(j)sb('flat',x1-x0,.26,19,'#596165',(x0+x1)/2,-.07,r,0,.8);for(const sg2 of [-1,1]){if(r>-216||sg2>0)sb('flat',.8,.35,y1-y0,'#dcd6c8',r+sg2*9.9,.025,(y0+y1)/2,0,.6);if(j)sb('flat',q1-q0,.35,.8,'#dcd6c8',(q0+q1)/2,.025,r+sg2*9.9,0,.6)}}if(r===-216)sb('flat',.8,.35,540,'#dcd6c8',-225.9,.025,0,0,.6);
  for(let z=-261;z<=261;z+=12){if(roads.some(s=>Math.abs(z-s)<17))continue;sh('flat',.24,4.2,'#f0c03a',r,.075,z,.8);if(z>-226)sh('flat',4.2,.24,'#f0c03a',z,.075,r,.8)}for(const s of roads)for(const sg2 of [-1,1])for(let k=-6;k<=6;k++){sh('flat',.62,3,'#f3f0e6',r+k*1.3,.075,s+sg2*12.6,.8);if(s+sg2*12.6>-226)sh('flat',3,.62,'#f3f0e6',s+sg2*12.6,.075,r+k*1.3,.8)}}
 let seed=48;function rand(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}const PALMS=[],LAMPS=[],BUSH=[];function palm(x,z,s=1){physicalObstacles.push({x,z,w:.35*s,d:.35*s,brk:{kind:'palm',i:PALMS.length/3,min:9,loss:.45}});PALMS.push(x,z,s)}function lamp(x,z,ry){physicalObstacles.push({x,z,w:.2,d:.2,brk:{kind:'lamp',i:LAMPS.length/3,min:4.5,loss:.2}});LAMPS.push(x,z,ry)}
@@ -214,7 +261,7 @@ for(const z of [-230,-140,-50,40,130,220])kiosk(-270,z);post(-282,-110);post(-28
 // East district across a canal, linked by a cable-stayed bridge on the z=0 avenue. Built with the same batching helpers.
 const ROADX2=[446,518],WHEEL=new T.Vector3(),_E2=new T.Vector3();
 {const cx=(BR.x1+BR.x2)/2,hw=(BR.x2-BR.x1)/2;physicalObstacles.push({x:cx,z:136,w:hw,d:126},{x:cx,z:-136,w:hw,d:126});for(const zz of [-10.4,10.4])physicalObstacles.push({x:(BR.x0+BR.x1)/2+2,z:zz,w:(BR.x1-BR.x0)/2-2,d:.35},{x:(BR.x2+BR.x3)/2-2,z:zz,w:(BR.x3-BR.x2)/2-2,d:.35});
- const water=new T.Mesh(new T.PlaneGeometry(hw*2,640).rotateX(-Math.PI/2),new T.MeshStandardMaterial({color:'#2a9db6',roughness:.12,metalness:.1,envMap:ENV,envMapIntensity:.9}));water.position.set(cx,-.1,0);water.receiveShadow=true;scene.add(water);
+ const water=new T.Mesh(new T.PlaneGeometry(hw*2,640,16,160).rotateX(-Math.PI/2),canalMat);water.position.set(cx,-.1,0);water.receiveShadow=true;scene.add(water);
  for(const qx of [BR.x1-.6,BR.x2+.6])for(const zz of [-165,165])sb('wall',1.2,.9,310,'#cfc6b4',qx,.3,zz);
  // Deck: two ramps and the main span, asphalt with railings; piers under the ramps, twin H pylons with fanned stay cables.
  for(const [a,ya,b,yb] of [[BR.x0,0,BR.x1,BR.h],[BR.x1,BR.h,BR.x2,BR.h],[BR.x2,BR.h,BR.x3,0]]){const L=Math.hypot(b-a,yb-ya),rz=Math.atan2(yb-ya,b-a),mxp=(a+b)/2,my=(ya+yb)/2;sg('flat',GB,'#596165',mxp,my-.32,0,L+.2,.64,21,0,0,rz,.8);sg('wall',GB,'#e9e4d8',mxp,my-1.1,0,L+.2,1,22,0,0,rz);
@@ -436,7 +483,7 @@ function updateDay(dt){
  dayT=(.25+(dayClock<DAYLIGHT_SECONDS?dayClock/DAYLIGHT_SECONDS*.5:.5+(dayClock-DAYLIGHT_SECONDS)/NIGHT_SECONDS*.5))%1;const hr=dayT*24,th=(hr-6)/12*Math.PI;SUND.set(Math.cos(th),Math.sin(th)*.75,.32).normalize();
  const el=SUND.y,S=T.MathUtils.smoothstep,day=S(el,-.1,.16),dusk=Math.max(0,1-Math.abs(el-.03)/.2);night=1-day;
  const up=el>-.02,src=up?SUND:MOONV.set(-SUND.x,-SUND.y,SUND.z).normalize();SUNOFF.copy(src).multiplyScalar(136);SX.crossVectors(_Y,SUND).normalize();SY.crossVectors(SUND,SX);
- sun.intensity=up?3.3*S(el,-.02,.22):.5*S(-el,.02,.25);sun.color.set(up?'#ffe3bd':'#9fb4ff');if(up)sun.color.lerp(_C.set('#ff9a55'),dusk*.7);hemi.intensity=.3+1.45*day+.55*dusk;
+ sun.intensity=up?3.3*S(el,-.02,.22):.5*S(-el,.02,.25);sun.color.set(up?'#ffe3bd':'#9fb4ff');if(up)sun.color.lerp(_C.set('#ff9a55'),dusk*.7);hemi.intensity=.3+1.45*day+.55*dusk;seaMat.envMapIntensity=canalMat.envMapIntensity=.08+.72*day;
  skyU.zen.value.copy(DC.zN).lerp(DC.zD,day).lerp(DC.zS,dusk*.55);scene.fog.color.copy(DC.hN).lerp(DC.hD,day).lerp(DC.hS,dusk*.75);skyU.sunC.value.set('#fff0cc').lerp(_C.set('#ff9d5c'),dusk*.6);
  CLM.color.setScalar(.18+.82*day).lerp(_C.set('#ffb07a'),dusk*.3);sunSprite.material.opacity=S(el,-.07,.03);SUNV.set(SUND.x,Math.max(-1,SUND.y-.12),SUND.z).normalize();
  moon.position.copy(cam.position).addScaledVector(_LT.set(-SUND.x,Math.max(.15,-SUND.y*.8),SUND.z).normalize(),700);moon.material.opacity=night;stars.position.copy(cam.position);stars.material.opacity=Math.max(0,night*1.3-.3);
@@ -499,7 +546,7 @@ function updateSurf(dt){
  const pos=player.position,ox=pos.x,oz=pos.z;
  pos.z=T.MathUtils.clamp(pos.z+Math.cos(heading)*surf.speed*dt,c.zMin,c.zMax);
  pos.x=T.MathUtils.clamp(pos.x+Math.sin(heading)*surf.speed*dt,shore(pos.z)-c.maxDepth,shore(pos.z)-c.minDepth);
- pos.y=c.waterY+.16+Math.sin(simTime*2+pos.x*.12+pos.z*.08)*.055;
+ pos.y=seaHeight(pos.x,pos.z,UW.uT.value)+.16;
  distance+=Math.hypot(pos.x-ox,pos.z-oz);poseSurf();
  cam.fov=T.MathUtils.lerp(cam.fov,58+surf.speed*.35,Math.min(1,dt*3));cam.updateProjectionMatrix();
 }
