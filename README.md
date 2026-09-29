@@ -59,7 +59,8 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 - Personagens com rostos, cabelos, tons de pele, roupas, mãos e calçados mais detalhados, preservados durante as quedas.
 - Combate com alcance, direção, defesa e equilíbrio: socos pelas costas derrubam para a frente, com reação do tronco, atraso dos pés e tentativa de apoio com as mãos. Golpes frontais causam recuo e exigem uma sequência para derrubar; golpes laterais desequilibram mais, especialmente durante a corrida.
 - Quedas articuladas com distribuição de massa, limites para joelhos e cotovelos, atrito, impulso direcional e colisões com o chão e obstáculos. Após se estabilizar, o personagem se apoia, ajoelha e levanta. A simulação usa passos fixos para manter a resposta consistente em diferentes taxas de quadros.
-- Polícia, níveis de procurado, perseguição, fuga e multas.
+- Polícia com cinco níveis de procurado, perseguição, fuga e multas. Cada nova infração durante a perseguição mobiliza mais viaturas, mesmo com o medidor cheio; delitos graves chamam mais reforços. As viaturas chegam a cada 1,2 segundo, até 12 simultâneas, e o painel mostra quantas chegaram e quantas foram mobilizadas. Fuga ou detenção reinicia a mobilização.
+- Agressões repetidas e atropelamentos fortes podem ser fatais e são denunciados como homicídio, com resposta policial maior. A vítima permanece caída por um minuto antes de reaparecer.
 - Policiais também recebem socos e atropelamentos, com desequilíbrio, quedas articuladas e recuperação. Um policial caído ou atordoado não consegue prender o jogador.
 - Viaturas com massa, impulso, giro e deslizamento nas colisões, usando o mesmo sistema de contato dos outros carros.
 - Perseguição com motor e volante: os motoristas aceleram forte, corrigem tarde, derrapam, cortam por calçadas e áreas abertas e tentam dar ré quando ficam presos. A velocidade é moderada; a dificuldade para controlar o carro é intencional.
