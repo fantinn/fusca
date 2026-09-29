@@ -45,6 +45,7 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 - Outdoors da Fantin pela cidade: nas praças do centro, na orla, na entrada da ponte e no topo dos prédios mais altos, iluminados à noite.
 - Carros antigos na rua: Fusca, Kombi, Opala SS, Mustang 67 e Cadillac 1959. Chegue perto de qualquer um a pé (ele para) e aperte E para furtar; cada modelo tem aceleração, velocidade e peso próprios.
 - Kombi, Opala SS, Mustang 67 e Cadillac 1959 com carrocerias chanfradas, caixas de roda recortadas, cabines e vidros inclinados, rodas próprias, frisos, retrovisores, limpadores, placas e grades detalhadas. Geometrias compartilhadas por modelo; a modelagem do Fusca permanece igual.
+- Kombi T1 com frente convexa em duas cores, faixa clara em V, teto abaulado contínuo, cantos curvos, vidros de cantos arredondados e emblema frontal, inspirada em referências da corujinha real.
 - Entregas pagas e interações com moradores.
 - 52 moradores distribuídos por 14 regiões, com compras e entregas locais para evitar concentração no centro.
 - Rotinas individuais com ritmos de caminhada variados, viradas suaves, pausas, alongamentos, celular, conversas e passeios pelos bairros.
