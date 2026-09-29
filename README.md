@@ -14,7 +14,7 @@ Baixe `index.html` e abra no Chrome, Edge ou Firefox com WebGL habilitado. O arq
 | A/D ou setas | Virar |
 | Shift | Turbo no carro; correr a pé |
 | Espaço | Freio de mão no carro; defender a pé |
-| E | Entrar/sair do carro, conversar, pegar/entregar encomendas |
+| E | Entrar/sair do carro, conversar, pegar/entregar encomendas; iniciar surf junto à prancha e voltar à areia |
 | Q | Socar |
 | F | Furtar |
 | G | Soltar encomenda |
@@ -35,7 +35,8 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 - Câmera que acompanha a derrapagem com leve atraso e abre o campo de visão com a velocidade e o turbo.
 - Som opcional (botão SOM): motor com troca de marchas, pneus cantando e batidas.
 - Corrida de rua com aposta: pare o Fusca no anel laranja à frente do ponto inicial e aperte E. Aposta até R$ 100 (a primeira corrida sem dinheiro vale R$ 40); passe pelos checkpoints antes do rival para levar o dobro.
-- Cidade aberta, praia, trânsito, pedestres e minimapa.
+- Cidade aberta, praia acessível a pé, trânsito, pedestres e minimapa.
+- Surf livre simples: siga a oeste pela avenida central até a areia e encontre a prancha azul (ponto azul no minimapa, x≈-300, z=0). E inicia; W/S regula a velocidade e A/D vira, também pelas setas ou botões do celular. E retorna à areia na altura atual; R reposiciona na avenida. Sem encomenda em mãos para entrar. Movimento com inércia, prancha flutuante e pose de surf; configuração e ciclo próprios para futuras melhorias.
 - Serra do Sol ampliada ao norte: cinco montanhas acessíveis, estrada sinuosa, mirantes, terreno livre e altitude no painel. Siga ao norte pela avenida central (x=0), pela avenida x=216 ou pelo bairro leste (x=518).
 - Circuito norte com estradas alternativas e dois túneis atravessando as montanhas, com pista dupla, teto em arco, iluminação, sinalização e marcação azul no minimapa. O piso dos túneis é separado do terreno acima e a câmera acompanha a passagem interna.
 - Quebra-molas listrados em dez pontos da cidade, com elevação real e reação da suspensão.
