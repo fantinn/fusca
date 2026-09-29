@@ -19,7 +19,7 @@ Baixe `index.html` e abra no Chrome, Edge ou Firefox com WebGL habilitado. O arq
 | F | Furtar |
 | G | Soltar encomenda |
 | C | Alternar câmera |
-| R | Reposicionar fora de perseguições |
+| R | Desvirar o carro capotado após parar; normalmente reposicionar fora de perseguições |
 | Esc | Pausar |
 
 No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e mostra botões de direção, pedais (acelerar, freio/ré, turbo e freio de mão) e ações. Com a tela em pé, ele pausa e pede para girar o aparelho.
@@ -38,6 +38,9 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 - Cidade aberta, praia, trânsito, pedestres e minimapa.
 - Serra do Sol ao norte: três montanhas acessíveis, estrada sinuosa, mirantes, terreno livre e altitude no painel. Siga ao norte pela avenida central (x=0), pela avenida x=216 ou pelo bairro leste (x=518).
 - Quebra-molas listrados em dez pontos da cidade, com elevação real e reação da suspensão.
+- Saltos nos carros dirigidos pelo jogador: impulso vertical ao deixar rampas/cristas, gravidade, rotação no ar e aterrissagens com quique. Pneus sem contato não aceleram nem freiam o carro no ar.
+- Entrar rápido ou desalinhado pode causar cambalhotas e capotamentos; contatos da carroceria dissipam energia até parar. R (ou o botão de reposicionar no celular) desvira o carro no próprio lugar.
+- Rampa sinalizada na entrada norte da serra, seguindo a avenida central. A física usa passos de 1/120 s e funciona com Fusca, Kombi, Opala, Mustang e Cadillac.
 - Carros acompanham a inclinação do terreno nas quatro rodas; subidas seguram a velocidade, descidas aceleram e a câmera evita entrar nas encostas.
 - Ciclo de 12 minutos, com 10 minutos de dia e 2 de noite, começando às 10h: pôr do sol no mar, lua e estrelas, postes, janelas e faróis acesos à noite.
 - Semáforos em todos os cruzamentos; o trânsito para no vermelho.
