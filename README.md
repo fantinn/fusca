@@ -44,6 +44,7 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 - Bairro novo a leste, do outro lado de um canal, ligado por uma ponte estaiada na avenida central, com roda-gigante no parque.
 - Outdoors da Fantin pela cidade: nas praças do centro, na orla, na entrada da ponte e no topo dos prédios mais altos, iluminados à noite.
 - Carros antigos na rua: Fusca, Kombi, Opala SS, Mustang 67 e Cadillac 1959. Chegue perto de qualquer um a pé (ele para) e aperte E para furtar; cada modelo tem aceleração, velocidade e peso próprios.
+- Kombi, Opala SS, Mustang 67 e Cadillac 1959 com carrocerias chanfradas, caixas de roda recortadas, cabines e vidros inclinados, rodas próprias, frisos, retrovisores, limpadores, placas e grades detalhadas. Geometrias compartilhadas por modelo; a modelagem do Fusca permanece igual.
 - Entregas pagas e interações com moradores.
 - 52 moradores distribuídos por 14 regiões, com compras e entregas locais para evitar concentração no centro.
 - Rotinas individuais com ritmos de caminhada variados, viradas suaves, pausas, alongamentos, celular, conversas e passeios pelos bairros.
