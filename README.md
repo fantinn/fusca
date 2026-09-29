@@ -45,10 +45,18 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 - Outdoors da Fantin pela cidade: nas praças do centro, na orla, na entrada da ponte e no topo dos prédios mais altos, iluminados à noite.
 - Carros antigos na rua: Fusca, Kombi, Opala SS, Mustang 67 e Cadillac 1959. Chegue perto de qualquer um a pé (ele para) e aperte E para furtar; cada modelo tem aceleração, velocidade e peso próprios.
 - Entregas pagas e interações com moradores.
-- Moradores com rotinas, temperamentos e reações a confusões.
-- Combate com alcance, direção, defesa e perda gradual de equilíbrio. Um soco não mata nem derruba automaticamente; quedas são temporárias.
-- Quedas articuladas e recuperação passando por uma postura ajoelhada.
+- 52 moradores distribuídos por 14 regiões, com compras e entregas locais para evitar concentração no centro.
+- Rotinas individuais com ritmos de caminhada variados, viradas suaves, pausas, alongamentos, celular, conversas e passeios pelos bairros.
+- Ocorrências espontâneas com intervalos e limite de simultaneidade: moradores discutem e brigam entre si, com socos, desequilíbrio e quedas; outros tentam furtar carros parados ou lentos e fogem dirigindo.
+- Alguns moradores provocam o jogador a pé. E encerra a provocação com uma conversa; Q usa o combate normal.
+- Polícia persegue e detém os responsáveis pelas ocorrências entre NPCs, incluindo ladrões de carros, sem atribuir essas infrações ao jogador. Furtos interrompidos liberam o veículo; carros abandonados voltam ao trânsito.
+- Personagens com rostos, cabelos, tons de pele, roupas, mãos e calçados mais detalhados, preservados durante as quedas.
+- Combate com alcance, direção, defesa e equilíbrio: socos pelas costas derrubam para a frente, com reação do tronco, atraso dos pés e tentativa de apoio com as mãos. Golpes frontais causam recuo e exigem uma sequência para derrubar; golpes laterais desequilibram mais, especialmente durante a corrida.
+- Quedas articuladas com distribuição de massa, limites para joelhos e cotovelos, atrito, impulso direcional e colisões com o chão e obstáculos. Após se estabilizar, o personagem se apoia, ajoelha e levanta. A simulação usa passos fixos para manter a resposta consistente em diferentes taxas de quadros.
 - Polícia, níveis de procurado, perseguição, fuga e multas.
+- Policiais também recebem socos e atropelamentos, com desequilíbrio, quedas articuladas e recuperação. Um policial caído ou atordoado não consegue prender o jogador.
+- Viaturas com massa, impulso, giro e deslizamento nas colisões, usando o mesmo sistema de contato dos outros carros.
+- Perseguição com motor e volante: os motoristas aceleram forte, corrigem tarde, derrapam, cortam por calçadas e áreas abertas e tentam dar ré quando ficam presos. A velocidade é moderada; a dificuldade para controlar o carro é intencional.
 
 O progresso fica apenas na sessão atual e é reiniciado ao recarregar a página. Gráficos e física são estilizados; este é um protótipo de jogo.
 
