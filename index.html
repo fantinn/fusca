@@ -330,9 +330,9 @@ function updateSky(dt){updateDay(dt);updateSignals(dt);const t=simTime;sunSprite
  for(const f of flocks)if(f.follow){const p=actorPos(),k=Math.min(1,dt*.15);cam.getWorldDirection(_BF);f.c.x+=(p.x+_BF.x*55-f.c.x)*k;f.c.z+=(p.z+_BF.z*55-f.c.z)*k}
  for(const b of birds){const a=b.ph+t*b.w,c=b.f.c;b.g.position.set(c.x+Math.cos(a)*b.R,b.h+Math.sin(t*.7+b.ph)*1.5,c.z+Math.sin(a)*b.R);b.g.rotation.set(0,Math.atan2(-Math.sin(a)*b.w,Math.cos(a)*b.w),Math.sign(b.w)*.3);
   const flap=Math.sin(t*.8+b.ph)>-.3?Math.sin(t*10+b.ph*5)*.55:.06;b.wl.rotation.z=flap;b.wr.rotation.z=-flap}}
-// Day/night cycle: 6 real minutes per day, starting late afternoon. The sun rises over the east district and sets over the sea;
+// Day/night cycle: 10 real minutes of daylight and 2 of night, starting at 10:00. The sun rises over the east district and sets over the sea;
 // at night a cool moon light takes over, street lamps glow with light pools, windows and the player's headlights switch on.
-const DAY_LEN=360,DC={zD:new T.Color('#3b8bd8'),hD:new T.Color('#c3e3ee'),zS:new T.Color('#4f6fa6'),hS:new T.Color('#f2b98a'),zN:new T.Color('#07101f'),hN:new T.Color('#17243c')},MOONV=new T.Vector3(),_LT=new T.Vector3();let dayT=16.5/24,night=0,clockTimer=0;
+const DAYLIGHT_SECONDS=600,NIGHT_SECONDS=120,DC={zD:new T.Color('#3b8bd8'),hD:new T.Color('#c3e3ee'),zS:new T.Color('#4f6fa6'),hS:new T.Color('#f2b98a'),zN:new T.Color('#07101f'),hN:new T.Color('#17243c')},MOONV=new T.Vector3(),_LT=new T.Vector3();let dayT=10/24,dayClock=DAYLIGHT_SECONDS/3,night=0,clockTimer=0;
 const glowTex=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d'),g=x.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.35,'rgba(255,255,255,.45)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,64,64);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;return t})();
 const moon=new T.Sprite(new T.SpriteMaterial({map:glowTex,color:'#dfe8ff',fog:false,depthWrite:false,transparent:true,toneMapped:false}));moon.scale.setScalar(60);scene.add(moon);
 const stars=(()=>{const p=[];for(let i=0;i<700;i++){const u=Math.random()*Math.PI*2,v=Math.random()*.95+.05,r=Math.sqrt(1-v*v);p.push(Math.cos(u)*r*750,v*750,Math.sin(u)*r*750)}const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));return new T.Points(g,new T.PointsMaterial({color:'#ffffff',size:1.6,sizeAttenuation:false,fog:false,transparent:true,depthWrite:false,toneMapped:false}))})();stars.frustumCulled=false;scene.add(stars);
@@ -342,7 +342,10 @@ const lampPools=new T.InstancedMesh(new T.PlaneGeometry(12,12).rotateX(-Math.PI/
 for(let i=0;i<LH.length;i+=3){mx(LH[i],LH[i+1]-5.66,LH[i+2]);lampPools.setMatrixAt(i/3,_M)}lampPools.computeBoundingSphere();lampPools.renderOrder=1;scene.add(lampPools);
 const headlight=new T.SpotLight('#fff1c9',0,55,.52,.55,1);scene.add(headlight,headlight.target);KM.glass.emissive.set('#ffc56b');
 const bbGlow=(()=>{const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(BBG,3));return new T.Points(g,new T.PointsMaterial({map:glowTex,color:'#fff1c9',size:3.2,transparent:true,depthWrite:false,blending:T.AdditiveBlending,toneMapped:false}))})();scene.add(bbGlow);
-function updateDay(dt){dayT=(dayT+dt/DAY_LEN)%1;const hr=dayT*24,th=(hr-6)/12*Math.PI;SUND.set(Math.cos(th),Math.sin(th)*.75,.32).normalize();
+function updateDay(dt){
+ // Map elapsed time to the same solar orbit: 06:00–18:00 is slow, 18:00–06:00 is brief.
+ dayClock=(dayClock+dt)%(DAYLIGHT_SECONDS+NIGHT_SECONDS);
+ dayT=(.25+(dayClock<DAYLIGHT_SECONDS?dayClock/DAYLIGHT_SECONDS*.5:.5+(dayClock-DAYLIGHT_SECONDS)/NIGHT_SECONDS*.5))%1;const hr=dayT*24,th=(hr-6)/12*Math.PI;SUND.set(Math.cos(th),Math.sin(th)*.75,.32).normalize();
  const el=SUND.y,S=T.MathUtils.smoothstep,day=S(el,-.1,.16),dusk=Math.max(0,1-Math.abs(el-.03)/.2);night=1-day;
  const up=el>-.02,src=up?SUND:MOONV.set(-SUND.x,-SUND.y,SUND.z).normalize();SUNOFF.copy(src).multiplyScalar(136);SX.crossVectors(_Y,SUND).normalize();SY.crossVectors(SUND,SX);
  sun.intensity=up?3.3*S(el,-.02,.22):.5*S(-el,.02,.25);sun.color.set(up?'#ffe3bd':'#9fb4ff');if(up)sun.color.lerp(_C.set('#ff9a55'),dusk*.7);hemi.intensity=.3+1.45*day+.55*dusk;

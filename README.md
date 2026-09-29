@@ -39,7 +39,7 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 - Serra do Sol ao norte: três montanhas acessíveis, estrada sinuosa, mirantes, terreno livre e altitude no painel. Siga ao norte pela avenida central (x=0), pela avenida x=216 ou pelo bairro leste (x=518).
 - Quebra-molas listrados em dez pontos da cidade, com elevação real e reação da suspensão.
 - Carros acompanham a inclinação do terreno nas quatro rodas; subidas seguram a velocidade, descidas aceleram e a câmera evita entrar nas encostas.
-- Ciclo de dia e noite (um dia dura 6 minutos): pôr do sol no mar, lua e estrelas, postes, janelas e faróis acesos à noite.
+- Ciclo de 12 minutos, com 10 minutos de dia e 2 de noite, começando às 10h: pôr do sol no mar, lua e estrelas, postes, janelas e faróis acesos à noite.
 - Semáforos em todos os cruzamentos; o trânsito para no vermelho.
 - Bairro novo a leste, do outro lado de um canal, ligado por uma ponte estaiada na avenida central, com roda-gigante no parque.
 - Outdoors da Fantin pela cidade: nas praças do centro, na orla, na entrada da ponte e no topo dos prédios mais altos, iluminados à noite.
