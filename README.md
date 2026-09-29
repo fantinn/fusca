@@ -36,7 +36,8 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 - Som opcional (botão SOM): motor com troca de marchas, pneus cantando e batidas.
 - Corrida de rua com aposta: pare o Fusca no anel laranja à frente do ponto inicial e aperte E. Aposta até R$ 100 (a primeira corrida sem dinheiro vale R$ 40); passe pelos checkpoints antes do rival para levar o dobro.
 - Cidade aberta, praia, trânsito, pedestres e minimapa.
-- Serra do Sol ao norte: três montanhas acessíveis, estrada sinuosa, mirantes, terreno livre e altitude no painel. Siga ao norte pela avenida central (x=0), pela avenida x=216 ou pelo bairro leste (x=518).
+- Serra do Sol ampliada ao norte: cinco montanhas acessíveis, estrada sinuosa, mirantes, terreno livre e altitude no painel. Siga ao norte pela avenida central (x=0), pela avenida x=216 ou pelo bairro leste (x=518).
+- Circuito norte com estradas alternativas e dois túneis atravessando as montanhas, com pista dupla, teto em arco, iluminação, sinalização e marcação azul no minimapa. O piso dos túneis é separado do terreno acima e a câmera acompanha a passagem interna.
 - Quebra-molas listrados em dez pontos da cidade, com elevação real e reação da suspensão.
 - Saltos nos carros dirigidos pelo jogador: impulso vertical ao deixar rampas/cristas, gravidade, rotação no ar e aterrissagens com quique. Pneus sem contato não aceleram nem freiam o carro no ar.
 - Entrar rápido ou desalinhado pode causar cambalhotas e capotamentos; contatos da carroceria dissipam energia até parar. R (ou o botão de reposicionar no celular) desvira o carro no próprio lugar.
