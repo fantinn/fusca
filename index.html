@@ -892,26 +892,29 @@ function poseSurf(dt){
  u.head.rotation.set(-1.1*pr,-1.05*st,0);
 }
 // Camera: behind the direction of travel and pushed toward the beach so the wave face stays in frame.
-// Camera: close behind the rider, a little to the sand side and low, turned slightly toward the open sea (the look of classic surf games).
+// Camera: while riding it stands on the sand side and looks from the beach toward the wave, CAM_FACE rad between "along the crest" and
+// "straight out to sea", with the rider in front of the face. Paddling, it sits behind the board.
 // It is kept in front of the ridden wave's lip so it never ends up under the curl, and above the water under it.
 const SC_T=new T.Vector3(),SC_L=new T.Vector3();
 function surfCamClear(v){
  const w=surf.wave;if(!w||!seaU.uCurl.value||!(surf.mode==='ride'||surf.mode==='air'))return;waveAt(w,v.x,v.z);if(WS.E<.05||WS.u<-2*WS.Lf)return;
  const c=sst(-.9,.1,WS.s)*(1-sst(1,3.2,WS.s)),Dm=w.hollow*c*WS.E*(1.2*WS.Lf+.3*w.H),reach=Dm>.3?Dm+.8*WS.Lf+1.5:0;if(WS.u<reach)v.x+=reach-WS.u;
 }
+const CAM_FACE=.8;
 function surfCam(dt){
  const S=surf,p=player.position,sp=S.speed,ride=S.mode==='ride'||S.mode==='air',w=S.wave,big=Math.max(0,(w?w.H:2.5)-2.5);
  let dx=S.vx,dz=S.vz;if(sp<1.5||!ride){dx=Math.sin(heading);dz=Math.cos(heading)}else{dx/=sp;dz/=sp}
- S.camYaw+=wrapAngle(Math.atan2(dx,dz)-S.camYaw)*(1-Math.exp(-dt*(ride?3.2:3)));
+ const trav=Math.atan2(dx,dz),alongV=ride?sst(.15,.45,Math.abs(dz)):0,crest=Math.atan2(-Math.sin(CAM_FACE),(dz<0?-1:1)*Math.cos(CAM_FACE));
+ S.camYaw+=wrapAngle(trav+wrapAngle(crest-trav)*alongV-S.camYaw)*(1-Math.exp(-dt*(ride?2.6:3)));
  const fx=Math.sin(S.camYaw),fz=Math.cos(S.camYaw),along=ride?sst(.05,.35,Math.abs(fz)):0,sg=fz<0?-1:1,px=Math.abs(fz),pz=-sg*fx;
  const k=Math.min(1,dt*2.4);
- S.camSide+=((ride?(1.8+.4*big)*along:0)-S.camSide)*k;S.camBack+=((ride?4.8+.04*sp+.3*big:6)-S.camBack)*k;
- S.camUp+=((ride?1.3+.2*big-.4*S.tubeK:2.4)-S.camUp)*k;S.camAhead+=((ride?5:4)-S.camAhead)*k;
+ S.camSide+=(0-S.camSide)*k;S.camBack+=((ride?6.6+.04*sp+.4*big:6)-S.camBack)*k;
+ S.camUp+=((ride?1.6+.25*big-.4*S.tubeK:2.4)-S.camUp)*k;S.camAhead+=((ride?2.5:4)-S.camAhead)*k;
  let cx=p.x-fx*S.camBack+px*S.camSide,cz=p.z-fz*S.camBack+pz*S.camSide;
  SC_T.set(cx,0,cz);surfCamClear(SC_T);cx=SC_T.x;
  S.camOX+=(cx-p.x-S.camOX)*Math.min(1,dt*4);S.camOZ+=(cz-p.z-S.camOZ)*Math.min(1,dt*4);
  SC_T.set(p.x+S.camOX,0,p.z+S.camOZ);SC_T.y=Math.max(p.y+S.camUp,SEA_Y+oceanHeight(SC_T.x,SC_T.z)+1.3);
- const ly=S.camYaw-sg*.2*along;SC_L.set(p.x+Math.sin(ly)*S.camAhead,p.y+.8,p.z+Math.cos(ly)*S.camAhead);
+ SC_L.set(p.x+fx*S.camAhead,p.y+(ride?1:.8),p.z+fz*S.camAhead);
  return S.camYaw;
 }
 function surfSetText(){return OC.set&&OC.set.left>0||OC.queue.some(q=>q.o.set)?'SET NA ÁGUA':'PRÓXIMO SET ~'+Math.max(5,Math.round((OC.setAt-OC.t)/5)*5)+' s'}
