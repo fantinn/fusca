@@ -12,14 +12,14 @@ Baixe `index.html` e abra no Chrome, Edge ou Firefox com WebGL habilitado. O arq
 | --- | --- |
 | W/S ou setas | Acelerar/frear no carro; andar para frente/trás a pé |
 | A/D ou setas | Virar |
-| Shift | Turbo no carro; correr a pé |
-| Espaço | Freio de mão no carro; defender a pé |
-| E | Entrar/sair do carro, conversar, pegar/entregar encomendas; iniciar surf junto à prancha e voltar à areia |
+| Shift | Turbo no carro; correr a pé; no surf, remada forte e agachar (tubo) |
+| Espaço | Freio de mão no carro; defender a pé; no surf, furar a onda (remando) e pular (na onda) |
+| E | Entrar/sair do carro, conversar, pegar/entregar encomendas; iniciar surf junto à prancha, sair da onda e voltar à areia |
 | Q | Socar |
 | F | Furtar |
 | G | Soltar encomenda |
 | C | Alternar câmera |
-| R | Desvirar o carro capotado após parar; normalmente reposicionar fora de perseguições |
+| R | Desvirar o carro capotado após parar; normalmente reposicionar fora de perseguições; no surf, voltar ao pico |
 | Esc | Pausar |
 
 No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e mostra botões de direção, pedais (acelerar, freio/ré, turbo e freio de mão) e ações. Com a tela em pé, ele pausa e pede para girar o aparelho.
@@ -35,9 +35,10 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 - Câmera que acompanha a derrapagem com leve atraso e abre o campo de visão com a velocidade e o turbo.
 - Som opcional (botão SOM): motor com troca de marchas, pneus cantando e batidas.
 - Corrida de rua com aposta: pare o Fusca no anel laranja à frente do ponto inicial e aperte E. Aposta até R$ 100 (a primeira corrida sem dinheiro vale R$ 40); passe pelos checkpoints antes do rival para levar o dobro.
-- Água da praia transparente no raso, com fundo de areia visível e transição gradual para o azul profundo. Ondulações lentas e pequenas, cores suaves, espuma discreta e reflexos que diminuem à noite. Canal com ondulação suave e prancha acompanhando as ondas.
+- Água da praia transparente no raso, com fundo de areia visível e transição gradual para o azul profundo. Ondulações lentas e pequenas, cores suaves, espuma discreta e reflexos que diminuem à noite. Canal com ondulação suave e prancha acompanhando as ondas. As ondas têm face translúcida verde-esmeralda (o sol atravessa a face e o lábio), reflexo do céu nas beiradas, espuma rendada que corre para a praia e microondulação que faz o brilho do sol cintilar.
 - Cidade aberta, praia acessível a pé, trânsito, pedestres e minimapa.
-- Surf livre simples: siga a oeste pela avenida central até a areia e encontre a prancha azul (ponto azul no minimapa, x≈-300, z=0). E inicia; W/S regula a velocidade e A/D vira, também pelas setas ou botões do celular. E retorna à areia na altura atual; R reposiciona na avenida. Sem encomenda em mãos para entrar. Movimento com inércia, prancha flutuante e pose de surf; configuração e ciclo próprios para futuras melhorias.
+- Mar com ondas de verdade: séries de 3 a 7 ondas (de ~2,5 a 6,5 m) chegam de tempos em tempos, crescem ao se aproximar e quebram a cerca de 200 m da areia, descascando ao longo da crista como direita, esquerda, pico ou fechadeira. O lábio se projeta e forma tubo; atrás fica a espuma que corre até a praia. A altura da água é a mesma na física e na tela, e barcos, câmera e prancha acompanham a ondulação. No radar, as cristas aparecem em azul e a parte já quebrada em branco.
+- Surf: siga a oeste pela avenida central até a areia e encontre a prancha azul (ponto azul no minimapa, x≈-300, z=0). E leva você ao pico, deitado na prancha; as ondas se formam perto de onde você está. Vire para a praia e reme (W, ou Shift para remar forte) quando a onda chegar: se estiver no ombro, a onda te pega e você fica de pé. Na parede, A/D curvam, W dá impulso, S freia, Shift agacha para entrar no tubo e Espaço pula (A/D giram no ar). A velocidade vem da inclinação da onda e passa de 60 km/h nas maiores. Fique à frente da espuma e fora do lábio para não cair. Espaço remando fura a onda por baixo. Cada onda vale pontos (distância, tempo de tubo, aéreos e batidas), convertidos em nota de 0 a 10 e em até R$ 100. E sai da onda ou volta à areia; R volta ao pico. Câmera baixa, atrás e levemente do lado da areia, olhando para o mar.
 - Serra do Sol ampliada ao norte: cinco montanhas acessíveis, estrada sinuosa, mirantes, terreno livre e altitude no painel. Siga ao norte pela avenida central (x=0), pela avenida x=216 ou pelo bairro leste (x=518).
 - Circuito norte com estradas alternativas e dois túneis atravessando as montanhas, com pista dupla, teto em arco, iluminação, sinalização e marcação azul no minimapa. O piso dos túneis é separado do terreno acima e a câmera acompanha a passagem interna.
 - Quebra-molas listrados em dez pontos da cidade, com elevação real e reação da suspensão.

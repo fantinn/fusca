@@ -77,12 +77,12 @@ sadd('flat',GH,'#8fb872',mx(475,-.15,0,1450,1,2600),'G',.4);
 // boats and camera stand on exactly the surface that is drawn. A wave is a straight crest running north–south that travels shoreward at
 // speed c; it breaks at its peak (zc) and the break peels along the crest at peelN / peelS m/s. s = seconds since the local break:
 // s<0 shoals and steepens, s≈0 throws the lip, s>0 is a whitewater bore that leaves a foam trail behind the crest.
-const SEA_Y=-.25,SHORE0=-312,NW=8,SHOAL_T=7,SPAWN_DIST=215,OC={t:0,waves:[],queue:[],setAt:9,fillAt:3,id:0,set:null,sets:0,mode:'auto'};
+const PEAK_DIST=200,SEA_Y=-.25,SHORE0=-312,NW=10,SHOAL_T=7,SPAWN_LEAD=120,GRID_DZ=LOW?3:1.5,OC={t:0,waves:[],queue:[],setAt:9,fillAt:3,id:0,set:null,sets:0,mode:'auto',lineup:{on:false,z:0}};
 const sst=(a,b,x)=>{x=Math.min(1,Math.max(0,(x-a)/(b-a)));return x*x*(3-2*x)};
 const AMB=(x,z,t)=>(.11*Math.sin(.16*x+.045*z-.88*t)+.07*Math.sin(.23*x-.06*z-1.25*t+1.7)+.045*Math.sin(.41*x+.15*z-2.25*t+.6))*sst(0,40,shore(z)-x);
 const WS={h:0,d:0,foam:0,soup:0,lip:0,tube:0,s:0,u:0,E:0,Lf:0,Hs:0};
 function waveAt(w,x,z){
- WS.h=WS.d=WS.foam=WS.soup=WS.lip=WS.tube=WS.E=0;
+ WS.h=WS.d=WS.foam=WS.soup=WS.lip=WS.tube=WS.E=WS.s=WS.u=WS.Hs=0;WS.Lf=2;
  const u=x-w.xc,dz=z-w.zc,dn=Math.abs(dz),ln=dz<0?w.lenN:w.lenS;
  if(u<-70||u>45||dn>=ln)return WS;
  const E=(1-sst(.6*ln,ln,dn))*w.alive*sst(2,26,shore(z)-x);
@@ -94,52 +94,68 @@ function waveAt(w,x,z){
  const g=Math.exp(-u*u/(u<0?Lbk*Lbk:Lf*Lf)),q=(u-1.9*Lf)/(1.5*Lf);
  WS.h=E*(Hs*g-tr*Math.exp(-q*q));
  const curl=sst(-.9,.1,s)*(1-sst(1,3.2,s)),Dm=w.hollow*curl*E*(1.2*Lf+.3*H),wv=u/Lf;
- WS.d=Dm*(wv<0?sst(-1.6,0,wv):1-sst(0,1.9,wv));
- const ql=(u+.15*Lf)/(1.1*Lf+.6),cf=sst(-.4,.5,s)*Math.exp(-ql*ql),rg=u<0?.9*Lbk:1.4*Lf+1,bf=sst(.15,1.2,s)*Math.exp(-.1*s)*Math.exp(-u*u/(rg*rg));
- const tp=u<0?-u/w.c:0,sp=s-tp,tf=u<0?sst(.3,1.5,sp)*Math.exp(-tp/5.5-.06*Math.max(0,sp))*sst(0,3,-u):0;
+ WS.d=Dm*(wv<0?sst(-1.6,0,wv):Math.exp(-3*wv*wv));
+ const ql=(u+.05*Lf)/(.75*Lf+.5),cf=sst(-.4,.5,s)*Math.exp(-ql*ql),rg=u<0?.9*Lbk:1.1*Lf+.8,bf=sst(.5,1.8,s)*Math.exp(-.1*s)*Math.exp(-u*u/(rg*rg));
+ const tp=u<0?-u/w.c:0,sp=s-tp,tf=u<0?sst(.8,2.2,sp)*Math.exp(-tp/5.5-.06*Math.max(0,sp))*sst(0,3,-u):0;
  WS.foam=E*Math.max(cf,bf,tf);WS.soup=E*Math.max(bf,tf);
  WS.lip=E*curl*w.hollow*Math.exp(-(((u+.35*Lf)/(.55*Lf+.4))**2));WS.tube=E*curl*w.hollow*Math.exp(-(((u-1.7*Lf)/(.7*Lf+.5))**2));
  WS.s=s;WS.u=u;WS.Lf=Lf;WS.Hs=Hs;WS.E=E;return WS;
 }
 function oceanHeight(x,z){let h=AMB(x,z,OC.t);for(const w of OC.waves){waveAt(w,x,z);h+=WS.h}return h}
 // Full sample for gameplay: height, gradient, whitewater, lip/tube zones, shoreward water flow and the dominant wave with the rider's place in it.
-const OI={h:0,hx:0,hz:0,soup:0,lip:0,tube:0,flow:0,wave:null,s:0,u:0,Lf:0,E:0};
-function oceanInfo(x,z,o=OI,only=null){
+const OI={h:0,hx:0,hz:0,soup:0,lip:0,tube:0,wave:null,s:0,u:0,Lf:0,E:0,steep:0,face:0};
+function oceanInfo(x,z,o=OI){
  const e=.4;o.h=oceanHeight(x,z);o.hx=(oceanHeight(x+e,z)-oceanHeight(x-e,z))/(2*e);o.hz=(oceanHeight(x,z+e)-oceanHeight(x,z-e))/(2*e);
- o.soup=o.lip=o.tube=o.flow=o.s=o.u=o.Lf=o.E=0;o.wave=null;let best=0,c=0;
- for(const w of only?[only]:OC.waves){waveAt(w,x,z);if(WS.E<=.001)continue;o.soup=Math.max(o.soup,WS.soup);o.lip=Math.max(o.lip,WS.lip);o.tube=Math.max(o.tube,WS.tube);const k=WS.E*(WS.Hs+.01)*Math.exp(-Math.abs(WS.u)/(WS.Lf+2));if(k>best){best=k;o.wave=w;o.s=WS.s;o.u=WS.u;o.Lf=WS.Lf;o.E=WS.E;c=w.c}}
- o.flow=c*sst(.28,.85,-o.hx);return o;
+ o.soup=o.lip=o.tube=o.s=o.u=o.Lf=o.E=o.steep=o.face=0;o.wave=null;let best=0;
+ for(const w of OC.waves){waveAt(w,x,z);if(WS.E<=.001)continue;o.soup=Math.max(o.soup,WS.soup);o.lip=Math.max(o.lip,WS.lip);o.tube=Math.max(o.tube,WS.tube);const k=WS.E*(WS.Hs+.01)*Math.exp(-Math.abs(WS.u)/(WS.Lf+2));if(k>best){best=k;o.wave=w;o.s=WS.s;o.u=WS.u;o.Lf=WS.Lf;o.E=WS.E;o.steep=.86*WS.Hs/WS.Lf}}
+ // face = how much this spot is the steep front of the wave (in front of the crest, over its steepest part): what lifts a paddler onto it
+ if(o.wave)o.face=sst(.22,.75,o.steep)*sst(-.5,.5,o.u)*(1-sst(1.6*o.Lf,3.2*o.Lf,o.u));
+ return o;
 }
-// Where the drawn surface really is under the lip: the shader pushes the crest forward by WS.d, so undo that to find the height at world x.
-function oceanVisibleHeight(x,z){let xs=x;for(let i=0;i<3;i++){let d=0;for(const w of OC.waves){waveAt(w,xs,z);d+=WS.d}xs=x-d}return oceanHeight(xs,z)}
+// Where the drawn surface really is: the shader pushes the crest forward by the lip throw d(x), which folds the surface into up to three
+// layers (face, underside of the lip, top of the lip). The rider belongs on the face, i.e. the source point with the largest x that lands on x.
+function oceanThrow(x,z){if(!seaU.uCurl.value)return 0;let d=0;for(const w of OC.waves){waveAt(w,x,z);d+=WS.d}return d}
+function oceanFaceSource(x,z){
+ if(!seaU.uCurl.value)return x;let hi=x,f=oceanThrow(x,z);if(f<.02)return x;
+ for(let xs=x-.35;xs>x-14;xs-=.35){const g=xs+oceanThrow(xs,z)-x;if(g<=0){let lo=xs;for(let i=0;i<6;i++){const m=(lo+hi)/2;if(m+oceanThrow(m,z)-x>0)hi=m;else lo=m}return (lo+hi)/2}hi=xs}
+ return x;
+}
+function oceanFaceHeight(x,z){return oceanHeight(oceanFaceSource(x,z),z)}
+// Waves are aimed at the surfer's stretch of beach: the peak breaks ~200 m out (PEAK_DIST, varied per wave) a few metres to one side of
+// them, so a surfer waiting at the peak sits on the shoulder and an uncaught wave passes under them instead of breaking on them.
+function waveAim(){
+ const L=OC.lineup;if(!L.on)return{zc:(Math.random()-.5)*200,breakDist:null};
+ return{zc:Math.max(-170,Math.min(170,L.z+(Math.random()<.5?-1:1)*(8+Math.random()*12))),breakDist:PEAK_DIST-6+Math.random()*12};
+}
 function spawnWave(o){
  if(OC.waves.length>=NW)return null;
- const H=o.H,hollow=T.MathUtils.clamp((H-1.9)/1.2,0,1)*(o.hollow??1);
- const w={id:++OC.id,t0:OC.t,H,c:o.c??4.9+.5*H,zc:o.zc,lenN:o.lenN,lenS:o.lenS,peelN:o.peelN,peelS:o.peelS,hollow,alive:0,kind:o.kind,set:!!o.set,Lb0:3.6*H+6,
-  breakX:SHORE0-(o.breakDist??52+13*H),x0:SHORE0-SPAWN_DIST};
+ const aim=o.zc==null?waveAim():{zc:o.zc,breakDist:o.breakDist},H=o.H,zc=aim.zc,hollow=T.MathUtils.clamp((H-1.9)/1.2,0,1)*(o.hollow??1);
+ const w={id:++OC.id,t0:OC.t,H,c:o.c??5.5+.65*H,zc,lenN:Math.min(o.lenN,320+zc),lenS:Math.min(o.lenS,320-zc),peelN:o.peelN,peelS:o.peelS,hollow,alive:0,kind:o.kind,set:!!o.set,Lb0:3.6*H+6,
+  breakX:SHORE0-(aim.breakDist??130+14*H)};w.x0=w.breakX-SPAWN_LEAD;
  w.LfD=.55*w.Lb0;w.LfB=(.85*H+.6)*(1-hollow)+(.55*H+.35)*hollow;w.tb0=OC.t+(w.breakX-w.x0)/w.c;w.xc=w.x0;w.s0=OC.t-w.tb0;
  OC.waves.push(w);return w;
 }
-function peelStyle(){
- const r=Math.random(),v=()=>6.5+Math.random()*3;
- if(r<.3)return{lenN:150,lenS:24,peelN:v(),peelS:6,kind:'DIREITA'};
- if(r<.6)return{lenN:24,lenS:150,peelN:6,peelS:v(),kind:'ESQUERDA'};
- if(r<.9)return{lenN:115,lenS:115,peelN:v(),peelS:v(),kind:'PICO'};
- return{lenN:90,lenS:90,peelN:26,peelS:26,kind:'FECHADEIRA'};
+// Peel speed scales with the wave's own speed so a big wave is fast to ride, not just tall.
+function peelStyle(H){
+ const c=5.5+.65*H,r=Math.random(),v=()=>c*(1.1+.55*Math.random()),lo=130+14*H,sh=18+3*H,hollow=.6+.4*Math.random();
+ if(r<.3)return{lenN:lo,lenS:sh,peelN:v(),peelS:c*.7,kind:'ESQUERDA',hollow};
+ if(r<.6)return{lenN:sh,lenS:lo,peelN:c*.7,peelS:v(),kind:'DIREITA',hollow};
+ if(r<.9)return{lenN:lo*.8,lenS:lo*.8,peelN:v(),peelS:v(),kind:'PICO',hollow};
+ return{lenN:100,lenS:100,peelN:c*3.4,peelS:c*3.4,kind:'FECHADEIRA',hollow};
 }
 function startSet(){
- const n=3+Math.floor(Math.random()*4),size=1.8+Math.random()*1.7,gap=8+Math.random()*3,zb=(Math.random()-.5)*160;
+ const n=3+Math.floor(Math.random()*4),size=3.4+Math.random()*3,gap=9+Math.random()*3;
  OC.sets++;OC.set={n,left:n,size,at:OC.t};
- for(let k=0;k<n;k++){const bell=Math.sin(Math.PI*(k+.6)/(n+.2)),H=size*(.62+.38*bell)*(.92+Math.random()*.16);OC.queue.push({at:OC.t+k*gap,o:{...peelStyle(),H,zc:zb+(Math.random()-.5)*50,set:true}})}
- OC.setAt=OC.t+n*gap+24+Math.random()*24;
+ for(let k=0;k<n;k++){const bell=Math.sin(Math.PI*(k+.6)/(n+.2)),H=size*(.62+.38*bell)*(.92+Math.random()*.16);OC.queue.push({at:OC.t+k*gap,o:{...peelStyle(H),H,set:true}})}
+ OC.setAt=OC.t+n*gap+(OC.lineup.on?10+Math.random()*14:24+Math.random()*24);
 }
 function oceanStep(dt){
  OC.t+=dt;
  if(OC.mode==='auto'){
   if(OC.t>=OC.setAt)startSet();
-  else if(OC.t>=OC.fillAt&&!OC.queue.length){OC.queue.push({at:OC.t,o:{...peelStyle(),H:1.3+Math.random()*1.1,zc:(Math.random()-.5)*200}});OC.fillAt=OC.t+9+Math.random()*9}
+  else if(OC.t>=OC.fillAt&&!OC.queue.length){const H=2.4+Math.random()*1.6;OC.queue.push({at:OC.t,o:{...peelStyle(H),H}});OC.fillAt=OC.t+(OC.lineup.on?7+Math.random()*7:9+Math.random()*9)}
  }
- for(let i=OC.queue.length-1;i>=0;i--){const q=OC.queue[i];if(OC.t>=q.at){OC.queue.splice(i,1);if(spawnWave(q.o)&&q.o.set&&OC.set)OC.set.left--}}
+ for(let i=OC.queue.length-1;i>=0;i--){const q=OC.queue[i];if(OC.t>=q.at&&spawnWave(q.o)){OC.queue.splice(i,1);if(q.o.set&&OC.set)OC.set.left--}}
  for(let i=OC.waves.length-1;i>=0;i--){
   const w=OC.waves[i];w.xc=w.x0+w.c*(OC.t-w.t0);w.s0=OC.t-w.tb0;
   w.alive=Math.min(1,(OC.t-w.t0)/4)*(1-sst(SHORE0+8,SHORE0+38,w.xc));
@@ -150,13 +166,13 @@ function oceanStep(dt){
   if(!w){A.w=0;continue}
   A.set(w.xc,w.zc,w.H,w.c);B.set(w.s0,w.peelN,w.peelS,w.hollow);C.set(w.lenN,w.lenS,w.alive,w.Lb0);D.set(w.LfD,w.LfB,0,0);
  }
- seaU.uWT.value=OC.t;
+ seaU.uWT.value=OC.t;seaU.uOffZ.value=Math.round(cam.position.z/GRID_DZ)*GRID_DZ;
 }
 const seaU={cA:{value:new T.Color('#8cc5c1')},cB:{value:new T.Color('#4b9ca8')},cC:{value:new T.Color('#286681')},
- wA:{value:Array.from({length:NW},()=>new T.Vector4())},wB:{value:Array.from({length:NW},()=>new T.Vector4())},wC:{value:Array.from({length:NW},()=>new T.Vector4())},wD:{value:Array.from({length:NW},()=>new T.Vector4())},uWT:{value:0},uCurl:{value:LOW?0:1}};
+ wA:{value:Array.from({length:NW},()=>new T.Vector4())},wB:{value:Array.from({length:NW},()=>new T.Vector4())},wC:{value:Array.from({length:NW},()=>new T.Vector4())},wD:{value:Array.from({length:NW},()=>new T.Vector4())},uWT:{value:0},uCurl:{value:1},uOffZ:{value:0}};
 const WAVE_GLSL=`#define NW ${NW}
 #define SHOAL_T ${SHOAL_T}.
-uniform vec4 wA[NW],wB[NW],wC[NW],wD[NW];uniform float uWT,uCurl;
+uniform vec4 wA[NW],wB[NW],wC[NW],wD[NW];uniform float uWT,uCurl,uOffZ;
 float sst(float a,float b,float x){x=clamp((x-a)/(b-a),0.,1.);return x*x*(3.-2.*x);}
 float amb(vec2 p){return (.11*sin(.16*p.x+.045*p.y-.88*uWT)+.07*sin(.23*p.x-.06*p.y-1.25*uWT+1.7)+.045*sin(.41*p.x+.15*p.y-2.25*uWT+.6))*sst(0.,40.,shore(p.y)-p.x);}
 // x = height, y = forward throw of the lip; fo = foam density
@@ -176,9 +192,9 @@ vec2 waves(vec2 p,out float fo){
   float g=exp(-u*u/(u<0.?Lbk*Lbk:Lf*Lf)),q=(u-1.9*Lf)/(1.5*Lf);
   r.x+=E*(Hs*g-tr*exp(-q*q));
   float curl=sst(-.9,.1,s)*(1.-sst(1.,3.2,s)),Dm=B.w*curl*E*(1.2*Lf+.3*H)*uCurl,wv=u/Lf;
-  r.y+=Dm*(wv<0.?sst(-1.6,0.,wv):1.-sst(0.,1.9,wv));
-  float ql=(u+.15*Lf)/(1.1*Lf+.6),cf=sst(-.4,.5,s)*exp(-ql*ql),rg=u<0.?.9*Lbk:1.4*Lf+1.,bf=sst(.15,1.2,s)*exp(-.1*s)*exp(-u*u/(rg*rg));
-  float tp=u<0.?-u/A.w:0.,sp=s-tp,tf=u<0.?sst(.3,1.5,sp)*exp(-tp/5.5-.06*max(0.,sp))*sst(0.,3.,-u):0.;
+  r.y+=Dm*(wv<0.?sst(-1.6,0.,wv):exp(-3.*wv*wv));
+  float ql=(u+.05*Lf)/(.75*Lf+.5),cf=sst(-.4,.5,s)*exp(-ql*ql),rg=u<0.?.9*Lbk:1.1*Lf+.8,bf=sst(.5,1.8,s)*exp(-.1*s)*exp(-u*u/(rg*rg));
+  float tp=u<0.?-u/A.w:0.,sp=s-tp,tf=u<0.?sst(.8,2.2,sp)*exp(-tp/5.5-.06*max(0.,sp))*sst(0.,3.,-u):0.;
   fo=max(fo,E*max(cf,max(bf,tf)));
  }
  return r;
@@ -194,18 +210,18 @@ const WATER_WAVES=`vec3 waterWave(vec2 p,float t){
 function waterMaterial(canal=false){
  const m=new T.MeshStandardMaterial({roughness:.32,metalness:0,envMap:ENV,envMapIntensity:.35,transparent:!canal,depthWrite:true,side:canal?T.FrontSide:T.DoubleSide});
  m.onBeforeCompile=s=>{
- Object.assign(s.uniforms,seaU,{uT:UW.uT});
+ Object.assign(s.uniforms,seaU,{uT:UW.uT,skyHor:skyU.hor,skyZen:skyU.zen});
  const depth=canal?'min(vW.x-296.,344.-vW.x)':'shore(vW.z)-vW.x';
  let v=s.vertexShader;
  if(canal)v=v.replace('#include <begin_vertex>',`#include <begin_vertex>
  vec3 wp=(modelMatrix*vec4(position,1.)).xyz;
- float depth=${depth};
+ float depth=min(wp.x-296.,344.-wp.x);
  transformed.y+=waterWave(wp.xz,uT).x*smoothstep(0.,12.,depth)*.12;`);
- else v=v.replace('#include <beginnormal_vertex>',`float sFo,sH,tF,tH;vec3 sP=seaP(position.xz,sFo,sH),sPx=seaP(position.xz+vec2(.3,0.),tF,tH),sPz=seaP(position.xz+vec2(0.,.5),tF,tH);
+ else v=v.replace('#include <beginnormal_vertex>',`float sFo,sH,tF,tH;vec2 gP=position.xz+vec2(0.,uOffZ);vec3 sP=seaP(gP,sFo,sH),sPx=seaP(gP+vec2(.3,0.),tF,tH),sPz=seaP(gP+vec2(0.,.5),tF,tH);
  vec3 objectNormal=normalize(cross(sPz-sP,sPx-sP));vNW=objectNormal;vWX=vec2(sFo,sH);`).replace('#include <begin_vertex>','vec3 transformed=sP;');
  s.vertexShader='varying vec3 vW'+(canal?'':',vNW;varying vec2 vWX')+';uniform float uT;\n'+SHORE+WATER_WAVES+'\n'+(canal?'':WAVE_GLSL)+'\n'+v
  .replace('#include <project_vertex>','#include <project_vertex>\nvW=(modelMatrix*vec4(transformed,1.)).xyz;');
- s.fragmentShader='varying vec3 vW'+(canal?'':',vNW;varying vec2 vWX')+';uniform float uT;uniform vec3 cA,cB,cC;\n'+NOISE+WATER_WAVES+'\n'+s.fragmentShader
+ s.fragmentShader='varying vec3 vW'+(canal?'':',vNW;varying vec2 vWX')+';uniform float uT;uniform vec3 cA,cB,cC,skyHor,skyZen;\n'+NOISE+WATER_WAVES+'\n'+s.fragmentShader
  .replace('#include <color_fragment>',`#include <color_fragment>
  float depth=${depth};
  ${canal?'':'if(depth<0.)discard;'}
@@ -222,32 +238,51 @@ function waterMaterial(canal=false){
  float foam=clamp((edge*.23+breaker*.10)*smoothstep(.22,.72,lace),0.,.9)*${canal?'.18':'1.'};
  float caustic=pow(max(0.,sin(vW.x*1.7+vW.z*.8+uT*.6)*sin(vW.z*1.4-vW.x*.6-uT*.5)),7.);
  waterColor+=vec3(.018,.025,.02)*caustic*(1.-smoothstep(1.,13.,depth))*fd;
- ${canal?'float wv=0.;':`float sl=1.-clamp(vNW.y,0.,1.),hf=clamp(vWX.y/2.4,0.,1.),face=smoothstep(.1,.5,sl)*(.35+.65*hf)*step(0.,vNW.y);
- waterColor=mix(waterColor,vec3(.24,.74,.68),face*.7);waterColor=mix(waterColor,vec3(.05,.27,.33),smoothstep(.05,-.35,vNW.y)*.85);
- float pat=vn(vW.xz*1.6+vec2(uT*.5,0.))*.5+vn(vW.xz*4.1-uT*.7)*.32+vn(vW.xz*10.)*.18,fw=smoothstep(.4,.62,vWX.x*(.5+.95*pat)+vWX.x*.22);
- foam=max(foam,fw);float wv=fw*.6+face*.4;`}
- diffuseColor.rgb=mix(waterColor,vec3(.88,.96,.92),foam);
+ ${canal?'float wv=0.;vec3 foamCol=vec3(.88,.96,.92);':`float sl=1.-clamp(vNW.y,0.,1.),hf=clamp(vWX.y/2.6,0.,1.),up=step(0.,vNW.y);
+ vec3 Vw=normalize(cameraPosition-vW);float fres=.02+.98*pow(1.-clamp(dot(vNW,Vw),0.,1.),5.);
+ // the wave face is translucent: emerald light in the upper face, deep blue at the foot, dark under the lip; streaks run down the face
+ float streak=vn(vec2(vW.z*1.7,vW.x*.22-uT*.05))*.6+vn(vec2(vW.z*4.3,vW.x*.5))*.4;
+ float face=smoothstep(.06,.5,sl)*(.3+.7*hf)*up;
+ waterColor=mix(waterColor,mix(vec3(.07,.5,.5),vec3(.42,.88,.76),hf*hf*(.55+.9*streak)),face*.85);
+ waterColor=mix(waterColor,vec3(.03,.2,.28),(1.-smoothstep(-.35,.05,vNW.y))*.85);
+ waterColor*=1.-.14*face*streak;
+ vec3 rv=reflect(-Vw,vNW);waterColor=mix(waterColor,mix(skyHor,skyZen,smoothstep(0.,.7,rv.y)),fres*.5);
+ // whitewater: domain-warped lace that drifts shoreward, solid where the foam is dense and broken into holes at its edges
+ vec2 fp=vW.xz,fq=vec2(vn(fp*.7+vec2(uT*.35,0.)),vn(fp*.7+vec2(5.2,uT*.2)))-.5;
+ float pat=vn(fp*vec2(1.3,2.4)+fq*2.4-vec2(uT*.5,0.))*.5+vn(fp*3.1+fq*1.6-vec2(uT*.4,0.))*.32+vn(fp*8.+fq)*.18;
+ pat=pat*.72+vn(vec2(fp.x*.3-uT*.6,fp.y*4.+fq.y*3.))*.28;
+ float fd2=vWX.x,fw=smoothstep(.42,.72,fd2*.95+(pat-.5)*.95);
+ vec3 foamCol=mix(vec3(.5,.76,.82),vec3(.99,1.,.98),smoothstep(.2,.8,pat*.9+fd2*.35));
+ foam=max(foam,fw);float wv=fw*.6+face*.4+smoothstep(.1,.5,fd2)*.25;`}
+ diffuseColor.rgb=mix(waterColor,foamCol,foam);
  // Real alpha blending reveals the sandy seabed, fading into opaque deep water.
  float grazing=pow(1.-clamp(normalize(cameraPosition-vW).y,0.,1.),4.);
  diffuseColor.a=${canal?'1.':'clamp(.20+.77*smoothstep(0.,65.,depth)+.12*grazing+foam*.2+wv,.20,.98)'};`)
- .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=mix(.32,.65,foam);')
+ .replace('#include <emissivemap_fragment>',`#include <emissivemap_fragment>
+ ${canal?'':`// light from the low sun shines through the thin upper face and lip of a wave, seen from the beach side: the glow that makes a wave green
+ vec3 Lw=normalize((vec4(directionalLights[0].direction,0.)*viewMatrix).xyz);
+ float back=pow(clamp(dot(-Vw,Lw)+.35,0.,1.),1.4),thin=face*(.25+.75*hf*hf)*(.55+.9*streak);
+ totalEmissiveRadiance+=mix(vec3(.02,.38,.33),vec3(.16,.62,.50),hf)*thin*back*(1.-foam)*dot(directionalLights[0].color,vec3(.3333))*.34;`}`)
+ .replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>\nroughnessFactor=mix(${canal?'.32':'.14'},.7,foam);`)
  .replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
  float rippleFade=fd*(1.-foam*.85);
  vec2 ripple=vec2(cos(dot(vW.xz,vec2(2.1,1.3))-uT*2.1),sin(dot(vW.xz,vec2(-1.4,2.6))+uT*1.8))*.008*rippleFade;
+ ${canal?'':'ripple+=(vec2(vn(vW.xz*vec2(2.2,3.)+vec2(uT*.6,uT*.3)),vn(vW.xz*vec2(3.1,2.3)-vec2(uT*.5,uT*.4)))-.5)*.16*rippleFade+(vec2(vn(vW.xz*7.+uT*.8),vn(vW.xz*7.5-uT*.7+9.))-.5)*.07*rippleFade;'}
  ${canal?`vec3 swell=waterWave(vW.xz,uT);vec2 slope=swell.yz*.3+ripple;
  normal=normalize((viewMatrix*vec4(normalize(vec3(-slope.x,1.,-slope.y)),0.)).xyz);`:`vec3 nW=normalize(vNW+vec3(-ripple.x,0.,-ripple.y));normal=normalize((viewMatrix*vec4(nW,0.)).xyz);`}`);
  };
- m.customProgramCacheKey=()=>canal?'canal-water-v3':'sea-water-v4';return m;
+ m.customProgramCacheKey=()=>canal?'canal-water-v4':'sea-water-v5';return m;
 }
 const seaMat=waterMaterial();
 
-// One dense grid of vertices in the surf zone (the lip needs sub-metre spacing), stretching out to the horizon.
+// One dense grid of vertices over the surf zone (the lip needs sub-metre spacing), stretching out to the horizon. It is built around z=0
+// and the vertex shader slides it along the beach with the camera (uOffZ, snapped to the row spacing so the surface never swims).
 function seaGeometry(){
- const dx=LOW?1.4:.6,dz=LOW?3:1.6,xr=[],zz=[];
- for(let v=-30;v<-6;v+=1.5)xr.push(v);for(let v=-6;v<150;v+=dx)xr.push(v);
- for(let v=150,d=dx*2.6;v<1750;v+=d,d=Math.min(d*(v<270?1:1.14),400))xr.push(v);
- for(let v=-340;v<=340;v+=dz)zz.push(v);
- for(let v=340,d=dz*2.2;v<1320;v+=d,d*=1.12){zz.push(v+d);zz.unshift(-v-d)}
+ const dx=LOW?1:.65,dz=GRID_DZ,xr=[],zz=[];
+ for(let v=-30;v<-6;v+=1.5)xr.push(v);for(let v=-6;v<300;v+=dx)xr.push(v);for(let v=300;v<430;v+=dx*2)xr.push(v);
+ for(let v=430,d=dx*5;v<1750;v+=d,d=Math.min(d*1.14,400))xr.push(v);
+ const zw=LOW?170:210;for(let v=-zw;v<=zw;v+=dz)zz.push(v);
+ for(let v=zw,d=dz*2;v<1500;v+=d,d*=1.13){zz.push(v+d);zz.unshift(-v-d)}
  const nx=xr.length,nz=zz.length,P=new Float32Array(nx*nz*3),I=new Uint32Array((nx-1)*(nz-1)*6);
  for(let i=0;i<nx;i++)for(let j=0;j<nz;j++){const k=(i*nz+j)*3;P[k]=SHORE0-xr[i];P[k+1]=SEA_Y;P[k+2]=zz[j]}
  let n=0;for(let i=0;i<nx-1;i++)for(let j=0;j<nz-1;j++){const a=i*nz+j,b=a+1,c=a+nz,d=c+1;I[n++]=a;I[n++]=b;I[n++]=c;I[n++]=b;I[n++]=d;I[n++]=c}
@@ -562,7 +597,7 @@ function updateFallers(dt){for(let i=FALL.length-1;i>=0;i--){const f=FALL[i];f.t
   f.g.quaternion.setFromAxisAngle(f.axis,f.th)}
  const d=Math.exp(-dt*3);f.vx*=d;f.vz*=d;f.g.position.x+=f.vx*dt;f.g.position.z+=f.vz*dt;
  if(f.t>120&&f.g.position.distanceTo(actorPos())>90)restoreProp(f)}}
-const boats=[];{const b=mb(),sail=new T.BufferGeometry();madd(b,geos.s,'#fbf7ee',mx(0,.1,0,.85,.55,2.6));madd(b,geos.s,'#2f6f96',mx(0,.28,0,.87,.1,2.62));madd(b,GB,'#fbf7ee',mx(0,.72,-.5,.9,.5,1.3));madd(b,C8,'#dcd6c8',mx(0,3.6,.3,.04,6,.04));sail.setAttribute('position',new T.Float32BufferAttribute([0,1.1,.4,0,6.4,.36,0,1.1,-2.1,0,1.1,.55,0,5.9,.5,0,1.1,2.3],3));sail.computeVertexNormals();madd(b,sail,'#fbfbf6',mx());const g=mgeo(b),VD=new T.MeshStandardMaterial({vertexColors:true,side:T.DoubleSide,roughness:.7});for(let i=0;i<6;i++){const m=new T.Mesh(g,VD);m.position.set(-370-r2()*300,-.3,-420+r2()*840);m.rotation.y=r2()*6.28;scene.add(m);boats.push(m)}}
+const boats=[];{const b=mb(),sail=new T.BufferGeometry();madd(b,geos.s,'#fbf7ee',mx(0,.1,0,.85,.55,2.6));madd(b,geos.s,'#2f6f96',mx(0,.28,0,.87,.1,2.62));madd(b,GB,'#fbf7ee',mx(0,.72,-.5,.9,.5,1.3));madd(b,C8,'#dcd6c8',mx(0,3.6,.3,.04,6,.04));sail.setAttribute('position',new T.Float32BufferAttribute([0,1.1,.4,0,6.4,.36,0,1.1,-2.1,0,1.1,.55,0,5.9,.5,0,1.1,2.3],3));sail.computeVertexNormals();madd(b,sail,'#fbfbf6',mx());const g=mgeo(b),VD=new T.MeshStandardMaterial({vertexColors:true,side:T.DoubleSide,roughness:.7});for(let i=0;i<6;i++){const m=new T.Mesh(g,VD);m.position.set(-700-r2()*300,-.3,-420+r2()*840);m.rotation.y=r2()*6.28;scene.add(m);boats.push(m)}}
 // Per-frame: sea/foliage clock, boats bobbing, and a texel-snapped shadow frustum centred ahead of the camera (sharper, no shimmer).
 const SX=new T.Vector3().crossVectors(_Y,SUND).normalize(),SY=new T.Vector3().crossVectors(SUND,SX),_F=new T.Vector3(),_A=new T.Vector3();
 function updateWorld(dt){UW.uT.value+=dt;cam.getWorldDirection(_F).setY(0);if(_F.lengthSq()<1e-4)_F.set(0,0,-1);_A.copy(actorPos()).addScaledVector(_F.normalize(),24);const ts=144/SHADOW_RES,a=Math.round(_A.dot(SX)/ts)*ts,b=Math.round(_A.dot(SY)/ts)*ts;sun.target.position.copy(SX).multiplyScalar(a).addScaledVector(SY,b).addScaledVector(SUND,_A.dot(SUND));sun.position.copy(sun.target.position).add(SUNOFF);boatsStep();}
@@ -650,12 +685,12 @@ function label(text,x,y,z,color='#ffdf75'){
 // ===== Surf: paddle out, catch a wave, ride its face, get barreled, wipe out =====
 // The rider is a board on the ocean height field: gravity pulls along the water slope, the fin turns the velocity toward the board heading,
 // and a trim assist keeps the board in the pocket unless the player steers. Modes: paddle ⇄ dive, paddle → ride ⇄ air → paddle, ride/air → wipe → paddle.
-const SURF_CONFIG={launchZ:0,walkShoreOffset:2,launchOffset:9,startDepth:56,zMin:-246,zMax:246,minDepth:4,maxDepth:270,
- paddle:3.1,paddleFast:4.4,paddleAccel:6,slopeG:7.5,trimAssist:.75,maxSpeed:17,gravity:15};
+const SURF_CONFIG={launchZ:0,walkShoreOffset:2,launchOffset:9,startDepth:PEAK_DIST+4,zMin:-246,zMax:246,minDepth:4,maxDepth:360,
+ paddle:3.1,paddleFast:4.4,paddleAccel:6,slopeG:9.5,trimAssist:.75,maxSpeed:26,gravity:15};
 const surfLaunch=new T.Vector3(shore(SURF_CONFIG.launchZ)+SURF_CONFIG.launchOffset,0,SURF_CONFIG.launchZ);
 surfLaunch.y=sandY(surfLaunch.x,surfLaunch.z);
-const surf={active:false,mode:'paddle',speed:0,vx:0,vz:0,stand:0,crouch:0,lean:0,roll:0,pitch:0,y:0,board:new T.Group(),wave:null,dirZ:0,rideT:0,score:0,tubeT:0,airs:0,cuts:0,topSpeed:0,
- soupT:0,stallT:0,dive:0,diveCd:0,wipeT:0,popT:0,airT:0,vy:0,spin:0,jumpHeld:false,assistT:0,cutT:0,vzSign:0,best:0,rides:0,stroke:0,camYaw:0,camBack:7,camUp:3,camRate:5,tubeK:0,info:{h:0,hx:0,hz:0},lastRating:0,paddleT:0,hintWave:''};
+const surf={active:false,lastWave:0,acc:0,mode:'paddle',speed:0,vx:0,vz:0,stand:0,crouch:0,lean:0,roll:0,pitch:0,y:0,board:new T.Group(),wave:null,dirZ:0,rideT:0,score:0,tubeT:0,airs:0,cuts:0,topSpeed:0,
+ soupT:0,stallT:0,dive:0,diveCd:0,wipeT:0,popT:0,airT:0,vy:0,spin:0,jumpHeld:false,assistT:0,cutT:0,vzSign:0,best:0,rides:0,stroke:0,camYaw:0,camSide:0,camBack:7,camUp:3,camOX:0,camOZ:0,camAhead:4,camRate:5,tubeK:0,info:{h:0,hx:0,hz:0},lastRating:0,paddleT:0,hintWave:''};
 // A rounded board with a bright central stripe and a fin; reused at the launch and at sea.
 ell(.43,.075,1.45,'#28c6d3',0,0,0,surf.board);
 box(.09,.035,2.3,'#fff3c6',0,.07,0,surf.board);
@@ -669,7 +704,7 @@ function nearSurf(){return !inCar&&!surf.active&&player.position.distanceTo(surf
 function surfClamp(v,a,b){return v<a?a:v>b?b:v}
 function surfPop(text,kind=''){const e=$('surfpop');e.textContent=text;e.className='';void e.offsetWidth;e.className='on '+kind}
 function surfReset(){
- Object.assign(surf,{mode:'paddle',speed:0,vx:0,vz:0,stand:0,crouch:0,lean:0,roll:0,pitch:0,wave:null,dirZ:0,rideT:0,score:0,tubeT:0,airs:0,cuts:0,topSpeed:0,soupT:0,stallT:0,dive:0,diveCd:0,wipeT:0,popT:0,airT:0,vy:0,spin:0,jumpHeld:false,assistT:0,cutT:0,vzSign:0,tubeK:0});
+ Object.assign(surf,{acc:0,mode:'paddle',speed:0,vx:0,vz:0,stand:0,crouch:0,lean:0,roll:0,pitch:0,wave:null,dirZ:0,rideT:0,score:0,tubeT:0,airs:0,cuts:0,topSpeed:0,soupT:0,stallT:0,dive:0,diveCd:0,wipeT:0,popT:0,airT:0,vy:0,spin:0,jumpHeld:false,assistT:0,cutT:0,vzSign:0,tubeK:0});
 }
 function startSurf(){
  if(cargo){toast('Solte a encomenda com G antes de surfar.');return}
@@ -677,36 +712,42 @@ function startSurf(){
  surfReset();surf.active=true;heading=-Math.PI/2;
  player.userData.attack=null;player.userData.stagger=0;keysClear();
  const z=surfLaunch.z,c=SURF_CONFIG;player.position.set(shore(z)-c.startDepth,SEA_Y,z);surf.y=SEA_Y;
- if(OC.mode==='auto'){OC.setAt=Math.min(OC.setAt,OC.t+(OC.waves.length?18:6));OC.fillAt=Math.min(OC.fillAt,OC.t+3)}
- surf.camYaw=heading;surf.camBack=7;surf.camUp=3;surfSign.visible=false;document.body.classList.add('surfing');$('surfhud').hidden=false;poseSurf(0);
- toast('Surf • W/Shift remam · A/D viram · Espaço mergulha · Reme para a praia quando a onda chegar · E sai');
+ if(OC.mode==='auto'){OC.setAt=Math.min(OC.setAt,OC.t+8);OC.fillAt=Math.min(OC.fillAt,OC.t+1)}
+ OC.lineup.on=true;OC.lineup.z=player.position.z;surf.camYaw=heading;surf.camSide=0;surf.camBack=6.5;surf.camUp=2.6;surf.camOX=surf.camOZ=0;surf.camAhead=4;surfSign.visible=false;document.body.classList.add('surfing');$('surfhud').hidden=false;poseSurf(0);
+ toast(TOUCH?'Surf • ▲ rema · ◀ ▶ viram · Mergulhar fura a onda · Vire para a praia e reme quando a onda chegar':'Surf • W/Shift remam · A/D viram · Espaço mergulha · Vire para a praia e reme quando a onda chegar · E sai');
 }
 function stopSurf(returnToBeach=true){
  if(!surf.active)return;
  if(surf.mode==='ride'||surf.mode==='air')surfBank(false);
- surf.active=false;surf.speed=0;surfReset();document.body.classList.remove('surfing');$('surfhud').hidden=true;$('surfpop').className='';
+ surf.active=false;surf.speed=0;surfReset();OC.lineup.on=false;document.body.classList.remove('surfing');$('surfhud').hidden=true;$('surfpop').className='';
  if(returnToBeach){const z=surfClamp(player.position.z,SURF_CONFIG.zMin,SURF_CONFIG.zMax);player.position.set(shore(z)+SURF_CONFIG.launchOffset,0,z);correctWorld(player.position,.36,true);player.position.y=surfaceY(player.position.x,player.position.z);heading=Math.PI/2;toast('De volta à areia. A prancha está no ponto azul do mapa.')}
  player.rotation.order='XYZ';player.rotation.set(0,heading,0);animatePerson(player,0,simTime);player.userData.rig.position.set(0,0,0);player.userData.rig.rotation.set(0,0,0);keysClear();surfSign.visible=true;parkSurfBoard();
+}
+// R while surfing: back out to the peak at the current stretch of beach (not during a ride).
+function surfToPeak(){
+ const s=surf,p=player.position;if(s.mode==='ride'||s.mode==='air'){toast('Termine a onda antes.');return}
+ const z=surfClamp(p.z,SURF_CONFIG.zMin+10,SURF_CONFIG.zMax-10);p.set(shore(z)-PEAK_DIST-4,SEA_Y,z);OC.lineup.z=z;
+ s.mode='paddle';s.vx=s.vz=0;s.wipeT=0;heading=Math.PI/2;s.camYaw=heading;surfSample();s.y=SEA_Y+OI.h;p.y=s.y;cam.position.set(p.x-6,p.y+2.6,p.z);toast('De volta ao pico. Espere a próxima onda de frente para a praia.');
 }
 function surfInteract(){if(surf.mode==='ride'||surf.mode==='air'){surfEnd('saiu da onda');return}stopSurf()}
 // Bank the ride: a 0–10 note from the points, paid in cash (full on a clean ride, half after a fall).
 function surfBank(fell){
- const s=surf,rating=Math.round(surfClamp(s.score/45,0,10)*10)/10,pay=Math.round(rating*(fell?5:10));
+ const s=surf,rating=Math.round(surfClamp(s.score/100,0,10)*10)/10,pay=Math.round(rating*(fell?5:10));
  if(s.score>=20){cash+=pay;s.lastRating=rating;s.rides++;if(rating>s.best)s.best=rating;surfPop((fell?'CAIU • ':'')+'NOTA '+rating.toFixed(1)+' • R$ '+pay,fell?'bad':'good')}
  s.score=0;s.tubeT=0;s.airs=0;s.cuts=0;s.topSpeed=0;s.wave=null;s.rideT=0;
 }
-function surfEnd(why){surfBank(false);surf.mode='paddle';surf.diveCd=.6;surf.wave=null;toast(why[0].toUpperCase()+why.slice(1)+'. Reme de volta para o pico.')}
+function surfEnd(why){surf.lastWave=surf.wave?surf.wave.id:surf.lastWave;surfBank(false);surf.mode='paddle';surf.diveCd=.6;surf.wave=null;toast(why[0].toUpperCase()+why.slice(1)+'. Reme de volta para o pico.')}
 function surfWipe(why){
- const s=surf;if(s.mode==='wipe')return;const was=s.rideT>0.1;s.mode='wipe';s.wipeT=2.4;s.airT=0;
+ const s=surf;if(s.mode==='wipe')return;const was=s.rideT>0.1;if(s.wave)s.lastWave=s.wave.id;s.mode='wipe';s.wipeT=2.4;s.airT=0;
  if(was)surfBank(true);else s.wave=null;
  s.vx*=.5;s.vz*=.5;health=Math.max(1,health-3);surfPop('CAIU • '+why,'bad');surfSplash(player.position.x,player.position.z,14);
 }
 function surfPopUp(w){
- const s=surf,pos=player.position,dz=pos.z-w.zc,ahead=d=>d>0?w.zc+w.lenS-pos.z:pos.z-(w.zc-w.lenN),ok=d=>(d>0?w.peelS:w.peelN)<15&&ahead(d)>25;
+ const s=surf,pos=player.position,dz=pos.z-w.zc,ahead=d=>d>0?w.zc+w.lenS-pos.z:pos.z-(w.zc-w.lenN),ok=d=>(d>0?w.peelS:w.peelN)<w.c*2&&ahead(d)>25;
  let dir=ahead(1)>=ahead(-1)?1:-1;if(Math.abs(dz)>12)dir=dz>0?1:-1;if(!ok(dir)&&ok(-dir))dir=-dir;
- Object.assign(s,{mode:'ride',wave:w,dirZ:dir,popT:.45,rideT:0,score:0,tubeT:0,airs:0,cuts:0,topSpeed:0,soupT:0,stallT:0,assistT:0,cutT:0,vzSign:dir});
- heading=Math.atan2(Math.max(s.vx,w.c*.85),dir*5);s.vz=dir*3;
- surfPop((dir<0?'DIREITA':'ESQUERDA')+' • ONDA DE '+w.H.toFixed(1).replace('.',',')+' m','good');
+ Object.assign(s,{mode:'ride',wave:w,dirZ:dir,popT:.45,offT:0,rideT:0,score:0,tubeT:0,airs:0,cuts:0,topSpeed:0,soupT:0,stallT:0,assistT:0,cutT:0,vzSign:dir});
+ s.vx=Math.max(s.vx,w.c*.9);heading=Math.atan2(s.vx,dir*5);s.vz=dir*3;
+ surfPop((dir<0?'ESQUERDA':'DIREITA')+' • ONDA DE '+w.H.toFixed(1).replace('.',',')+' m','good');
 }
 function surfSplash(x,z,n){const y=SEA_Y+oceanHeight(x,z);for(let i=0;i<n;i++){const a=Math.random()*6.28,r=Math.random()*1.4;sprayEmit(x+Math.cos(a)*r,y+.2,z+Math.sin(a)*r,Math.cos(a)*(1.5+Math.random()*2.5),2.5+Math.random()*3.5,Math.sin(a)*(1.5+Math.random()*2.5),.9+Math.random()*.7,.8+Math.random()*.6)}}
 // Water state at the rider, with the ridden wave's own coordinates (u = metres in front of the crest, s = seconds since it broke here).
@@ -725,17 +766,18 @@ function surfPaddle(h,I){
  heading+=I.turn*(1.55-(I.fast?.35:0))*h;
  const fx=Math.sin(heading),fz=Math.cos(heading),lx=fz,lz=-fx;
  let along=s.vx*fx+s.vz*fz,lat=s.vx*lx+s.vz*lz;
+ if(I.fast&&!I.thr)I.thr=1;
  const vt=diving?3.6:I.thr>0?(I.fast?c.paddleFast:c.paddle):I.thr<0?-1.4:0;
  if(vt>along||I.thr<0)along+=surfClamp(vt-along,-c.paddleAccel*h*1.4,c.paddleAccel*h);
  along*=Math.exp(-(I.thr>0||diving?.12:1.15)*h);lat*=Math.exp(-6*h);
  s.vx=fx*along+lx*lat;s.vz=fz*along+lz*lat;
- const fk=sst(.28,.85,-OI.hx);
+ const fk=OI.face;
  if(!diving){
   s.vx-=c.slopeG*.28*OI.hx*h;s.vz-=c.slopeG*.28*OI.hz*h;
-  if(fk>0&&OI.wave)s.vx+=(I.thr>0&&fx>.25?2.6:1.1)*fk*(OI.wave.c-s.vx)*h;
+  if(fk>0&&OI.wave)s.vx+=(I.thr>0&&fx>.25?6:1.1)*fk*(OI.wave.c-s.vx)*h;
   if(OI.soup>.15&&OI.wave)s.vx+=2.6*OI.soup*(OI.wave.c*.9-s.vx)*h;
   const w=OI.wave;
-  if(w&&fk>.55&&fx>.15&&OI.s<.35&&OI.soup<.4&&s.vx>w.c*.78&&pos.x<shore(pos.z)-16)surfPopUp(w);
+  if(w&&w.id!==s.lastWave&&fk>.35&&fx>.15&&OI.s<.35&&OI.soup<.4&&OI.u>.3*OI.Lf&&s.vx>w.c*.85&&pos.x<shore(pos.z)-16)surfPopUp(w);
  }
  pos.x+=s.vx*h;pos.z+=s.vz*h;s.paddleT+=h*(I.thr>0?(I.fast?1.55:1.1):.15)*Math.PI*2;
 }
@@ -743,7 +785,7 @@ function surfRide(h,I){
  const c=SURF_CONFIG,s=surf,w=s.wave,pos=player.position;
  s.rideT+=h;s.popT=Math.max(0,s.popT-h);
  let sp=Math.hypot(s.vx,s.vz);
- const rate=Math.max(1.15,2.1-.055*sp);
+ const rate=Math.max(1,2.1-.045*sp);
  if(I.turn){heading+=I.turn*rate*h;s.assistT=.3}else s.assistT=Math.max(0,s.assistT-h);
  if(!I.turn&&s.assistT<=0&&SW.E>.05){
   const e=SW.u-(.9*SW.Lf+.3),vd=w.c-1.1*e,q=surfClamp(vd/Math.max(sp,4),-.92,.92),tgt=Math.cos(heading)>=0?Math.asin(q):Math.PI-Math.asin(q);
@@ -755,22 +797,23 @@ function surfRide(h,I){
  sp=Math.hypot(s.vx,s.vz);let nx=fx,nz=fz;
  if(sp>.3){const dx=s.vx/sp,dz=s.vz/sp,dot=dx*fx+dz*fz,b=1-Math.exp(-(6+.2*sp)*h);nx=dx+(fx-dx)*b;nz=dz+(fz-dz)*b;const nl=Math.hypot(nx,nz)||1;nx/=nl;nz/=nl;sp*=Math.exp(-1.7*(1-dot)*h)}
  const face=sst(.2,.8,-OI.hx),crouch=I.fast;
- sp+=(I.thr>0?1.1+2.6*face:I.thr<0?-5:0)*h;
- sp-=(.35+.016*sp*sp)*(crouch?.62:1)*h;sp=surfClamp(sp,0,c.maxSpeed);
+ sp+=(I.thr>0?1.6+3.6*face:I.thr<0?-6:0)*h;
+ sp-=(.3+.0105*sp*sp)*(crouch?.62:1)*h;sp=surfClamp(sp,0,c.maxSpeed);
  s.vx=nx*sp;s.vz=nz*sp;pos.x+=s.vx*h;pos.z+=s.vz*h;
  s.crouch+=((crouch?1:0)-s.crouch)*Math.min(1,h*8);
  // score: distance travelled on the wave, tube time, cutbacks
- s.topSpeed=Math.max(s.topSpeed,sp);s.score+=1.6*sp*h;
+ s.topSpeed=Math.max(s.topSpeed,sp);s.score+=1.6*sp*h*(1+.2*Math.max(0,w.H-2.5));
  const tube=SW.tube*(crouch?1:.55);s.tubeK+=(tube-s.tubeK)*Math.min(1,h*6);
  if(SW.tube>.3){s.tubeT+=h;s.score+=55*SW.tube*h*(crouch?1.5:1)}
- s.cutT+=h;const sg=Math.sign(s.vz);if(Math.abs(s.vz)>2.5){if(s.vzSign&&sg!==s.vzSign&&s.cutT>1){s.cuts++;s.score+=60;s.cutT=0;surfPop('CUTBACK +60','good')}s.vzSign=sg}
+ s.cutT+=h;const sg=Math.sign(s.vz);if(Math.abs(s.vz)>2.5){if(s.vzSign&&sg!==s.vzSign&&s.cutT>1.4&&sp>7){s.cuts++;s.score+=60;s.cutT=0;surfPop('CUTBACK +60','good')}s.vzSign=sg}
  if(sp<2.3&&face<.3)s.stallT+=h;else s.stallT=Math.max(0,s.stallT-h*2);
  // ways a ride ends
  if(SW.lip>.55&&!crouch&&s.rideT>.6){surfWipe('o lábio te pegou');return}
- if(OI.soup>.6)s.soupT+=h;else s.soupT=Math.max(0,s.soupT-h*1.6);
+ if(OI.soup>.68)s.soupT+=h;else s.soupT=Math.max(0,s.soupT-h*1.6);
  if(s.soupT>.55){surfWipe('a espuma te engoliu');return}
  if(SW.u<-2.6&&SW.s<.4){surfEnd('passou por cima da crista');return}
- if(s.stallT>1.2){surfEnd('a onda acabou');return}
+ s.offT=SW.E<.05?(s.offT||0)+h:0;
+ if(s.stallT>1.2||s.offT>1.2){surfEnd('a onda acabou');return}
  if(pos.x>shore(pos.z)-8){surfEnd('chegou na areia');return}
  if(I.jumpEdge&&sp>4.5){s.mode='air';s.vy=4.3+.2*sp+2.2*face+2.5*SW.lip;s.spin=0;s.airT=0;s.y=SEA_Y+OI.h}
 }
@@ -796,7 +839,7 @@ function surfInput(){return{turn:(keys.a||keys.ArrowLeft?1:0)-(keys.d||keys.Arro
 function surfStep(h){
  const c=SURF_CONFIG,s=surf,pos=player.position,I=surfInput();I.jumpEdge=I.jump&&!s.jumpHeld;s.jumpHeld=I.jump;
  surfSample();
- if(s.mode==='paddle'||s.mode==='dive')surfPaddle(h,I);
+ if(s.mode==='paddle'||s.mode==='dive'){surfPaddle(h,I);OC.lineup.z=pos.z}
  else if(s.mode==='ride')surfRide(h,I);
  else if(s.mode==='air')surfAir(h,I);
  else surfWiped(h);
@@ -806,7 +849,7 @@ function surfStep(h){
  if(pos.x<sh-c.maxDepth){pos.x=sh-c.maxDepth;s.vx=Math.max(s.vx,0)}
  if(pos.z<c.zMin||pos.z>c.zMax){pos.z=surfClamp(pos.z,c.zMin,c.zMax);if(s.mode==='ride'||s.mode==='air')surfEnd('fim da faixa de surf');s.vz=0}
  s.speed=Math.hypot(s.vx,s.vz);
- if(s.mode!=='air'){s.y=SEA_Y+OI.h+(s.mode==='dive'?-.75*Math.sin(Math.PI*surfClamp(1-s.dive/.95,0,1)):0)}
+ if(s.mode!=='air'){s.y=SEA_Y+(s.mode==='ride'?oceanFaceHeight(pos.x,pos.z):OI.h)+(s.mode==='dive'?-.75*Math.sin(Math.PI*surfClamp(1-s.dive/.95,0,1)):0)}
  pos.y=s.y;
 }
 function updateSurf(dt){
@@ -837,24 +880,38 @@ function poseSurf(dt){
  S.board.position.copy(pos);S.board.position.y+=.06;S.board.rotation.set(S.pitch,heading,S.roll);
  u.rig.rotation.set(1.5*pr+(.1+cr*.3)*st,1.2*st,0);
  // feet stay on the board: hips drop with knee bend
- const hip=-.5*cr-.15*st,knee=(.35+.9*cr)*st,lift=.76-(.36*Math.cos(hip)+.4*Math.cos(hip+knee));
- u.rig.position.set(0,.13-(st>0?lift*st:0),-1.0*pr);
+ const hipA=[-.6*cr-.3*st,-.4*cr-.2*st],kneeFor=a=>Math.asin(-.9*Math.sin(a))-a,lift=.76-(.36*Math.cos(hipA[0])+.4*Math.cos(hipA[0]+kneeFor(hipA[0])));
+ u.rig.position.set(0,.13-lift*st,-1.0*pr);
  for(let i=0;i<2;i++){
   const side=i?1:-1,ph=S.paddleT+i*Math.PI;
-  u.legs[i].rotation.set(pr*(.06*Math.sin(ph*.7))+st*(hip+(i?.15:-.1)),0,st*side*.55);
-  u.knees[i].rotation.x=pr*.05+st*(knee+(i?.1:.25));
+  u.legs[i].rotation.set(pr*(.06*Math.sin(ph*.7))+st*hipA[i],0,st*side*.5);
+  u.knees[i].rotation.x=pr*.05+st*kneeFor(hipA[i]);
   u.arms[i].rotation.set(pr*(Math.PI+ph)+st*(.2-bank*.4*side),0,pr*side*.3+st*side*(1.0-cr*.3-bank*.3));
   u.elbows[i].rotation.x=-.25-pr*.3;
  }
  u.head.rotation.set(-1.1*pr,-1.05*st,0);
 }
 // Camera: behind the direction of travel and pushed toward the beach so the wave face stays in frame.
+// Camera: close behind the rider, a little to the sand side and low, turned slightly toward the open sea (the look of classic surf games).
+// It is kept in front of the ridden wave's lip so it never ends up under the curl, and above the water under it.
+const SC_T=new T.Vector3(),SC_L=new T.Vector3();
+function surfCamClear(v){
+ const w=surf.wave;if(!w||!seaU.uCurl.value||!(surf.mode==='ride'||surf.mode==='air'))return;waveAt(w,v.x,v.z);if(WS.E<.05||WS.u<-2*WS.Lf)return;
+ const c=sst(-.9,.1,WS.s)*(1-sst(1,3.2,WS.s)),Dm=w.hollow*c*WS.E*(1.2*WS.Lf+.3*w.H),reach=Dm>.3?Dm+.8*WS.Lf+1.5:0;if(WS.u<reach)v.x+=reach-WS.u;
+}
 function surfCam(dt){
- const S=surf,sp=S.speed,ride=S.mode==='ride'||S.mode==='air';
- let dx=S.vx,dz=S.vz;if(sp<1.5){dx=Math.sin(heading);dz=Math.cos(heading)}else{dx/=sp;dz/=sp}
- const aim=Math.atan2(dx-(ride?.55:.0),dz);
- S.camYaw+=wrapAngle(aim-S.camYaw)*(1-Math.exp(-dt*(ride?2.4:3.2)));
- S.camBack+=((ride?9+sp*.28:7.5)-S.camBack)*Math.min(1,dt*2);S.camUp+=((ride?3.4+S.tubeK*-.9:3.1)-S.camUp)*Math.min(1,dt*2);
+ const S=surf,p=player.position,sp=S.speed,ride=S.mode==='ride'||S.mode==='air',w=S.wave,big=Math.max(0,(w?w.H:2.5)-2.5);
+ let dx=S.vx,dz=S.vz;if(sp<1.5||!ride){dx=Math.sin(heading);dz=Math.cos(heading)}else{dx/=sp;dz/=sp}
+ S.camYaw+=wrapAngle(Math.atan2(dx,dz)-S.camYaw)*(1-Math.exp(-dt*(ride?3.2:3)));
+ const fx=Math.sin(S.camYaw),fz=Math.cos(S.camYaw),along=ride?sst(.05,.35,Math.abs(fz)):0,sg=fz<0?-1:1,px=Math.abs(fz),pz=-sg*fx;
+ const k=Math.min(1,dt*2.4);
+ S.camSide+=((ride?(1.8+.4*big)*along:0)-S.camSide)*k;S.camBack+=((ride?4.8+.04*sp+.3*big:6)-S.camBack)*k;
+ S.camUp+=((ride?1.3+.2*big-.4*S.tubeK:2.4)-S.camUp)*k;S.camAhead+=((ride?5:4)-S.camAhead)*k;
+ let cx=p.x-fx*S.camBack+px*S.camSide,cz=p.z-fz*S.camBack+pz*S.camSide;
+ SC_T.set(cx,0,cz);surfCamClear(SC_T);cx=SC_T.x;
+ S.camOX+=(cx-p.x-S.camOX)*Math.min(1,dt*4);S.camOZ+=(cz-p.z-S.camOZ)*Math.min(1,dt*4);
+ SC_T.set(p.x+S.camOX,0,p.z+S.camOZ);SC_T.y=Math.max(p.y+S.camUp,SEA_Y+oceanHeight(SC_T.x,SC_T.z)+1.3);
+ const ly=S.camYaw-sg*.2*along;SC_L.set(p.x+Math.sin(ly)*S.camAhead,p.y+.8,p.z+Math.cos(ly)*S.camAhead);
  return S.camYaw;
 }
 function surfSetText(){return OC.set&&OC.set.left>0||OC.queue.some(q=>q.o.set)?'SET NA ÁGUA':'PRÓXIMO SET ~'+Math.max(5,Math.round((OC.setAt-OC.t)/5)*5)+' s'}
@@ -864,16 +921,17 @@ function surfMission(){
 }
 function surfHint(){
  const m=surf.mode;
- if(m==='ride')return 'A/D Curvar · W Impulso · S Frear · Shift Agachar (tubo) · Espaço Pular · E Sair da onda';
- if(m==='air')return 'A/D • Girar no ar';
+ if(m==='ride')return TOUCH?'◀ ▶ Curvar · Agachar = tubo · Pular':'A/D Curvar · W Impulso · S Frear · Shift Agachar (tubo) · Espaço Pular · E Sair da onda';
+ if(m==='air')return TOUCH?'◀ ▶ Girar no ar':'A/D • Girar no ar';
  if(m==='wipe')return 'Caiu! Aguarde voltar à prancha';
  if(m==='dive')return 'Mergulhando sob a onda…';
- return surf.hintWave||'W/Shift Remar · A/D Virar · Espaço Mergulhar (furar a onda) · E Sair da água';
+ if(!surf.hintWave&&shore(player.position.z)-player.position.x<PEAK_DIST-30)return TOUCH?'↺ Voltar ao pico · ▲ Remar · ◀ ▶ Virar':'R Voltar ao pico · W/Shift Remar · A/D Virar · E Sair da água';
+ return surf.hintWave||(TOUCH?'▲ Remar · ◀ ▶ Virar · Mergulhar fura a onda · E sai':'W/Shift Remar · A/D Virar · Espaço Mergulhar (furar a onda) · E Sair da água');
 }
 function surfHud(){
  const s=surf,px=player.position.x,pz=player.position.z,w=OC.waves.filter(k=>k.alive>.5&&k.xc<px+1&&pz>k.zc-k.lenN&&pz<k.zc+k.lenS).sort((a,b)=>b.xc-a.xc)[0];
  if(s.mode==='paddle'||s.mode==='dive'){
-  const d=w?Math.round(px-w.xc):0;s.hintWave=w&&d<120?'ONDA '+w.H.toFixed(1).replace('.',',')+' m a '+d+' m ('+(w.kind||'').toLowerCase()+') · vire para a praia e reme (W/Shift)':'';
+  const d=w?Math.round(px-w.xc):0;s.hintWave=w&&d<120?'ONDA '+w.H.toFixed(1).replace('.',',')+' m a '+d+' m ('+(w.kind||'').toLowerCase()+') · vire para a praia e reme'+(TOUCH?'':' (W/Shift)'):'';
  }
  const ride=s.mode==='ride'||s.mode==='air';
  $('shState').textContent={paddle:'REMANDO',dive:'MERGULHO',ride:s.tubeK>.35?'NO TUBO!':'NA ONDA',air:'NO AR',wipe:'CAIU'}[s.mode];
@@ -884,7 +942,7 @@ function surfHud(){
  $('shTube').textContent=ride?s.tubeT.toFixed(1)+' s':'—';
 }
 // Spray and whitewater droplets: one pooled Points system for lips, wakes, carves and wipeouts (ballistic, white, fading).
-const SPRAY=420,sprP=new Float32Array(SPRAY*3),sprV=new Float32Array(SPRAY*3),sprL=new Float32Array(SPRAY*3),sprSA=new Float32Array(SPRAY*2),sprGeo=new T.BufferGeometry();let sprHead=0,sprLive=0;
+const SPRAY=900,sprP=new Float32Array(SPRAY*3),sprV=new Float32Array(SPRAY*3),sprL=new Float32Array(SPRAY*3),sprSA=new Float32Array(SPRAY*2),sprGeo=new T.BufferGeometry();let sprHead=0,sprLive=0;
 sprGeo.setAttribute('position',new T.BufferAttribute(sprP,3).setUsage(T.DynamicDrawUsage));sprGeo.setAttribute('sa',new T.BufferAttribute(sprSA,2).setUsage(T.DynamicDrawUsage));
 const sprMesh=new T.Points(sprGeo,new T.ShaderMaterial({uniforms:{scale:{value:500}},transparent:true,depthWrite:false,
  vertexShader:'attribute vec2 sa;varying float va;uniform float scale;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mv;gl_PointSize=sa.x*scale/max(.5,-mv.z);va=sa.y;}',
@@ -896,7 +954,7 @@ function sprayStep(dt){
  // mist thrown forward from the lip at every peel front near the camera
  for(const w of OC.waves){
   if(w.s0<-.3||w.alive<.3)continue;
-  for(const side of [-1,1]){
+  for(let side=-1;side<2;side+=2){
    const pl=side<0?w.peelN:w.peelS,ln=side<0?w.lenN:w.lenS,d=Math.min(ln,pl*Math.max(0,w.s0));
    if(d>=ln-2||Math.abs(w.zc+side*d-cz)>130||Math.abs(w.xc-cx)>160)continue;
    w.acc=(w.acc||0)+dt*(30+w.H*9);
@@ -939,6 +997,7 @@ function drawWavesMap(){
   map.strokeStyle='#bfefff';map.lineWidth=2.2;map.beginPath();map.moveTo(w.xc,w.zc-w.lenN);map.lineTo(w.xc,zn);map.moveTo(w.xc,zs);map.lineTo(w.xc,w.zc+w.lenS);map.stroke();
   if(w.s0>0){map.strokeStyle='#ffffff';map.lineWidth=4.5;map.beginPath();map.moveTo(w.xc,zn);map.lineTo(w.xc,zs);map.stroke()}
  }
+ map.lineCap='butt';
 }
 
 const depot=new T.Vector3(12.5,0,32),destinations=[new T.Vector3(12.5,0,-39),new T.Vector3(84.5,0,-104),new T.Vector3(-59.5,0,108)];
@@ -1058,7 +1117,7 @@ function updatePolice(dt){if(wanted)ensurePolice();if(!wanted){if(simTime-lastCr
  if(near>65&&simTime-lastCrime>10){escapedFor+=dt;if(escapedFor>7){heat=Math.max(0,heat-dt*6);if(heat<25){wanted=0;clearPolice(true);toast('Você despistou a polícia. Fique longe de confusão.')}}}else escapedFor=0;
 }
 
-function reset(){if(recoverRolledCar())return;if(player.userData.rag){toast('Espere o personagem se levantar.');return}if(wanted){toast('Não dá para reposicionar durante uma perseguição.');return}stopSurf(false);clearFlight(car);car.position.set(-4,0,30);angle=Math.PI;velocity=0;steer=0;car.userData.slip=0;if(!inCar)player.position.set(-7,0,30);toast('De volta à avenida.');}
+function reset(){if(surf.active&&started&&!paused){surfToPeak();return}if(recoverRolledCar())return;if(player.userData.rag){toast('Espere o personagem se levantar.');return}if(wanted){toast('Não dá para reposicionar durante uma perseguição.');return}stopSurf(false);clearFlight(car);car.position.set(-4,0,30);angle=Math.PI;velocity=0;steer=0;car.userData.slip=0;if(!inCar)player.position.set(-7,0,30);toast('De volta à avenida.');}
 function landscape(){const d=document.documentElement,fs=!document.fullscreenElement&&d.requestFullscreen?d.requestFullscreen({navigationUI:'hide'}).catch(()=>{}):Promise.resolve();fs.then(()=>screen.orientation?.lock?.('landscape')).catch(()=>{})}
 function start(){if(TOUCH)landscape();started=true;document.body.classList.add('driving');paused=false;$('intro').hidden=true;$('paused').hidden=true;toast('Praia e surf: siga a oeste até a orla ← • Prancha azul no mapa • E entra/sai.');audioStart();}
 function keysClear(){for(const k in keys)keys[k]=false}function pause(){if(!started)return;paused=!paused;$('paused').hidden=!paused;$('pause').textContent=paused?'▶':'Ⅱ';keysClear()}function camera(){cameraMode=1-cameraMode}
@@ -1603,8 +1662,8 @@ function update(dt){
   updateTraffic(dt);updateLooseVehicles(dt);updateFallers(dt);updatePeople(dt);for(const v of vehicleList())if(!v.userData.police&&!v.userData.aiDriver&&(v!==car||!inCar))groundVehicle(v,dt);updateDistrict(dt);cullFar(dt);shopGoods.visible=simTime>=shopRestock;
   if(started){updateCombat(dt);if(inCar)drive(dt);else walk(dt);updatePolice(dt);updateRace(dt);if(race.on)groundVehicle(rival,0);
    const pos=actorPos(),a=inCar?carCam(dt):(camYaw=surf.active?surfCam(dt):heading),behind=inCar?(cameraMode?7.5:12)+camRig.pull:surf.active?surf.camBack:(cameraMode?5:7),lead=inCar?camRig.look:0;
-   target.set(pos.x-Math.sin(a)*behind+(inCar?camRig.x:0),pos.y+(inCar?5.5+camRig.pull*.3:surf.active?surf.camUp:4.4),pos.z-Math.cos(a)*behind+(inCar?camRig.z:0));target.y=Math.max(target.y,surfaceY(target.x,target.z)+2.4);const bore=tunnelAt(pos.x,pos.z,1);if(bore){target.x=T.MathUtils.clamp(target.x,bore.x-4,bore.x+4);target.y=Math.min(target.y,tunnelFloor(bore,T.MathUtils.clamp(target.z,bore.z0,bore.z1))+5.8)}cam.position.lerp(target,1-Math.exp(-dt*(inCar?8:surf.active?6:5)));cam.position.y=Math.max(cam.position.y,surfaceY(cam.position.x,cam.position.z)+1.8);if(surf.active)cam.position.y=Math.max(cam.position.y,SEA_Y+oceanHeight(cam.position.x,cam.position.z)+1.5);if(bore){cam.position.x=T.MathUtils.clamp(cam.position.x,bore.x-4,bore.x+4);cam.position.y=Math.min(cam.position.y,tunnelFloor(bore,T.MathUtils.clamp(cam.position.z,bore.z0,bore.z1))+5.8)}
-   look.set(pos.x+Math.sin(a+lead)*(inCar?6:surf.active?4:2),pos.y+(surf.active?1.2:1.4),pos.z+Math.cos(a+lead)*(inCar?6:surf.active?4:2));cam.lookAt(look);
+   target.set(pos.x-Math.sin(a)*behind+(inCar?camRig.x:surf.active?surf.camOX:0),pos.y+(inCar?5.5+camRig.pull*.3:surf.active?surf.camUp:4.4),pos.z-Math.cos(a)*behind+(inCar?camRig.z:surf.active?surf.camOZ:0));if(surf.active)target.copy(SC_T);else target.y=Math.max(target.y,surfaceY(target.x,target.z)+2.4);const bore=tunnelAt(pos.x,pos.z,1);if(bore){target.x=T.MathUtils.clamp(target.x,bore.x-4,bore.x+4);target.y=Math.min(target.y,tunnelFloor(bore,T.MathUtils.clamp(target.z,bore.z0,bore.z1))+5.8)}cam.position.lerp(target,1-Math.exp(-dt*(inCar?8:surf.active?9:5)));if(surf.active){surfCamClear(cam.position);cam.position.y=Math.max(cam.position.y,SEA_Y+oceanHeight(cam.position.x,cam.position.z)+1.1,surfaceY(cam.position.x,cam.position.z)+1.2)}else cam.position.y=Math.max(cam.position.y,surfaceY(cam.position.x,cam.position.z)+1.8);if(bore){cam.position.x=T.MathUtils.clamp(cam.position.x,bore.x-4,bore.x+4);cam.position.y=Math.min(cam.position.y,tunnelFloor(bore,T.MathUtils.clamp(cam.position.z,bore.z0,bore.z1))+5.8)}
+   look.set(pos.x+Math.sin(a+lead)*(inCar?6:surf.active?surf.camAhead:2),pos.y+(surf.active?.9:1.4),pos.z+Math.cos(a+lead)*(inCar?6:surf.active?surf.camAhead:2));if(surf.active)look.copy(SC_L);cam.lookAt(look);
    if(shake>0){cam.position.x+=Math.sin(simTime*91)*shake*.17;cam.position.y+=Math.cos(simTime*79)*shake*.12}
    carAudio(dt);
   }else{target.set(car.position.x+10+Math.sin(elapsed*.1)*2,5.5,car.position.z-11);cam.position.lerp(target,dt*2);cam.lookAt(car.position.x-2,1.3,car.position.z+1)}
@@ -1622,6 +1681,6 @@ function fit(){cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();re
 const context=document.modelContext;if(context?.registerTool){for(const tool of [{name:'start_driving',description:'Iniciar o jogo local.',execute:()=>{start();return{started,paused}}},{name:'reset_car',description:'Reposicionar fora de perseguições.',execute:()=>{reset();return{x:car.position.x,z:car.position.z,wanted}}}]){try{Promise.resolve(context.registerTool({...tool,inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:false},execute:input=>{if(input&&Object.keys(input).length)throw new Error('Nenhum argumento é aceito.');return tool.execute()}})).catch(()=>{})}catch{}}}
 
 // Test hook (only with ?debug=1): lets automated checks step the simulation and read state.
-if(DEBUG)window.__g={T,scene,cam,renderer,surf,player,keys,DEBUG,SURF_CONFIG,surfStep,surfSample,updateSurf,waveAt,WS,OI,OC,spawnWave,oceanStep,oceanInfo,oceanHeight,seaU,start,startSurf,stopSurf,update,keysClear,shore,sandY,get heading(){return heading},set heading(v){heading=v},get simTime(){return simTime},get inCar(){return inCar},set inCar(v){inCar=v;player.visible=!v?true:false},render(){renderer.render(scene,cam)},step(n=1,dt=1/60){for(let i=0;i<n;i++)update(dt);renderer.render(scene,cam)}};
+if(DEBUG)window.__g={surfToPeak,T,scene,cam,renderer,surf,player,keys,DEBUG,SURF_CONFIG,surfStep,surfSample,updateSurf,waveAt,WS,OI,OC,spawnWave,oceanStep,oceanInfo,oceanHeight,seaU,start,startSurf,stopSurf,update,keysClear,shore,sandY,get heading(){return heading},set heading(v){heading=v},get simTime(){return simTime},get cash(){return cash},get inCar(){return inCar},set inCar(v){inCar=v;player.visible=!v?true:false},render(){renderer.render(scene,cam)},step(n=1,dt=1/60){for(let i=0;i<n;i++)update(dt);renderer.render(scene,cam)}};
 
 </script></body></html>
