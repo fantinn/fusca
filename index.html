@@ -353,6 +353,42 @@ function coachCabin(e,{front,rear,rf,rr,w,rw,belt,roof,white=false,pillar=-.25})
 function coachDetails(e,s,w,front,rear,belt){for(const side of [-1,1]){coachLine(e,'chrome','#fff',[side*w,belt,.65],[side*(w+.12),belt+.15,.66],.024);e('chrome',s,'#fff',side*(w+.14),belt+.16,.66,.095,.052,.11);e('glass',GB,'#fff',side*(w+.14),belt+.16,.565,.13,.072,.018);for(const z of [.69,-.78])coachLine(e,'trim','#313638',[side*(w+.031),.52,z],[side*(w+.031),belt-.02,z],.008)}for(const z of [front,rear]){e('trim',GB,'#222b31',0,.51,z,.43,.15,.028);e('trim',GB,'#ece9d6',0,.51,z+Math.sign(z)*.018,.38,.115,.012);for(const x of [-.12,-.06,0,.06,.12])e('trim',GB,'#30434b',x,.51,z+Math.sign(z)*.026,.023,.054,.009)}coachLine(e,'chrome','#fff',[w*.55,.3,rear-.06],[w*.55,.3,rear+.26],.045)}
 const COACH_WHEELS={};function coachWheels(key){if(COACH_WHEELS[key])return COACH_WHEELS[key];const tire=mb(),rim=mb(),white=key==='cadillac'||key==='kombi';madd(tire,new T.CylinderGeometry(.47,.47,.28,24),'#202428',mx());for(const side of [-1,1]){madd(tire,new T.TorusGeometry(.375,.085,8,24),'#25292c',mx(0,side*.10,0,1,1,1,Math.PI/2));if(white)madd(tire,new T.RingGeometry(.315,.412,24),'#f5efdf',mx(0,side*.147,0,1,1,1,-side*Math.PI/2));madd(rim,new T.TorusGeometry(.285,.023,6,24),'#fff',mx(0,side*.155,0,1,1,1,Math.PI/2));for(let i=0;i<5;i++){const a=i/5*Math.PI*2;madd(rim,GB,'#fff',mx(Math.cos(a)*.16,side*.151,Math.sin(a)*.16,.23,.038,.055,0,-a,0))}madd(rim,new T.CylinderGeometry(white?.22:.095,white?.22:.095,.055,16),'#fff',mx(0,side*.16,0));}return COACH_WHEELS[key]={tire:mgeo(tire),hub:mgeo(rim)}}
 
+// Rounded coachwork for the classics: a superellipse loft (see smoothLoft) with elliptical nose/tail corners and wheel openings cut into the shell.
+// o: {zr,zf ends; W,TOP [[z,v]] keyed half-width/top; lo; lz end length; rcF/rcR plan inset; rt/rb top/bottom roll; nt/nb exponents; arches [[z,R,cy]]}.
+function keyLerp(K,z){let i=0;while(i<K.length-2&&z>K[i+1][0])i++;const [z0,a]=K[i],[z1,b]=K[i+1],t=Math.min(1,Math.max(0,(z-z0)/(z1-z0)));return a+(b-a)*t*t*(3-2*t)}
+function roundBody(e,o){const mid=(o.zr+o.zf)/2,sec=z=>{const f=z>mid,t=Math.min(1,Math.max(0,(f?z-o.zf+o.lz:o.zr+o.lz-z)/o.lz)),q=1-Math.sqrt(1-t*t);return {w:keyLerp(o.W,z)-(f?o.rcF:o.rcR)*q,lo:o.lo+o.rb*q,hi:keyLerp(o.TOP,z)-o.rt*q,nt:o.nt+2*t,nb:o.nb+3*t,tt:o.tt??.05,tb:o.tb??.1}},X=(y,z)=>secX(y,sec(z));
+ const arch=z=>{let a=0;for(const [za,R,cy]of o.arches||[]){const d=z-za;if(Math.abs(d)<R)a=Math.max(a,cy+Math.sqrt(R*R-d*d))}return a};
+ let zs=[];for(let z=o.zr;z<o.zf;z+=o.step||.04)zs.push(z);for(let k=0;k<=10;k++){const u=Math.sin(k/10*Math.PI/2)*o.lz;zs.push(o.zr+o.lz-u,o.zf-o.lz+u)}for(const [za,R]of o.arches||[])for(const d of [-R-.004,-R+.004,R-.004,R+.004])zs.push(za+d);
+ zs.sort((a,b)=>a-b);zs=zs.filter((z,i)=>!i||z-zs[i-1]>.006);
+ e(o.k||'paint',smoothLoft(zs.map(z=>{const S=sec(z);return [z,0,S.w,S.lo,S.hi,S.nt,S.nb,S.tt,S.tb]}),o.seg||40,o.arches?(x,y,z,c)=>{const a=arch(z);return y<a?[(c<0?-1:1)*X(a,z),a]:[x,y]}:null),o.c||'#fff',0,0,0,1,1,1);
+ return {sec,X}}
+// Wraparound greenhouse: glass loft whose top follows windscreen (zfb→zft), roof, and backlight (zrt→zrb), under a rounded roof cap.
+function roundCabin(e,o){const H=z=>z>o.zft?o.belt+(o.roof-o.belt)*(1-Math.min(1,(z-o.zft)/(o.zfb-o.zft))**(o.pf||1.6)):z<o.zrt?o.belt+(o.roof-o.belt)*(1-Math.min(1,(o.zrt-z)/(o.zrt-o.zrb))**(o.pr||1.4)):o.roof,
+ G=z=>({w:o.w-.05*Math.max(0,(z-o.zfb+.3)/.3)**2-.05*Math.max(0,(o.zrb+.3-z)/.3)**2,lo:o.belt-.12,hi:H(z),nt:o.n||4,nb:o.n||4,tt:o.tt,tb:0}),X=(y,z)=>secX(y,G(z));
+ const gz=[];for(let z=o.zrb;z<o.zfb;z+=.03)gz.push(z);gz.push(o.zfb);e('glass',smoothLoft(gz.map(z=>{const S=G(z);return [z,0,S.w,S.lo,S.hi,S.nt,S.nb,S.tt,0]}),32),'#fff',0,0,0,1,1,1);
+ const a=o.zrt-.08,b=o.zft+.06,m=(a+b)/2,cw=o.cw??X(o.roof-.05,m)+.004,rz=[];for(let z=a;z<b;z+=.03)rz.push(z);rz.push(b);
+ const cap=z=>{const t=Math.min(1,Math.max(0,(Math.abs(z-m)-(b-a)/2+.16)/.16)),q=1-Math.sqrt(1-t*t);return {w:cw-.1*q,lo:o.roof-.08+.02*q,hi:o.roof+.03-.02*q,nt:3.6,nb:3.6,tt:.05,tb:0}};
+ e(o.capK||'paint',smoothLoft(rz.map(z=>{const S=cap(z);return [z,0,S.w,S.lo,S.hi,3.6,3.6,.05,0]}),32),o.capC||'#fff',0,0,0,1,1,1);
+ return {H,G,X,cap}}
+// Top surface height of a section at x (taper ignored; used for stripes near the centreline).
+const topY=(x,S)=>(S.lo+S.hi)/2+(S.hi-S.lo)/2*Math.max(0,1-(Math.abs(x)/S.w)**S.nt)**(1/S.nt);
+// Grid patch f(u,v)→[x,y,z] laid on a curved panel (pillars, stripes, scoops); hint is the outward direction.
+function surfPatch(e,k,c,f,nu,nv,hint){const v=[],idx=[];for(let i=0;i<=nu;i++)for(let j=0;j<=nv;j++)v.push(...f(i/nu,j/nv));for(let i=0;i<nu;i++)for(let j=0;j<nv;j++){const a=i*(nv+1)+j,b=a+nv+1;idx.push(a,b,a+1,b,b+1,a+1)}
+ const P=n=>new T.Vector3(v[n*3],v[n*3+1],v[n*3+2]),a=(nu>>1)*(nv+1)+(nv>>1),A=P(a);if(P(a+nv+1).sub(A).cross(P(a+1).sub(A)).dot(new T.Vector3(...hint))<0)for(let j=0;j<idx.length;j+=3)[idx[j+1],idx[j+2]]=[idx[j+2],idx[j+1]];
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(v,3));g.setIndex(idx);g.computeVertexNormals();e(k,g,c,0,0,0,1,1,1)}
+const spanPts=(n,f)=>Array.from({length:n+1},(_,i)=>f(i/n));
+function polyLine(e,k,c,pts,r){for(let i=0;i<pts.length-1;i++)coachLine(e,k,c,pts[i],pts[i+1],r)}
+// Wraparound chrome bumper following the body plan at height y; zs are side stations, tip the end of the body.
+function roundBumper(e,s,X,y,zs,tip,dir,r=.06,sy=1.4,half=.72){const side=zs.map(z=>[X(y,z)+r*.7,z]),pts=[...side.map(([x,z])=>[-x,0,z]),[-half,0,tip],[-half*.55,0,tip+dir*.04],[0,0,tip+dir*.05],[half*.55,0,tip+dir*.04],[half,0,tip],...[...side].reverse().map(([x,z])=>[x,0,z])];
+ e('chrome',new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(...p))),96,r,10,false),'#fff',0,y,0,1,sy,1);for(const p of [pts[0],pts.at(-1)])e('chrome',s,'#fff',p[0],y,p[2],r,r*sy,r)}
+function roundFrame(e,cy,hw,hh,r,z,tr=.02){const p=new T.Shape();p.moveTo(-hw+r,-hh);p.lineTo(hw-r,-hh);p.absarc(hw-r,-hh+r,r,-Math.PI/2,0);p.lineTo(hw,hh-r);p.absarc(hw-r,hh-r,r,0,Math.PI/2);p.lineTo(-hw+r,hh);p.absarc(-hw+r,hh-r,r,Math.PI/2,Math.PI);p.lineTo(-hw,-hh+r);p.absarc(-hw+r,-hh+r,r,Math.PI,Math.PI*1.5);
+ e('chrome',new T.TubeGeometry(new T.CatmullRomCurve3(p.getSpacedPoints(80).slice(0,-1).map(q=>new T.Vector3(q.x,cy+q.y,z)),true),80,tr,8,true),'#fff',0,0,0,1,1,1)}
+function roundPlate(e,y,z,d){e('trim',GB,'#222b31',0,y,z,.43,.15,.028);e('trim',GB,'#ece9d6',0,y,z+d*.018,.38,.115,.012);for(const x of [-.12,-.06,0,.06,.12])e('trim',GB,'#30434b',x,y,z+d*.026,.023,.054,.009)}
+// Door seams, handles and a mirror laid onto the curved flank.
+function roundSide(e,s,X,o){for(const side of [-1,1]){for(const z of o.seams)polyLine(e,'trim','#313638',spanPts(8,t=>{const y=o.y0+(o.belt-.03-o.y0)*t;return [side*(X(y,z)+.004),y,z]}),.006);
+ for(const z of o.handles)e('chrome',GB,'#fff',side*(X(o.belt-.1,z)+.01),o.belt-.1,z,.022,.032,.15);
+ coachLine(e,'chrome','#fff',[side*X(o.belt-.02,o.mirror),o.belt-.02,o.mirror],[side*(o.w+.12),o.belt+.13,o.mirror+.01],.02);e('chrome',s,'#fff',side*(o.w+.14),o.belt+.14,o.mirror+.01,.09,.05,.105);e('glass',GB,'#fff',side*(o.w+.14),o.belt+.14,o.mirror-.085,.12,.068,.018)}}
+
 const CLS={},CLSG={};function classic(key,color){const sp=CLS[key],G=CLSG[key]??=(()=>{const B={paint:mb(),glass:mb(),chrome:mb(),trim:mb(),lamp:mb()},s=geos.s,e=(k,g,c,x,y,z,sx,sy,sz,rx=0,ry=0,rz=0)=>madd(B[k],g,c,mx(x,y,z,sx,sy,sz,rx,ry,rz));sp.build(e,s);const o={};for(const k in B)if(B[k].p.length)o[k]=mgeo(B[k]);return o})(),W=coachWheels(key),g=new T.Group(),body=new T.Group();g.add(body);
  for(const k in G){const m=new T.Mesh(G[k],k==='paint'?PAINT[color+key]??=new T.MeshPhysicalMaterial({color,roughness:sp.rough??.38,clearcoat:.7,clearcoatRoughness:.1,envMap:ENV,envMapIntensity:.65}):k==='glass'&&key==='kombi'?(CM.kombiGlass??=new T.MeshStandardMaterial({color:'#203e4b',roughness:.22,metalness:.08,envMap:ENV,envMapIntensity:.22})):CM[k]);m.castShadow=k!=='lamp';m.receiveShadow=k==='paint';body.add(m)}
  const wheels=[],{x:wx,z:wz,r}=sp.wheels;for(const x of [-wx,wx])for(const z of [-wz[1],wz[0]]){const pivot=new T.Group();pivot.position.set(x,.49*r,z);g.add(pivot);const w=new T.Mesh(W.tire,CM.trim);w.rotation.z=Math.PI/2;w.scale.setScalar(r);w.castShadow=true;pivot.add(w);const hub=new T.Mesh(W.hub,CM.chrome);hub.rotation.z=Math.PI/2;hub.scale.setScalar(r);pivot.add(hub);wheels.push({pivot,w,hub,front:z>0})}
@@ -393,7 +429,7 @@ function buildRoundKombi(e,s){
 
 CLS.kombi={roof:2.195,name:'Kombi',wheels:{x:.8,z:[1.2,1.2],r:.8},size:{w:.92,d:2.18},mass:1250,rough:.5,K:{m:1250,I:2000,mu:2.1,acc:14,turbo:24,vmax:36,vmaxTurbo:48,brake:40},build:buildRoundKombi};
 // Chevrolet Opala SS coupé: long hood, quad lamps, black SS stripes.
-CLS.opala={roof:1.35,name:'Opala SS',wheels:{x:.86,z:[1.45,1.4],r:.95},size:{w:.95,d:2.42},mass:1300,K:{m:1300,I:2100,L:2.7,a:1.4,b:1.3,cg:.05,acc:27,turbo:42,vmax:62,vmaxTurbo:88},build:(e,s)=>{
+CLS.opalaPolicia={roof:1.35,name:'Opala SS',wheels:{x:.86,z:[1.45,1.4],r:.95},size:{w:.95,d:2.42},mass:1300,K:{m:1300,I:2100,L:2.7,a:1.4,b:1.3,cg:.05,acc:27,turbo:42,vmax:62,vmaxTurbo:88},build:(e,s)=>{
  coachBody(e,{w:.9,d:2.36,top:1.015,axles:[-1.4,1.45],r:.4465,cy:.4655},s);
  e('paint',coachLoft([[.62,.83,.97,1.025],[1.4,.87,.97,1.045],[2.27,.81,.90,.99]]),'#fff',0,0,0,1,1,1);
  coachCabin(e,{front:.69,rear:-1.47,rf:.28,rr:-.93,w:.8,rw:.7,belt:1.025,roof:1.35,pillar:-.42});
@@ -403,36 +439,76 @@ CLS.opala={roof:1.35,name:'Opala SS',wheels:{x:.86,z:[1.45,1.4],r:.95},size:{w:.
  for(const x of [-.26,.26])e('trim',GB,'#15191a',x,1.052,1.43,.18,.008,1.45,.026);for(const x of [-.925,.925])e('trim',GB,'#15191a',x,.72,.2,.01,.06,3.9);
  e('trim',GB,'#24292b',0,.68,2.42,1.52,.24,.04);for(const x of [-.72,-.48,.48,.72]){e('chrome',C12,'#fff',x,.68,2.43,.11,.04,.11,Math.PI/2);e('lamp',s,'#fff6d2',x,.68,2.45,.085,.085,.03)}
  for(const x of [-.6,.6])e('lamp',GB,'#d8392c',x,.74,-2.43,.5,.12,.03);for(const z of [2.5,-2.48])e('chrome',GB,'#fff',0,.48,z,1.86,.1,.08);for(const x of [-.9,.9])e('chrome',s,'#fff',x,1.02,.75,.07,.05,.09);e('trim',GB,'#1d2224',0,.36,0,1.7,.12,4.3)}};
-// Ford Mustang 1967 fastback: long hood, sloping roof, side scoops, tri-bar tail lamps, Le Mans stripes.
-CLS.mustang={roof:1.34,name:'Mustang 67',wheels:{x:.85,z:[1.38,1.38],r:.95},size:{w:.94,d:2.32},mass:1350,rough:.32,K:{m:1350,I:2150,L:2.75,a:1.35,b:1.4,cg:.05,acc:30,turbo:46,vmax:66,vmaxTurbo:92},build:(e,s)=>{
- coachBody(e,{w:.88,d:2.26,top:1.005,axles:[-1.38,1.38],r:.4465,cy:.4655},s);
- e('paint',coachLoft([[.58,.79,.98,1.03],[1.45,.84,.98,1.055],[2.19,.78,.94,1.015]]),'#fff',0,0,0,1,1,1);
- coachCabin(e,{front:.69,rear:-1.75,rf:.26,rr:-.6,w:.76,rw:.65,belt:1.02,roof:1.34,pillar:-.43});
- // Fastback rear quarters and raised hood scoop.
- for(const side of [-1,1]){coachLine(e,'paint','#fff',[side*.65,1.30,-.59],[side*.79,1.015,-1.76],.075);for(let k=0;k<4;k++)coachLine(e,'trim','#22292d',[side*.735,1.21-k*.035,-.72-k*.075],[side*.775,1.10-k*.03,-.88-k*.075],.017)}
- e('paint',coachLoft([[.88,.24,1.04,1.055],[1.2,.24,1.04,1.13],[1.52,.23,1.04,1.13]]),'#fff',0,0,0,1,1,1);e('trim',GB,'#171f24',0,1.095,1.528,.38,.044,.018);
- coachDetails(e,s,.88,2.36,-2.35,1.01);
- for(const x of [-.36,.36]){e('trim',GB,'#f7f4ec',x,1.06,1.35,.13,.008,1.48,.024);e('trim',GB,'#f7f4ec',x,1.378,-.19,.13,.008,.78);coachLine(e,'trim','#f7f4ec',[x,1.31,-.62],[x,1.046,-1.69],.039)}
- for(const x of [-.905,.905]){e('trim',GB,'#15191a',x,.8,-.55,.03,.16,.5);e('chrome',s,'#fff',x,1.02,.7,.07,.05,.09)}
- e('trim',GB,'#1b1f20',0,.72,2.3,1.3,.3,.05);for(const x of [-.5,.5]){e('chrome',C12,'#fff',x,.74,2.3,.14,.04,.14,Math.PI/2);e('lamp',s,'#fff6d2',x,.74,2.33,.11,.11,.03)}e('chrome',s,'#fff',0,.74,2.33,.12,.08,.03);
- for(const x of [-.5,.5])for(const k of [-.12,0,.12])e('lamp',GB,'#d8392c',x+k,.8,-2.33,.08,.16,.03);e('trim',GB,'#15191a',0,.8,-2.32,1.5,.22,.02);for(const z of [2.37,-2.36])e('chrome',GB,'#fff',0,.5,z,1.82,.09,.08);e('trim',GB,'#1d2224',0,.38,0,1.7,.12,4.1)}};
+// Street Opala SS: rounded lofted body and greenhouse (the police Opala keeps the faceted shell above, which its livery is fitted to).
+CLS.opala={roof:1.36,name:'Opala SS',wheels:{x:.83,z:[1.45,1.4],r:.95},size:{w:.95,d:2.42},mass:1300,K:CLS.opalaPolicia.K,build:(e,s)=>{
+ const B=roundBody(e,{zr:-2.4,zf:2.4,W:[[-2.4,.95],[-1.8,.97],[1.2,.97],[2.4,.94]],TOP:[[-2.4,.98],[-1.6,1.02],[0,1.03],[1.4,1.045],[2.4,1]],lo:.36,lz:.3,rcF:.14,rcR:.12,rt:.07,rb:.05,nt:5,nb:3.2,arches:[[1.45,.505,.4655],[-1.4,.505,.4655]]}),X=B.X;
+ e('trim',GB,'#1d2224',0,.34,0,1.5,.04,4.2);
+ const C=roundCabin(e,{zfb:.72,zft:.26,zrt:-.9,zrb:-1.5,belt:1.03,roof:1.36,w:.78,tt:.16,pf:1.5,pr:1.2});
+ for(const side of [-1,1]){
+  // Wide coupé C-pillar and slim A-pillar in body colour; SS stripe between the arches; chrome shoulder molding.
+  surfPatch(e,'paint','#fff',(u,v)=>{const z=-.72-.8*u,top=Math.max(1.03,C.H(z)-.06),y=1+(top-1)*v;return [side*(C.X(y,z)+.006),y,z]},16,8,[side,0,0]);
+  polyLine(e,'paint','#fff',spanPts(8,t=>{const z=.7-.42*t,y=1.04+.28*t;return [side*(C.X(y,z)+.008),y,z]}),.026);
+  for(const [z0,z1]of [[-2.3,-1.94],[-.84,.9],[2,2.32]])surfPatch(e,'trim','#15191a',(u,v)=>{const z=z0+(z1-z0)*u,y=.7+.05*v;return [side*(X(y,z)+.004),y,z]},12,2,[side,0,0]);
+  polyLine(e,'chrome','#fff',spanPts(30,t=>{const z=-2.25+4.5*t;return [side*(X(.99,z)+.006),.99,z]}),.011);
+  for(const x0 of [.2])surfPatch(e,'trim','#15191a',(u,v)=>{const z=.95+1.3*u,x=side*(x0+.11*v);return [x,topY(x,B.sec(z))+.005,z]},16,2,[0,1,0]);
+ }
+ roundSide(e,s,X,{seams:[.75,-.62],handles:[-.48],mirror:.6,belt:1.03,y0:.45,w:.97});
+ for(const x of [-.36,.36])coachLine(e,'trim','#22292b',[x,C.H(.71)+.005,.71],[x+.17,C.H(.6),.6],.011);
+ // Front: full-width grille with the quad lamps set inside a rounded chrome frame.
+ e('trim',GB,'#1b2124',0,.67,2.402,1.46,.26,.02);for(let i=0;i<11;i++)e('chrome',GB,'#fff',-.4+i*.08,.67,2.414,.014,.2,.01);roundFrame(e,.67,.73,.135,.06,2.414);
+ for(const x of [-.67,-.47,.47,.67]){e('chrome',C12,'#fff',x,.67,2.42,.095,.05,.095,Math.PI/2);e('lamp',s,'#fff6d2',x,.67,2.44,.078,.078,.03)}
+ roundBumper(e,s,X,.47,[2,2.15,2.28,2.36],2.47,1,.055,1.4,.7);roundBumper(e,s,X,.48,[-2,-2.15,-2.28,-2.36],-2.47,-1,.055,1.4,.7);
+ roundPlate(e,.47,2.58,1);roundPlate(e,.62,-2.405,-1);
+ for(const x of [-.52,.52]){e('chrome',new T.CapsuleGeometry(.062,.34,4,12),'#fff',x,.78,-2.396,1,1,.3,0,0,Math.PI/2);e('lamp',new T.CapsuleGeometry(.05,.33,4,12),'#d8392c',x,.78,-2.405,1,1,.3,0,0,Math.PI/2)}
+ coachLine(e,'chrome','#fff',[.5,.3,-2.47],[.5,.3,-2.15],.04)}};
+// Ford Mustang 1967 fastback: rounded lofted body, long fastback with body-colour sails and louvres, hood scoop, side scoops, shark-nose grille, tri-bar tail lamps, Le Mans stripes.
+CLS.mustang={roof:1.34,name:'Mustang 67',wheels:{x:.8,z:[1.38,1.38],r:.95},size:{w:.94,d:2.32},mass:1350,rough:.32,K:{m:1350,I:2150,L:2.75,a:1.35,b:1.4,cg:.05,acc:30,turbo:46,vmax:66,vmaxTurbo:92},build:(e,s)=>{
+ const B=roundBody(e,{zr:-2.32,zf:2.34,W:[[-2.32,.92],[-1.6,.95],[1,.95],[2.34,.9]],TOP:[[-2.32,1],[-1.5,1.03],[0,1.03],[1.4,1.05],[2.34,1]],lo:.36,lz:.28,rcF:.12,rcR:.1,rt:.06,rb:.05,nt:5.5,nb:3.2,arches:[[1.38,.505,.4655],[-1.38,.505,.4655]]}),X=B.X;
+ e('trim',GB,'#1d2224',0,.34,0,1.5,.04,4);
+ const C=roundCabin(e,{zfb:.72,zft:.25,zrt:-.55,zrb:-1.85,belt:1.025,roof:1.34,w:.74,tt:.17,pf:1.5,pr:1});
+ const STR='#f7f4ec';
+ for(const side of [-1,1]){
+  surfPatch(e,'paint','#fff',(u,v)=>{const z=-.5-1.36*u,top=Math.max(1.03,C.H(z)-.075),y=1+(top-1)*v;return [side*(C.X(y,z)+.006),y,z]},20,8,[side,0,0]);
+  for(let k=0;k<4;k++){const z=-.86-k*.09;polyLine(e,'trim','#22292d',spanPts(4,t=>{const y=1.08+.12*t;return [side*(C.X(y,z)+.012),y,z-.06*t]}),.014)}
+  polyLine(e,'paint','#fff',spanPts(8,t=>{const z=.7-.43*t,y=1.04+.27*t;return [side*(C.X(y,z)+.008),y,z]}),.026);
+  // Side scoop ahead of the rear wheel: dark intake with a chrome lip.
+  surfPatch(e,'trim','#15191a',(u,v)=>{const z=-.36-.46*u,y=.74+(.1-.06*u)*v;return [side*(X(y,z)+.004),y,z]},8,3,[side,0,0]);
+  polyLine(e,'chrome','#fff',spanPts(8,t=>{const z=-.36-.46*t,y=.84-.06*t;return [side*(X(y,z)+.008),y,z]}),.01);
+  // Le Mans stripes over hood, roof and deck.
+  for(const [z0,z1,S]of [[.9,2.26,B.sec],[-.6,.28,C.cap],[-2.26,-1.88,B.sec]])surfPatch(e,'trim',STR,(u,v)=>{const z=z0+(z1-z0)*u,x=side*(.29+.13*v);return [x,topY(x,S(z))+.005,z]},16,2,[0,1,0]);
+ }
+ e('paint',smoothLoft([[.86,0,.2,1,1.05,3,3],[1.2,0,.21,1,1.1,3,3],[1.5,0,.2,1,1.11,3,3],[1.56,0,.19,1,1.07,3,3]],20),'#fff',0,0,0,1,1,1);e('trim',GB,'#171f24',0,1.08,1.545,.3,.035,.02);
+ roundSide(e,s,X,{seams:[.75,-.6],handles:[-.45],mirror:.6,belt:1.025,y0:.45,w:.95});
+ for(const x of [-.34,.34])coachLine(e,'trim','#22292b',[x,C.H(.71)+.005,.71],[x+.16,C.H(.6),.6],.011);
+ // Shark-nose grille with the lamps at its ends and the pony in a chrome corral.
+ e('trim',GB,'#1b1f20',0,.72,2.342,1.44,.28,.02);roundFrame(e,.72,.72,.14,.09,2.352,.022);
+ for(const x of [-.56,.56]){e('chrome',C12,'#fff',x,.72,2.355,.12,.04,.12,Math.PI/2);e('lamp',s,'#fff6d2',x,.72,2.37,.1,.1,.03)}
+ e('chrome',new T.TorusGeometry(.1,.012,6,24),'#fff',0,.72,2.358,1,1,1);e('chrome',s,'#fff',0,.72,2.36,.06,.04,.02);coachLine(e,'chrome','#fff',[-.34,.72,2.356],[-.1,.72,2.356],.01);coachLine(e,'chrome','#fff',[.1,.72,2.356],[.34,.72,2.356],.01);
+ roundBumper(e,s,X,.5,[1.95,2.1,2.22,2.3],2.42,1,.05,1.4,.7);roundBumper(e,s,X,.5,[-1.95,-2.1,-2.22,-2.3],-2.4,-1,.05,1.4,.7);
+ roundPlate(e,.5,2.53,1);roundPlate(e,.6,-2.325,-1);
+ e('trim',GB,'#15191a',0,.8,-2.322,1.4,.2,.02);for(const x of [-.5,.5])for(const k of [-.12,0,.12])e('lamp',new T.CapsuleGeometry(.032,.1,4,10),'#d8392c',x+k,.8,-2.335,1,1,.4);e('chrome',C12,'#fff',0,.8,-2.335,.07,.02,.07,Math.PI/2);
+ for(const x of [-.4,.4])coachLine(e,'chrome','#fff',[x,.3,-2.4],[x,.3,-2.1],.038)}};
 // Bonneted 1970s truck ("bicudo"): long hood, round fenders, square cab, wooden cargo bed with stakes and a load of crates and sacks.
 CLS.caminhao={roof:2.8,name:'Caminhão',wheels:{x:1.0,z:[2.75,2.1],r:1.25},size:{w:1.25,d:3.7},mass:4200,rough:.5,K:{m:4200,I:11000,L:4.85,a:2.45,b:2.4,cg:.1,acc:9,turbo:15,vmax:25,vmaxTurbo:32,brake:26,mu:1.9,lock:.5},build:(e,s)=>{
  const WOOD='#9a6a3a',DARK='#5d3f22',STAKE='#4a3320',BLK='#1c2124';
  // Chassis rails, front bumper and fuel tank.
  for(const x of [-.55,.55])e('trim',GB,BLK,x,.8,-.2,.16,.22,7.1);e('trim',GB,'#2a2f33',0,.66,3.56,2.2,.24,.18);for(const x of [-.75,.75])e('chrome',s,'#fff',x,.66,3.66,.06,.06,.03);
  e('chrome',C12,'#fff',-.9,.85,-.15,.25,.95,.25,Math.PI/2);
- // Long hood with grille and round headlamps.
- e('paint',coachLoft([[2.12,.8,.95,1.78],[3.0,.77,.95,1.68],[3.46,.68,.98,1.52]]),'#fff',0,0,0,1,1,1);
- e('trim',GB,'#1e2427',0,1.2,3.47,.86,.5,.03);for(let i=0;i<7;i++)e('chrome',GB,'#fff',-.36+i*.12,1.2,3.49,.025,.46,.012);e('chrome',GB,'#fff',0,1.47,3.48,.9,.04,.02);
- for(const x of [-.66,.66]){e('chrome',C12,'#fff',x,1.24,3.45,.14,.05,.14,Math.PI/2);e('lamp',s,'#fff6d2',x,1.24,3.48,.11,.11,.03);e('lamp',s,'#f2a12a',x*1.3,.95,3.42,.05,.05,.03)}
- // Round front fenders over the wheels, joined to the hood sides; rear mud flaps.
- for(const side of [-1,1]){e('paint',new T.CylinderGeometry(.74,.74,.46,18,1,true,0,Math.PI),'#fff',side*1.0,.61,2.75,1,1,1,0,0,Math.PI/2);e('paint',GB,'#fff',side*.86,1.12,2.75,.3,.42,1.3);e('trim',GB,'#2a2f33',side*1.05,.78,1.5,.28,.06,.6);e('trim',GB,'#15191a',side*1.0,.82,-2.85,.42,.55,.03)}
- // Square cab: painted lower half with a cream belt, split windscreen, side windows and a short roof.
- e('paint',GB,'#fff',0,1.45,1.5,2.2,1.2,1.3);e('trim',GB,'#f2ede0',0,2.0,1.5,2.22,.07,1.32);
- e('glass',GB,'#fff',0,2.36,1.5,2.08,.62,1.22);e('paint',GB,'#fff',0,2.36,.87,2.16,.62,.06);e('glass',GB,'#fff',0,2.38,.84,.9,.36,.02);
- e('paint',GB,'#fff',0,2.73,1.5,2.24,.12,1.38);for(const x of [-.4,0,.4])e('lamp',s,'#f2a12a',x,2.81,2.15,.06,.04,.04);
- e('paint',GB,'#fff',0,2.36,2.12,.08,.62,.06);for(const side of [-1,1]){for(const z of [2.12,.89])e('paint',GB,'#fff',side*1.06,2.36,z,.1,.62,.08);
+ // Long rounded hood with a chrome-barred grille and pod headlamps.
+ roundBody(e,{zr:2,zf:3.5,W:[[2,.8],[3.5,.7]],TOP:[[2,1.8],[3.5,1.56]],lo:.95,lz:.26,rcF:.1,rcR:0,rt:.1,rb:.01,nt:3.4,nb:6,tt:.08,tb:0,step:.05});
+ e('trim',GB,'#1e2427',0,1.2,3.505,.84,.4,.02);for(let i=0;i<7;i++)e('chrome',GB,'#fff',-.36+i*.12,1.2,3.515,.025,.37,.012);roundFrame(e,1.2,.43,.205,.06,3.515,.022);
+ for(const x of [-.7,.7]){e('chrome',s,'#fff',x,1.24,3.36,.15,.15,.16);e('lamp',s,'#fff6d2',x,1.24,3.515,.11,.11,.02);e('lamp',s,'#f2a12a',x*1.3,.95,3.42,.05,.05,.03)}
+ // Round pontoon fenders over the front wheels; side steps and rear mud flaps.
+ for(const side of [-1,1]){const fz=[];for(let z=1.95;z<=3.63;z+=.04)fz.push(z);e('paint',smoothLoft(fz.map(z=>{const d=z-2.75,hi=.6125+Math.sqrt(Math.max(0,.87*.87-d*d))*.95+.02;return [z,side*.98,.26,Math.max(.6,hi-.14),Math.max(.74,hi),3,2.4,0,0]}),20),'#fff',0,0,0,1,1,1);
+  e('trim',GB,'#2a2f33',side*1.05,.78,1.5,.28,.06,.6);e('trim',GB,'#15191a',side*1.0,.82,-2.85,.42,.55,.03)}
+ // Cab with rounded corners: painted lower body, cream belt, wraparound glass, rounded roof, corner posts and a solid back wall.
+ roundBody(e,{zr:.86,zf:2.16,W:[[.86,1.1],[2.16,1.1]],TOP:[[.86,2.03],[2.16,2.03]],lo:.85,lz:.14,rcF:.07,rcR:.05,rt:.03,rb:0,nt:8,nb:8,tt:0,tb:0,step:.05});
+ roundBody(e,{zr:.85,zf:2.17,W:[[.85,1.115],[2.17,1.115]],TOP:[[.85,2.035],[2.17,2.035]],lo:1.965,lz:.14,rcF:.07,rcR:.05,rt:0,rb:0,nt:3,nb:3,tt:0,tb:0,step:.05,k:'trim',c:'#f2ede0'});
+ const CAB=roundCabin(e,{zfb:2.14,zft:2.06,zrt:.94,zrb:.88,belt:2.03,roof:2.74,w:1.07,tt:.05,n:7,pf:1,pr:1,cw:1.1});
+ e('paint',smoothLoft([[.86,0,1.075,1.95,2.73,7,7],[.95,0,1.075,1.95,2.73,7,7]],32),'#fff',0,0,0,1,1,1);e('glass',GB,'#fff',0,2.38,.855,.9,.36,.02);
+ for(const x of [-.4,0,.4])e('lamp',s,'#f2a12a',x,2.79,2.15,.06,.04,.04);
+ coachLine(e,'paint','#fff',[0,2.04,2.15],[0,2.7,2.15],.03);
+ for(const side of [-1,1]){for(const [z0,z1]of [[2,2.15],[.9,1.04]])surfPatch(e,'paint','#fff',(u,v)=>{const z=z0+(z1-z0)*u,y=2.02+.7*v;return [side*(CAB.X(y,z)+.006),y,z]},4,8,[side,0,0]);
   coachLine(e,'trim','#2b3236',[side*1.105,.9,2.08],[side*1.105,2.02,2.08],.012);coachLine(e,'trim','#2b3236',[side*1.105,.9,1.0],[side*1.105,2.02,1.0],.012);e('chrome',GB,'#fff',side*1.12,1.75,1.15,.03,.04,.16);
   coachLine(e,'chrome','#fff',[side*1.1,2.15,2.0],[side*1.4,2.2,2.05],.018);e('trim',GB,BLK,side*1.42,2.32,2.05,.05,.38,.2);e('glass',GB,'#fff',side*1.42,2.32,2.0,.04,.32,.02);
   for(const x of [-.5,.5])coachLine(e,'trim','#22292b',[side*x*.6,2.06,2.16],[side*x*.6+.22,2.4,2.17],.012)}
@@ -1163,7 +1239,7 @@ function dressPolice(v,model){const K=policeKit(model),body=v.userData.body,pain
  return {red:lit(K.red,CM.sirenR,K.redAt,'#ff3344'),blue:lit(K.blue,CM.sirenB,K.blueAt,'#3d7bff')}}
 function ensurePolice(){if(!wanted||simTime<nextReinforcement||police.filter(p=>!p.ambient).length>=pursuitUnits)return;spawnPolice(actorPos());nextReinforcement=simTime+1.2}
 function spawnPolice(pos,suspect=null){const index=police.length,g=person('#243c62',true),node=navNode(new T.Vector3(pos.x+(index%2?45:-45),0,pos.z+40));g.position.set(navMin+node%navW*6,0,navZMin+Math.floor(node/navW)*6);g.position.y=surfaceY(g.position.x,g.position.z);
- const model=['opala','fusca','kombi'][index%3],v=model==='fusca'?beetle('#f0eee3'):classic(model,'#f0eee3');scene.add(v);let spawn=null;for(let j=0;j<24;j++){const a=index*2.399+j*.71,r=50+(j%3)*15,x=T.MathUtils.clamp(pos.x+Math.sin(a)*r,-252,XMAX-9),z=T.MathUtils.clamp(pos.z+Math.cos(a)*r,WORLD_Z_MIN+9,WORLD_Z_MAX-9);let px=x;
+ const model=['opala','fusca','kombi'][index%3],v=model==='fusca'?beetle('#f0eee3'):classic(model==='opala'?'opalaPolicia':model,'#f0eee3');scene.add(v);let spawn=null;for(let j=0;j<24;j++){const a=index*2.399+j*.71,r=50+(j%3)*15,x=T.MathUtils.clamp(pos.x+Math.sin(a)*r,-252,XMAX-9),z=T.MathUtils.clamp(pos.z+Math.cos(a)*r,WORLD_Z_MIN+9,WORLD_Z_MAX-9);let px=x;
  if(z>=-258)px=[...roads,...ROADX2].reduce((a,b)=>Math.abs(b-x)<Math.abs(a-x)?b:a)+4;else{const near=SERRA_ROUTES.flat().reduce((a,b)=>Math.hypot(b.x-x,b.z-z)<Math.hypot(a.x-x,a.z-z)?b:a);px=near.x;const pz=near.z;if(Math.hypot(px-pos.x,pz-pos.z)>28&&!blocked(px,pz,2.8)&&!vehicleList().some(o=>Math.hypot(o.position.x-px,o.position.z-pz)<8)){spawn={x:px,z:pz};break}continue}
  if(Math.hypot(px-pos.x,z-pos.z)>28&&!blocked(px,z,2.8)&&!vehicleList().some(o=>Math.hypot(o.position.x-px,o.position.z-z)<8)){spawn={x:px,z};break}}
  if(!spawn){const n=navNode(g.position);spawn={x:navMin+n%navW*6,z:navZMin+Math.floor(n/navW)*6}}v.position.set(spawn.x,surfaceY(spawn.x,spawn.z),spawn.z);g.position.copy(v.position);v.rotation.y=Math.atan2(pos.x-v.position.x,pos.z-v.position.z);
