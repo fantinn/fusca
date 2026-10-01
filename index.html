@@ -1138,25 +1138,26 @@ function policeTex(){if(POLICE_TEX)return POLICE_TEX;const c=document.createElem
 function policeHalo(){if(POLICE_HALO)return POLICE_HALO;const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d'),g=x.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.25,'rgba(255,255,255,.55)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,64,64);return POLICE_HALO=new T.CanvasTexture(c)}
 function policePaint(model){return POLICE_PAINT[model]??=(()=>{const F=POLICE_FIT[model],aa=.006,f=v=>v.toFixed(3),m=new T.MeshPhysicalMaterial({color:'#f5f4ef',roughness:.34,clearcoat:.8,clearcoatRoughness:.08,envMap:ENV,envMapIntensity:.65});
  m.onBeforeCompile=s=>{s.uniforms.livTex={value:policeTex()};s.vertexShader='varying vec3 vLivP;varying vec3 vLivN;\n'+s.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvLivP=position;vLivN=normal;');
-  s.fragmentShader='uniform sampler2D livTex;varying vec3 vLivP;varying vec3 vLivN;\n'+s.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
-  {vec3 P=vLivP;float side=smoothstep(.28,.5,abs(normalize(vLivN).x)),zin=smoothstep(${f(F.z0)},${f(F.z0+.04)},P.z)*(1.-smoothstep(${f(F.z1-.04)},${f(F.z1)},P.z));
+  // The band is matte (no clearcoat, rougher): a dark glossy stripe only mirrors the sky and reads as see-through glass.
+  s.fragmentShader='uniform sampler2D livTex;varying vec3 vLivP;varying vec3 vLivN;float livBand=0.;\n'+s.fragmentShader.replace('#include <lights_physical_fragment>','#include <lights_physical_fragment>\nmaterial.roughness=mix(material.roughness,.62,livBand);\n#ifdef USE_CLEARCOAT\nmaterial.clearcoat*=1.-livBand;\n#endif').replace('#include <color_fragment>',`#include <color_fragment>
+  {vec3 P=vLivP;float side=smoothstep(.28,.5,abs(vLivN.x)*inversesqrt(max(dot(vLivN,vLivN),1e-6))),zin=smoothstep(${f(F.z0)},${f(F.z0+.04)},P.z)*(1.-smoothstep(${f(F.z1-.04)},${f(F.z1)},P.z));
    float band=side*zin*smoothstep(${f(F.y0-aa)},${f(F.y0+aa)},P.y)*(1.-smoothstep(${f(F.y1-aa)},${f(F.y1+aa)},P.y));
    float inner=smoothstep(${f(F.y0+.03)},${f(F.y0+.03+aa)},P.y)*(1.-smoothstep(${f(F.y1-.03-aa)},${f(F.y1-.03)},P.y));
    vec2 uv=vec2(-sign(P.x)*(P.z-(${f(F.tz)}))/${f(F.tw)}+.5,(P.y-${f(F.y0)})/${f(F.y1-F.y0)});
    float txt=band*inner*texture2D(livTex,clamp(uv,0.,1.)).a*step(0.,uv.x)*step(uv.x,1.);
-   diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.018,.03,.085),band);diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.86,.55,.1),band*(1.-inner));diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.92),txt);}`)};
+   livBand=band;diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.012,.045,.2),band);diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.86,.55,.1),band*(1.-inner));diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.92),txt);}`)};
  m.customProgramCacheKey=()=>'police-'+model;return m})()}
 function policeKit(model){return POLICE_KIT[model]??=(()=>{const F=POLICE_FIT[model],L=F.L,y=F.roof+.1,z=F.rz,trim=mb(),chrome=mb(),lens=mb(),red=mb(),blue=mb(),cap=(r,len)=>new T.CapsuleGeometry(r,len,6,16);
  // Light bar: low rounded housing on two chrome feet, smoked red/blue domes either side of a chrome centre with white takedown lamps.
  madd(trim,cap(.15,L*2-.3),'#1b2127',mx(0,y,z,.52,1,1.05,0,0,Math.PI/2));for(const s of [-1,1]){madd(chrome,GB,'#fff',mx(s*L*.62,y-.075,z,.09,.07,.3));madd(trim,GB,'#15191d',mx(s*L*.62,y-.11,z,.13,.03,.34))}
  madd(chrome,cap(.115,L*.2),'#fff',mx(0,y+.045,z,.62,1,1,0,0,Math.PI/2));for(const s of [-1,1])madd(lens,geos.s,'#fff6dc',mx(0,y+.04,z+s*.115,.05,.035,.02));
- for(const [b,s,c] of [[lens,-1,'#5a0d14'],[lens,1,'#0d2457'],[red,-1,'#ff2a3a'],[blue,1,'#2f74ff']]){const lit=b!==lens;madd(b,cap(.118*(lit?1.04:1),L*.62-.236),c,mx(s*L*.5,y+.05,z,.72*(lit?1.04:1),1,lit?1.03:1,0,0,Math.PI/2))}
+ for(const [b,s,c] of [[lens,-1,'#9a1c26'],[lens,1,'#1d46a3'],[red,-1,'#ff2a3a'],[blue,1,'#2f74ff']]){const lit=b!==lens;madd(b,cap(.118*(lit?1.04:1),L*.62-.236),c,mx(s*L*.5,y+.05,z,.72*(lit?1.04:1),1,lit?1.03:1,0,0,Math.PI/2))}
  // Push bar on the front bumper and a whip antenna on the bar's rear corner.
  const fz=F.front,h=F.bar;for(const s of [-1,1]){madd(trim,GB,'#16191c',mx(s*.36,h+.2,fz,.07,.52,.07));madd(trim,GB,'#16191c',mx(s*.36,h+.02,fz-.12,.06,.06,.26))}for(const yy of [h+.08,h+.38])madd(trim,GB,'#16191c',mx(0,yy,fz+.02,.86,.07,.07));madd(trim,GB,'#2a2f33',mx(0,h+.23,fz+.04,.62,.22,.03));
  madd(trim,new T.CylinderGeometry(.006,.011,.95,5),'#121416',mx(L*.62,y+.47,z-.12));madd(chrome,geos.s,'#fff',mx(L*.62,y+.95,z-.12,.018,.018,.018));
  return {trim:mgeo(trim),chrome:mgeo(chrome),lens:mgeo(lens),red:mgeo(red),blue:mgeo(blue),redAt:new T.Vector3(-L*.5,y+.08,z),blueAt:new T.Vector3(L*.5,y+.08,z)}})()}
 function dressPolice(v,model){const K=policeKit(model),body=v.userData.body,paint=body.children.find(m=>m.receiveShadow);if(paint)paint.material=policePaint(model);
- CM.lens??=new T.MeshStandardMaterial({vertexColors:true,roughness:.12,metalness:.15,envMap:ENV,envMapIntensity:.9});CM.sirenR??=new T.MeshBasicMaterial({color:'#ff2a3a',toneMapped:false});CM.sirenB??=new T.MeshBasicMaterial({color:'#3a7dff',toneMapped:false});
+ CM.lens??=new T.MeshStandardMaterial({vertexColors:true,roughness:.32,metalness:0,envMap:ENV,envMapIntensity:.35});CM.sirenR??=new T.MeshBasicMaterial({color:'#ff2a3a',toneMapped:false});CM.sirenB??=new T.MeshBasicMaterial({color:'#3a7dff',toneMapped:false});
  for(const [k,m] of [['trim',CM.trim],['chrome',CM.chrome],['lens',CM.lens]]){const o=new T.Mesh(K[k],m);o.castShadow=k!=='lens';body.add(o)}
  const lit=(geo,m,at,color)=>{const g=new T.Group(),s=new T.Sprite(new T.SpriteMaterial({map:policeHalo(),color,blending:T.AdditiveBlending,depthWrite:false,transparent:true,opacity:.7,toneMapped:false}));g.add(new T.Mesh(geo,m));s.position.copy(at);s.scale.setScalar(1.15);g.add(s);body.add(g);return g};
  return {red:lit(K.red,CM.sirenR,K.redAt,'#ff3344'),blue:lit(K.blue,CM.sirenB,K.blueAt,'#3d7bff')}}
@@ -1835,6 +1836,6 @@ function fit(){cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();re
 const context=document.modelContext;if(context?.registerTool){for(const tool of [{name:'start_driving',description:'Iniciar o jogo local.',execute:()=>{start();return{started,paused}}},{name:'reset_car',description:'Reposicionar fora de perseguições.',execute:()=>{reset();return{x:car.position.x,z:car.position.z,wanted}}}]){try{Promise.resolve(context.registerTool({...tool,inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:false},execute:input=>{if(input&&Object.keys(input).length)throw new Error('Nenhum argumento é aceito.');return tool.execute()}})).catch(()=>{})}catch{}}}
 
 // Test hook (only with ?debug=1): lets automated checks step the simulation and read state.
-if(DEBUG)window.__g={spawnPolice,police,get car(){return car},surfToPeak,T,scene,cam,renderer,surf,player,keys,DEBUG,SURF_CONFIG,surfStep,surfSample,updateSurf,waveAt,WS,OI,OC,spawnWave,oceanStep,oceanInfo,oceanHeight,seaU,start,startSurf,stopSurf,update,keysClear,shore,sandY,get heading(){return heading},set heading(v){heading=v},get simTime(){return simTime},get cash(){return cash},get inCar(){return inCar},set inCar(v){inCar=v;player.visible=!v?true:false},render(){renderer.render(scene,cam)},step(n=1,dt=1/60){for(let i=0;i<n;i++)update(dt);renderer.render(scene,cam)}};
+if(DEBUG)window.__g={surfToPeak,T,scene,cam,renderer,surf,player,keys,DEBUG,SURF_CONFIG,surfStep,surfSample,updateSurf,waveAt,WS,OI,OC,spawnWave,oceanStep,oceanInfo,oceanHeight,seaU,start,startSurf,stopSurf,update,keysClear,shore,sandY,get heading(){return heading},set heading(v){heading=v},get simTime(){return simTime},get cash(){return cash},get inCar(){return inCar},set inCar(v){inCar=v;player.visible=!v?true:false},render(){renderer.render(scene,cam)},step(n=1,dt=1/60){for(let i=0;i<n;i++)update(dt);renderer.render(scene,cam)}};
 
 </script></body></html>
