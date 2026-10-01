@@ -6,12 +6,6 @@
       "runtimeExecutable": "powershell",
       "runtimeArgs": ["-NoProfile", "-Command", "$l=[System.Net.HttpListener]::new();$l.Prefixes.Add('http://localhost:8137/');$l.Start();while($true){$c=$l.GetContext();$b=[IO.File]::ReadAllBytes((Join-Path $PWD 'index.html'));$c.Response.ContentType='text/html; charset=utf-8';$c.Response.OutputStream.Write($b,0,$b.Length);$c.Response.Close()}"],
       "port": 8137
-    },
-    {
-      "name": "fusca-transito",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8141", "--directory", "C:\\Users\\GABRIE~1.FAN\\AppData\\Local\\Temp\\claude\\C--Users-gabriel-fantin\\e18e0519-168e-465f-a23c-761a5081e475\\scratchpad\\site"],
-      "port": 8141
     }
   ]
 }

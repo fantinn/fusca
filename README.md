@@ -70,6 +70,7 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 - Policiais também recebem socos e atropelamentos, com desequilíbrio, quedas articuladas e recuperação. Um policial caído ou atordoado não consegue prender o jogador.
 - Viaturas podem ser roubadas: chegue perto de uma parada ou lenta e aperte E. O policial segue a pé, o giroflex pisca enquanto você dirige e o roubo gera procurado na hora. Até quatro viaturas roubadas ficam estacionadas pela cidade.
 - Trânsito mais movimentado: cerca de 60 carros circulando no computador (44 no celular), espalhados para não nascerem sobrepostos.
+- Viaturas caracterizadas (Opala, Fusca e Kombi): pintura branca com faixa lateral azul-marinho, filetes dourados e "POLÍCIA" nas duas laterais, giroflex em barra arredondada com lentes vermelha e azul que piscam com halo de luz, para-choque de impulsão e antena.
 - Viaturas com massa, impulso, giro e deslizamento nas colisões, usando o mesmo sistema de contato dos outros carros.
 - Perseguição com motor e volante: os motoristas aceleram forte, corrigem tarde, derrapam, cortam por calçadas e áreas abertas e tentam dar ré quando ficam presos. A velocidade é moderada; a dificuldade para controlar o carro é intencional.
 
