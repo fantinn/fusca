@@ -489,7 +489,7 @@ CLS.mustang={roof:1.34,name:'Mustang 67',wheels:{x:.8,z:[1.38,1.38],r:.95},size:
  e('trim',GB,'#15191a',0,.8,-2.322,1.4,.2,.02);for(const x of [-.5,.5])for(const k of [-.12,0,.12])e('lamp',new T.CapsuleGeometry(.032,.1,4,10),'#d8392c',x+k,.8,-2.335,1,1,.4);e('chrome',C12,'#fff',0,.8,-2.335,.07,.02,.07,Math.PI/2);
  for(const x of [-.4,.4])coachLine(e,'chrome','#fff',[x,.3,-2.4],[x,.3,-2.1],.038)}};
 // Bonneted 1970s truck ("bicudo"): long hood, round fenders, square cab, wooden cargo bed with stakes and a load of crates and sacks.
-CLS.caminhao={roof:2.8,name:'Caminhão',wheels:{x:1.0,z:[2.75,2.1],r:1.25},size:{w:1.25,d:3.7},mass:4200,rough:.5,K:{m:4200,I:11000,L:4.85,a:2.45,b:2.4,cg:.1,acc:9,turbo:15,vmax:25,vmaxTurbo:32,brake:26,mu:1.9,lock:.5},build:(e,s)=>{
+CLS.caminhao={roof:2.8,name:'Caminhão',wheels:{x:1.0,z:[2.75,2.1],r:1.25},size:{w:1.25,d:3.7},mass:4200,rough:.5,K:{m:4200,I:11000,L:4.85,a:2.45,b:2.4,cg:.1,acc:11,turbo:17,vmax:30,vmaxTurbo:37,brake:26,mu:1.9,lock:.5},build:(e,s)=>{
  const WOOD='#9a6a3a',DARK='#5d3f22',STAKE='#4a3320',BLK='#1c2124';
  // Chassis rails, front bumper and fuel tank.
  for(const x of [-.55,.55])e('trim',GB,BLK,x,.8,-.2,.16,.22,7.1);e('trim',GB,'#2a2f33',0,.66,3.56,2.2,.24,.18);for(const x of [-.75,.75])e('chrome',s,'#fff',x,.66,3.66,.06,.06,.03);
@@ -712,10 +712,10 @@ for(const k in SB){const b=SB[k],m=new T.Mesh(mgeo(b),KM[b.k]);m.receiveShadow=k
  for(let i=0;i<4;i++)add(cadillac(CC[i]),roads[(i*3+1)%7],i%2,i%2?1:-1,-200+r2()*400,8+r2()*5);
  for(let i=0;i<(LOW?12:16);i++){const g=i%3===0?cadillac(CC[(i+2)%6]):i%3===1?classic(['kombi','opala','mustang'][(i/3|0)%3],CC[i%6]):beetle(['#e8553d','#3f86c6','#f2ead2','#6fae7b','#f19a38'][i%5]);if(!g.userData.model)g.scale.setScalar(.94);
   if(i<6)add(g,ROADX2[i%2],0,(i>>1)%2?-1:1,-240+r2()*480,8+r2()*6);else add(g,roads[i%7],1,i%2?1:-1,390+r2()*160,8+r2()*6,380,XMAX+4)}
- // Slow trucks: five in the old town, two in the east district.
+ // Trucks: five in the old town, two in the east district.
  const TC=['#d23b2f','#2f6fae','#f0c23a','#3e8a57','#f2ece0','#e07a2e','#7a4fa0'];
- for(let i=0;i<5;i++)add(classic('caminhao',TC[i]),roads[(i*2+3)%7],i%2,i%2?-1:1,-220+r2()*440,6+r2()*3);
- for(let i=0;i<2;i++)add(classic('caminhao',TC[5+i]),roads[(i*3+2)%7],1,i?-1:1,400+r2()*140,6+r2()*3,380,XMAX+4)}
+ for(let i=0;i<5;i++)add(classic('caminhao',TC[i]),roads[(i*2+3)%7],i%2,i%2?-1:1,-220+r2()*440,10+r2()*3.5);
+ for(let i=0;i<2;i++)add(classic('caminhao',TC[5+i]),roads[(i*3+2)%7],1,i?-1:1,400+r2()*140,10+r2()*3.5,380,XMAX+4)}
 // Instanced palms (bent trunk + drooping fronds that sway in the vertex shader), street lamps and shrubs.
 const PALMI={},LAMPI={};
 const PM=new T.MeshStandardMaterial({vertexColors:true,roughness:.8}),LEAF=new T.MeshStandardMaterial({vertexColors:true,side:T.DoubleSide,roughness:.75});LEAF.onBeforeCompile=s=>{s.uniforms.uT=UW.uT;s.vertexShader='uniform float uT;\n'+s.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n#ifdef USE_INSTANCING\nfloat pd=length(position.xz-vec2(1.1,0.)),ph=instanceMatrix[3].x*.37+instanceMatrix[3].z*.23,up=step(6.4,position.y);transformed.y+=sin(uT*1.8+ph+pd*.9)*.05*pd*up;transformed.xz+=vec2(sin(uT*1.2+ph),cos(uT*1.4+ph))*.025*pd*up;\n#endif')};
@@ -1178,7 +1178,7 @@ function reportViolence(p,damage,points,message){p.combatHealth=Math.max(0,(p.co
  crime(fatal?(p.isPolice?80:60):points,fatal?(p.isPolice?'Policial morto • crime grave':'Homicídio denunciado'):message);
 }
 function nearestPerson(range=3){return people.filter(p=>!p.driving&&p.g.position.distanceTo(player.position)<range&&p.stun<=0).sort((a,b)=>a.g.position.distanceTo(player.position)-b.g.position.distanceTo(player.position))[0]}
-function nearestVehicle(){return [originalCar,...traffic.map(t=>t.g),...police.filter(p=>p.v&&Math.hypot(p.v.userData.vel.x,p.v.userData.vel.z)<6).map(p=>p.v)].filter((v,i,a)=>a.indexOf(v)===i&&!v.userData.npcDriver&&v.position.distanceTo(player.position)<7&&contactCircle(player.position,1.9,rectFor(v))).sort((a,b)=>a.position.distanceTo(player.position)-b.position.distanceTo(player.position))[0]}
+function nearestVehicle(){return [originalCar,...traffic.map(t=>t.g),...police.filter(p=>p.v&&Math.hypot(p.v.userData.vel.x,p.v.userData.vel.z)<6).map(p=>p.v)].filter((v,i,a)=>a.indexOf(v)===i&&!v.userData.npcDriver&&!v.userData.npcRoll&&v.position.distanceTo(player.position)<7&&contactCircle(player.position,1.9,rectFor(v))).sort((a,b)=>a.position.distanceTo(player.position)-b.position.distanceTo(player.position))[0]}
 function exitCar(){if(flightFree(car)&&car.userData.flight.mode!=='wreck'){toast('Espere o carro aterrissar e parar.');return false}if(Math.abs(velocity)>2){toast('Pare o carro para descer.');return false}for(const side of [-1,1]){let x=car.position.x+Math.cos(angle)*side*3,z=car.position.z-Math.sin(angle)*side*3;if(!blocked(x,z)){player.position.set(x,surfaceY(x,z),z);heading=angle;inCar=false;velocity=0;player.visible=true;heldBox.visible=cargo;toast('A pé • Q soca · Espaço defende · E interage · F furta');return true}}toast('A porta está bloqueada. Mova o carro.');return false}
 function interact(){if(!started||paused||player.userData.rag||player.userData.attack)return;if(inCar){if(!raceTry())exitCar();return}const pos=player.position;
  if(surf.active){surfInteract();return}if(nearSurf()){startSurf();return}
@@ -1540,7 +1540,7 @@ function flightContact(v,f){const u=v.userData,cg=(u.roof||1.8)*.43,sz=u.size||{
  for(const p of points){FLIGHT_P.set(p[0],p[1]-cg,p[2]).applyQuaternion(FLIGHT_Q);const y=surfaceY(v.position.x+FLIGHT_P.x+FLIGHT_C.x,v.position.z+FLIGHT_P.z+FLIGHT_C.z)-FLIGHT_P.y+.025;if(y>floor+.025){floor=y;contact=[...p];count=1}else if(y>floor-.025){floor=Math.max(floor,y);for(let j=0;j<3;j++)contact[j]+=p[j];count++}}for(let j=0;j<3;j++)contact[j]/=count;return {floor,contact,cg};
 }
 function drawFlight(v,f,cg){v.rotation.order='YXZ';v.rotation.x=f.pitch;v.rotation.z=f.roll;v.position.y=f.y-Math.cos(f.pitch)*Math.cos(f.roll)*cg;v.userData.heave=0;for(const w of v.userData.wheels)w.pivot.position.y=w.baseY??w.pivot.position.y}
-function groundVehicle(v,dt){if(v!==car||!inCar){if(v.userData.flight?.mode==='wreck')return;groundVehicleAttached(v,dt);return}const f=flightState(v),u=v.userData;f.lock=Math.max(0,f.lock-dt);
+function groundVehicle(v,dt){if(v!==car||!inCar){if(v.userData.npcRoll){updateNpcRoll(v,dt);return}if(v.userData.flight?.mode==='wreck')return;groundVehicleAttached(v,dt);return}const f=flightState(v),u=v.userData;f.lock=Math.max(0,f.lock-dt);
  if(!dt){clearFlight(v);groundVehicleAttached(v,0);return}
  if(f.mode==='ground'){
   const oldH=f.groundH,oldV=f.groundV,oldPitch=f.pitch,oldRoll=f.roll;groundVehicleAttached(v,dt);const h=v.position.y,speed=Math.hypot(u.vel?.x||0,u.vel?.z||0),rise=f.ready?(h-oldH)/dt:0;
@@ -1675,11 +1675,27 @@ function bodyLoad(B,v){const u=v.userData,m=massOf(v);B.v=v;B.x=v.position.x;B.z
  else if(u.police||u.aiDriver){B.kind=3;B.vx=u.vel.x;B.vz=u.vel.z;B.w=u.spin||0}
  else if(v!==originalCar&&!u.traffic){B.kind=0;B.im=B.ii=B.vx=B.vz=B.w=0}
  else{B.kind=2;if(u.loose){B.vx=u.vel.x;B.vz=u.vel.z;B.w=u.spin||0}else{const t=u.traffic,sp=t&&v!==car&&!stolenCars.has(v)&&!t.align?t.actual||0:0;B.vx=Math.sin(v.rotation.y)*sp;B.vz=Math.cos(v.rotation.y)*sp;B.w=0}}
- return B}
+ B.vx0=B.vx;B.vz0=B.vz;return B}
+// Hard side hits trip NPC vehicles over: tall, narrow bodies (Kombi) roll at lower speed changes than wide, heavy ones.
+function startNpcRoll(v,dvx,dvz){const u=v.userData;if(u.npcRoll||!u.wheels||v===originalCar||stolenCars.has(v))return;const s=v.scale.x,W=(u.size?.w||1.12)*s,H=(u.roof||1.8)*.5*s,yaw=v.rotation.y,lat=dvx*Math.cos(yaw)-dvz*Math.sin(yaw),lon=dvx*Math.sin(yaw)+dvz*Math.cos(yaw),thr=T.MathUtils.clamp(4.6*W/H,4.5,9)*Math.sqrt(Math.max(1,massOf(v)/1500));
+ let dir=-Math.sign(lat),k=Math.abs(lat)/thr;if(k<1){const tot=Math.hypot(lat,lon)/(thr*1.6);if(tot<1)return;k=tot;dir=Math.random()<.5?-1:1}
+ const dv=Math.hypot(dvx,dvz);u.npcRoll={th:0,w:dir*T.MathUtils.clamp(2.6+k*1.6,3,9),pitch:0,wp:T.MathUtils.clamp(lon*.06,-.6,.6),y:v.position.y+H+.05,vy:T.MathUtils.clamp(1.2+dv*.18,1.5,5),W,H,sx:0,sz:0,rest:0,done:false};
+ for(const w of u.wheels)w.pivot.position.y=w.baseY??w.pivot.position.y;if(u.body)u.body.position.y=0}
+function updateNpcRoll(v,dt){const u=v.userData,r=u.npcRoll,p=v.position;if(!dt)return;const ca=Math.cos(v.rotation.y),sa=Math.sin(v.rotation.y);p.x-=r.sx;p.z-=r.sz;
+ const steps=Math.max(1,Math.ceil(dt/.008)),h=dt/steps,g=surfaceY(p.x,p.z),k=9.81*1.5/(r.W*r.W+r.H*r.H);
+ for(let i=0;i<steps&&!r.done;i++){r.vy-=9.81*h;r.y+=r.vy*h;r.th+=r.w*h;r.pitch+=r.wp*h;r.wp*=Math.exp(-h*1.5);
+  const sn=Math.sin(r.th),cs=Math.cos(r.th),need=g+Math.abs(r.W*sn)+Math.abs(r.H*cs);
+  if(r.y<=need){r.y=need;if(r.vy<0)r.vy=r.vy<-2?-r.vy*.25:0;
+   // Gravity tips the box over its lowest edge toward the nearest flat face; ground friction bleeds the spin.
+   const dc=r.W*cs*Math.sign(sn)-r.H*sn*Math.sign(cs);r.w-=k*dc*h;r.w*=Math.exp(-h*1.6);r.pitch*=Math.exp(-h*4);
+   if(Math.abs(r.w)<.5&&Math.abs(wrapAngle(r.th*4))<.25){r.th=Math.round(r.th/(Math.PI/2))*(Math.PI/2);r.w=0;r.pitch=0;r.y=g+Math.abs(r.W*Math.sin(r.th))+Math.abs(r.H*Math.cos(r.th));r.done=true}}}
+ if(r.done)r.rest+=dt;const sn=Math.sin(r.th);r.sx=r.H*sn*ca;r.sz=-r.H*sn*sa;
+ v.rotation.order='YXZ';v.rotation.z=r.th;v.rotation.x=r.pitch;p.x+=r.sx;p.z+=r.sz;p.y=r.y-r.H*Math.cos(r.th)}
+function endNpcRoll(v){const u=v.userData,r=u.npcRoll;v.position.x-=r.sx;v.position.z-=r.sz;delete u.npcRoll;v.rotation.x=v.rotation.z=0;u.groundX=undefined}
 function bodyStore(B){if(!B.hit||!B.kind)return;const u=B.v.userData;if(!(Math.abs(B.vx)+Math.abs(B.vz)+Math.abs(B.w)<1e4))B.vx=B.vz=B.w=0;
  if(B.kind===1){u.vel.x=B.vx;u.vel.z=B.vz;u.yawRate=B.w;return} // driveStep re-reads vel/yawRate and derives `velocity`
  if(B.kind===3){const dv=Math.hypot(B.vx-u.vel.x,B.vz-u.vel.z),dw=Math.abs(B.w-(u.spin||0));u.vel.x=B.vx;u.vel.z=B.vz;u.spin=B.w;if(dv>.65||dw>.25){u.impactUntil=simTime+Math.min(.9,.3+dv*.035);u.patrol.carRepath=0;u.patrol.think=Math.max(u.patrol.think,.22)}return}
- if(!u.loose){u.loose=true;u.looseT=0;if(u.traffic)u.traffic.actual=0}const vel=u.vel||(u.vel={x:0,z:0});vel.x=B.vx;vel.z=B.vz;u.spin=B.w}
+ if(!u.loose){u.loose=true;u.looseT=0;if(u.traffic)u.traffic.actual=0}const vel=u.vel||(u.vel={x:0,z:0});vel.x=B.vx;vel.z=B.vz;u.spin=B.w;startNpcRoll(B.v,B.vx-B.vx0,B.vz-B.vz0)}
 function applyImpulse(B,jx,jz,rx,rz){if(!B.kind)return;B.vx+=jx*B.im;B.vz+=jz*B.im;B.w+=(jx*rz-jz*rx)*B.ii;B.hit=true}
 // Contact point: average of the corners of each box lying inside the other (face contact -> middle of the overlap).
 function addInside(r,o){const c=Math.cos(r.a||0),s=Math.sin(r.a||0),oc=Math.cos(o.a||0),os=Math.sin(o.a||0);for(let i=0;i<4;i++){const lx=i&1?r.w:-r.w,lz=i&2?r.d:-r.d,x=r.x+c*lx+s*lz,z=r.z-s*lx+c*lz,dx=x-o.x,dz=z-o.z;if(Math.abs(dx*oc-dz*os)<=o.w+.02&&Math.abs(dx*os+dz*oc)<=o.d+.02){cpx+=x;cpz+=z;cpn++}}}
@@ -1718,17 +1734,22 @@ function moveCar(dt,oldAngle){
 function updateLooseVehicles(dt){
  for(const v of vehicleList()){const u=v.userData;if(u.police||u.aiDriver)continue;if(v===car&&inCar){u.loose=false;continue}if(!u.loose)continue;
   const vel=u.vel,p=v.position,m=massOf(v),im=1/m,ii=1/(m*CAR_INERTIA),kl=im+1.44*ii,steps=Math.max(Math.ceil(dt*120),Math.ceil(Math.hypot(vel.x,vel.z)*dt/.22)),h=dt/steps,grip=.9*9.81*m*.5*h;
+  const R=u.npcRoll;
   for(let i=0;i<steps;i++){const s=Math.sin(v.rotation.y),c=Math.cos(v.rotation.y);let vf=vel.x*s+vel.z*c,vl=vel.x*c-vel.z*s,w=u.spin||0;
-   for(let k=-1.2;k<2;k+=2.4){const j=-T.MathUtils.clamp((vl+w*k)/kl,-grip,grip);vl+=j*im;w+=j*k*ii}
-   const roll=(2.4+.3*Math.abs(vf))*h;vf=Math.abs(vf)<=roll?0:vf-Math.sign(vf)*roll;w*=1-h*.8;
+   if(R){if(R.y-surfaceY(p.x,p.z)<R.H+R.W+.1){const sp=Math.hypot(vf,vl),d=Math.min(sp,5.5*h);if(sp>1e-4){vf-=vf/sp*d;vl-=vl/sp*d}w*=Math.exp(-h*2.5)}} // tumbling body: isotropic scraping friction
+   else{for(let k=-1.2;k<2;k+=2.4){const j=-T.MathUtils.clamp((vl+w*k)/kl,-grip,grip);vl+=j*im;w+=j*k*ii}
+   const roll=(2.4+.3*Math.abs(vf))*h;vf=Math.abs(vf)<=roll?0:vf-Math.sign(vf)*roll;w*=1-h*.8}
    vel.x=vf*s+vl*c;vel.z=vf*c-vl*s;u.spin=w;
    const ox=p.x,oz=p.z,oa=v.rotation.y;p.x+=vel.x*h;p.z+=vel.z*h;v.rotation.y+=w*h;
    let hits=carContacts(v);for(let k=0;k<3&&hits.length;k++){for(const q of hits)collidePair(v,q,false);hits=carContacts(v)}
    if(hits.some(q=>q.depth>.03)){p.x=ox;p.z=oz;v.rotation.y=oa}
    hitPedestrians(v,Math.hypot(vel.x,vel.z),h);
    if(p.x<-264||p.x>XMAX+2){const s=Math.sign(p.x);p.x=s>0?XMAX+2:-264;if(vel.x*s>0)vel.x*=-.2}if(p.z<WORLD_Z_MIN+2.3||p.z>WORLD_Z_MAX-2.3){const s=p.z<0?-1:1;p.z=s<0?WORLD_Z_MIN+2.3:WORLD_Z_MAX-2.3;if(vel.z*s>0)vel.z*=-.2}}
-  const roll=vel.x*Math.sin(v.rotation.y)+vel.z*Math.cos(v.rotation.y);for(const wh of u.wheels)wh.w.rotation.x+=roll*dt*2;
-  u.looseT=(u.looseT||0)+dt;if(Math.hypot(vel.x,vel.z)<.15&&Math.abs(u.spin)<.15||u.looseT>12){vel.x=vel.z=0;u.spin=0;u.loose=false;if(u.traffic)u.traffic.align=1}}
+  const roll=vel.x*Math.sin(v.rotation.y)+vel.z*Math.cos(v.rotation.y);if(!R)for(const wh of u.wheels)wh.w.rotation.x+=roll*dt*2;
+  u.looseT=(u.looseT||0)+dt;
+  // A capsized car stays on its side/roof; it is towed (put back on its wheels) only after a while, out of the player's reach.
+  if(R){if(R.done&&Math.hypot(vel.x,vel.z)<.15)vel.x=vel.z=u.spin=0;if(R.done&&R.rest>25&&v.position.distanceTo(actorPos())>70){endNpcRoll(v);vel.x=vel.z=0;u.spin=0;u.loose=false;if(u.traffic)u.traffic.align=1}continue}
+  if(Math.hypot(vel.x,vel.z)<.15&&Math.abs(u.spin)<.15||u.looseT>12){vel.x=vel.z=0;u.spin=0;u.loose=false;if(u.traffic)u.traffic.align=1}}
 }
 // After a crash a traffic car picks the closest lane/heading and eases back into it before driving again.
 function alignTraffic(t,dt){const g=t.g,p=g.position;
@@ -1882,7 +1903,7 @@ for(const t of traffic){t.g.position.set(t.axis?t.pos:t.road+t.dir*4,0,t.axis?t.
 // Serra traffic: mostly trucks plus a few classics, spread over the mountain roads away from the tunnels.
 {const SC=['#d23b2f','#2f6fae','#f0c23a','#3e8a57','#e07a2e','#f2ece0'],total=SERRA_ROUTES.reduce((a,r)=>a+r.length,0),spots=[];
  for(let i=0;i<(LOW?10:14);i++){const g=i%2===0||i===3?classic('caminhao',SC[i%6]):i%3?classic(['kombi','opala','mustang'][i%3],SC[(i+2)%6]):beetle(SC[(i+3)%6]);if(!g.userData.model)g.scale.setScalar(.94);
-  const t={g,speed:g.userData.model==='Caminhão'?6+r2()*2.5:9+r2()*4,actual:0};
+  const t={g,speed:g.userData.model==='Caminhão'?9.5+r2()*3:10+r2()*4,actual:0};
   for(let k=0;k<40;k++){let x=Math.floor(r2()*total),r=0;while(x>=SERRA_ROUTES[r].length){x-=SERRA_ROUTES[r].length;r++}serraEnter(t,r,T.MathUtils.clamp(x,2,SERRA_ROUTES[r].length-3));const [px,pz]=serraPoint(t,t.idx,t.off);if(!tunnelAt(px,pz,10)&&!spots.some(s=>Math.hypot(s[0]-px,s[1]-pz)<25))break}
   const [px,pz]=serraPoint(t,t.idx,t.off),[qx,qz]=serraPoint(t,t.idx+t.dir,t.off);spots.push([px,pz]);g.position.set(px,surfaceY(px,pz),pz);g.rotation.y=Math.atan2(qx-px,qz-pz);scene.add(g);traffic.push(t)}}
 

@@ -53,7 +53,8 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 - Outdoors da Fantin pela cidade: nas praças do centro, na orla, na entrada da ponte e no topo dos prédios mais altos, iluminados à noite.
 - Carros antigos na rua: Fusca, Kombi, Opala SS, Mustang 67 e Cadillac 1959. Chegue perto de qualquer um a pé (ele para) e aperte E para furtar; cada modelo tem aceleração, velocidade e peso próprios.
 - Kombi, Opala SS, Mustang 67 e Cadillac 1959 com carrocerias chanfradas, caixas de roda recortadas, cabines e vidros inclinados, rodas próprias, frisos, retrovisores, limpadores, placas e grades detalhadas. Geometrias compartilhadas por modelo; a modelagem do Fusca permanece igual.
-- Caminhões bicudos dos anos 70 no trânsito, com capô longo, para-lamas redondos, cabine quadrada e carroceria de madeira carregada de caixotes e sacos. Sete rodam pela cidade (cinco no centro, dois no bairro leste), mais devagar que os carros; dá para furtar e dirigir, pesados e lentos.
+- Caminhões bicudos dos anos 70 no trânsito, com capô longo, para-lamas redondos, cabine quadrada e carroceria de madeira carregada de caixotes e sacos. Sete rodam pela cidade (cinco no centro, dois no bairro leste) no ritmo dos carros; dá para furtar e dirigir, pesados mas com bom fôlego.
+- Batidas fortes capotam os carros do trânsito: uma pancada lateral (ou muito forte de frente) faz o veículo tombar, rolar e parar de lado ou de cabeça para baixo. Carros altos e estreitos como a Kombi capotam mais fácil; caminhões pesados quase nunca. O guincho desvira o carro depois de um tempo, longe de você.
 - Kombi T1 com frente convexa em duas cores, faixa clara em V, teto abaulado contínuo, cantos curvos, vidros de cantos arredondados e emblema frontal, inspirada em referências da corujinha real.
 - Entregas pagas e interações com moradores.
 - 52 moradores distribuídos por 14 regiões, com compras e entregas locais para evitar concentração no centro.
