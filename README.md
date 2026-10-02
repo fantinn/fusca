@@ -15,7 +15,8 @@ Baixe `index.html` e abra no Chrome, Edge ou Firefox com WebGL habilitado. O arq
 | Shift | Turbo no carro; correr a pé; no surf, remada forte e agachar (tubo) |
 | Espaço | Freio de mão no carro; defender a pé; no surf, furar a onda (remando) e pular (na onda) |
 | E | Entrar/sair do carro (inclusive viaturas paradas ou lentas), conversar, pegar/entregar encomendas; iniciar surf junto à prancha, sair da onda e voltar à areia |
-| Q | Socar |
+| Q | Socar; segurando alguém, arremessar |
+| X (segurar) | Agarrar quem está à frente, em pé ou caído, e arrastar; soltar X larga |
 | F | Furtar |
 | G | Soltar encomenda |
 | C | Alternar câmera |
@@ -64,6 +65,7 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 - Polícia persegue e detém os responsáveis pelas ocorrências entre NPCs, incluindo ladrões de carros, sem atribuir essas infrações ao jogador. Furtos interrompidos liberam o veículo; carros abandonados voltam ao trânsito.
 - Personagens com rostos, cabelos, tons de pele, roupas, mãos e calçados mais detalhados, preservados durante as quedas.
 - Combate com alcance, direção, defesa e equilíbrio: socos pelas costas derrubam para a frente, com reação do tronco, atraso dos pés e tentativa de apoio com as mãos. Golpes frontais causam recuo e exigem uma sequência para derrubar; golpes laterais desequilibram mais, especialmente durante a corrida.
+- Agarrão estilo Gang Beasts: segure X para pegar quem está à frente. Em pé, a pessoa é arrastada pela gola, se debate e acaba se soltando; correr ou dar trancos com ela a derruba. Caída, você segura o ponto do corpo mais perto das mãos (cabeça, braço, pé) e arrasta o corpo mole pela rua. Q arremessa (mais longe correndo); soltar X larga. Arremessar conta como agressão.
 - Quedas articuladas com distribuição de massa, limites para joelhos e cotovelos, atrito, impulso direcional e colisões com o chão e obstáculos. Após se estabilizar, o personagem se apoia, ajoelha e levanta. A simulação usa passos fixos para manter a resposta consistente em diferentes taxas de quadros.
 - Caminhada e corrida com cadência ligada à velocidade, joelhos que dobram no passo, quadril e ombros em contrarrotação, transferência de peso e andar de costas. Socos com preparação, giro do tronco e retorno à guarda; quem apanha recua, a cabeça chicoteia, os joelhos cedem e os braços sobem para se proteger.
 - Atropelamentos arremessam o corpo conforme a velocidade do carro: batidas frontais lançam mais alto e mais longe, com cambalhota e quique no chão; raspões de lado só empurram.
