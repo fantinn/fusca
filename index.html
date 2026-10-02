@@ -1237,20 +1237,26 @@ function dressPolice(v,model){const K=policeKit(model),body=v.userData.body,pain
  for(const [k,m] of [['trim',CM.trim],['chrome',CM.chrome],['lens',CM.lens]]){const o=new T.Mesh(K[k],m);o.castShadow=k!=='lens';body.add(o)}
  const lit=(geo,m,at,color)=>{const g=new T.Group(),s=new T.Sprite(new T.SpriteMaterial({map:policeHalo(),color,blending:T.AdditiveBlending,depthWrite:false,transparent:true,opacity:.7,toneMapped:false}));g.add(new T.Mesh(geo,m));s.position.copy(at);s.scale.setScalar(1.15);g.add(s);body.add(g);return g};
  return {red:lit(K.red,CM.sirenR,K.redAt,'#ff3344'),blue:lit(K.blue,CM.sirenB,K.blueAt,'#3d7bff')}}
-function ensurePolice(){if(!wanted||simTime<nextReinforcement||police.filter(p=>!p.ambient).length>=pursuitUnits)return;spawnPolice(actorPos());nextReinforcement=simTime+1.2}
-function spawnPolice(pos,suspect=null){const index=police.length,g=person('#243c62',true),node=navNode(new T.Vector3(pos.x+(index%2?45:-45),0,pos.z+40));g.position.set(navMin+node%navW*6,0,navZMin+Math.floor(node/navW)*6);g.position.y=surfaceY(g.position.x,g.position.z);
+function ensurePolice(){if(!wanted||simTime<nextReinforcement||police.filter(p=>!p.ambient).length>=pursuitUnits)return;const pos=actorPos();spawnPolice(pos,null,nearbyPatrol(pos));nextReinforcement=simTime+1.2}
+// A patrol car cruising nearby answers the call before a fresh unit is dispatched; it returns to its rounds when the case ends.
+function nearbyPatrol(pos,range=90){let best=null;for(const t of traffic){const v=t.g,u=v.userData;if(!t.patrol||v===car||stolenCars.has(v)||u.loose||u.npcRoll||u.npcDriver)continue;const d=Math.hypot(v.position.x-pos.x,v.position.z-pos.z);if(d<range){range=d;best=t}}return best}
+function recruitPatrol(t,g){const v=t.g,u=v.userData,i=traffic.indexOf(t);if(i>=0)traffic.splice(i,1);const s=u.siren;delete u.siren;delete u.traffic;delete u.patrolCar;g.position.copy(v.position);return s}
+function returnPatrol(p){const v=p.v,u=v.userData,t=p.recruit;delete u.police;delete u.patrol;u.vel={x:0,z:0};u.spin=0;u.siren={red:p.red,blue:p.blue};u.patrolCar=true;t.actual=0;t.align=1;traffic.push(t);u.traffic=t}
+function spawnPolice(pos,suspect=null,recruit=null){const index=police.length,g=person('#243c62',true),node=navNode(new T.Vector3(pos.x+(index%2?45:-45),0,pos.z+40));g.position.set(navMin+node%navW*6,0,navZMin+Math.floor(node/navW)*6);g.position.y=surfaceY(g.position.x,g.position.z);
+ if(recruit){const v=recruit.g,{red,blue}=recruitPatrol(recruit,g);return policeUnit(index,g,v,red,blue,suspect,recruit)}
  const model=['opala','fusca','kombi'][index%3],v=model==='fusca'?beetle('#f0eee3'):classic(model==='opala'?'opalaPolicia':model,'#f0eee3');scene.add(v);let spawn=null;for(let j=0;j<24;j++){const a=index*2.399+j*.71,r=50+(j%3)*15,x=T.MathUtils.clamp(pos.x+Math.sin(a)*r,-252,XMAX-9),z=T.MathUtils.clamp(pos.z+Math.cos(a)*r,WORLD_Z_MIN+9,WORLD_Z_MAX-9);let px=x;
  if(z>=-258)px=[...roads,...ROADX2].reduce((a,b)=>Math.abs(b-x)<Math.abs(a-x)?b:a)+4;else{const near=SERRA_ROUTES.flat().reduce((a,b)=>Math.hypot(b.x-x,b.z-z)<Math.hypot(a.x-x,a.z-z)?b:a);px=near.x;const pz=near.z;if(Math.hypot(px-pos.x,pz-pos.z)>28&&!blocked(px,pz,2.8)&&!vehicleList().some(o=>Math.hypot(o.position.x-px,o.position.z-pz)<8)){spawn={x:px,z:pz};break}continue}
  if(Math.hypot(px-pos.x,z-pos.z)>28&&!blocked(px,z,2.8)&&!vehicleList().some(o=>Math.hypot(o.position.x-px,o.position.z-z)<8)){spawn={x:px,z};break}}
  if(!spawn){const n=navNode(g.position);spawn={x:navMin+n%navW*6,z:navZMin+Math.floor(n/navW)*6}}v.position.set(spawn.x,surfaceY(spawn.x,spawn.z),spawn.z);g.position.copy(v.position);v.rotation.y=Math.atan2(pos.x-v.position.x,pos.z-v.position.z);
- const {red,blue}=dressPolice(v,model);
- const p={g,v,red,blue,isPolice:true,name:'Policial',balanceMax:112,balance:112,lastImpact:-100,hitUntil:0,stun:0,fear:0,bravery:.9,mode:'pursue',path:[],repath:0,nextAttack:0,calmAfterFall:false,carPath:[],carRepath:0,think:0,steer:0,steerTarget:0,reverse:0,stuck:0,temper:index*2.37+.7,topSpeed:19+Math.min(index,8)*.7,lastCar:v.position.clone(),smoke:0,trail:[]};
+ const {red,blue}=dressPolice(v,model);return policeUnit(index,g,v,red,blue,suspect,null)}
+function policeUnit(index,g,v,red,blue,suspect,recruit){
+ const p={g,v,red,blue,recruit,isPolice:true,name:'Policial',balanceMax:112,balance:112,lastImpact:-100,hitUntil:0,stun:0,fear:0,bravery:.9,mode:'pursue',path:[],repath:0,nextAttack:0,calmAfterFall:false,carPath:[],carRepath:0,think:0,steer:0,steerTarget:0,reverse:0,stuck:0,temper:index*2.37+.7,topSpeed:19+Math.min(index,8)*.7,lastCar:v.position.clone(),smoke:0,trail:[]};
  v.userData.police=true;v.userData.patrol=p;v.userData.vel={x:0,z:0};v.userData.spin=0;v.userData.impactUntil=0;p.ambient=!!suspect;p.suspect=suspect;p.caseUntil=simTime+80;p.detain=0;police.push(p);vehicleCache=[];impactActorCache=[];groundVehicle(v,0);return p;
 }
 // A patrol car can be taken while it is slow: the unit carries on on foot and the car joins the parked/stolen pool.
 function seizePolice(v){const p=v.userData.patrol,u=v.userData;if(p)p.v=null;delete u.police;delete u.patrol;u.vel.x=u.vel.z=0;u.spin=0;u.siren=p&&{red:p.red,blue:p.blue};const t={g:v,road:0,axis:0,dir:1,pos:0,speed:0,seized:true};traffic.push(t);u.traffic=t;stolenCars.add(v);
  const old=traffic.filter(o=>o.seized&&o.g!==v&&o.g!==car);if(old.length>3){const o=old[0];scene.remove(o.g);traffic.splice(traffic.indexOf(o),1);stolenCars.delete(o.g)}vehicleCache=[];crime(55,'Viatura da polícia roubada')}
-function removePolice(p){scene.remove(p.g);if(p.v)scene.remove(p.v);if(p.g.userData.fallenVisual)scene.remove(p.g.userData.fallenVisual.group);const i=police.indexOf(p);if(i>=0)police.splice(i,1);vehicleCache=[];impactActorCache=[]}
+function removePolice(p){scene.remove(p.g);if(p.v&&p.recruit)returnPatrol(p);else if(p.v)scene.remove(p.v);if(p.g.userData.fallenVisual)scene.remove(p.g.userData.fallenVisual.group);const i=police.indexOf(p);if(i>=0)police.splice(i,1);vehicleCache=[];impactActorCache=[]}
 function clearPolice(playerOnly=false){pursuitUnits=0;nextReinforcement=0;for(const p of police.slice())if(!playerOnly||!p.ambient)removePolice(p);arrest=0}
 function patrolTarget(p){return p.escapeGoal|| (p.suspect?(p.suspect.driving?.position||p.suspect.g.position):actorPos())}
 
