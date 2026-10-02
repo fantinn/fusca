@@ -28,6 +28,7 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 
 ## O que tem no jogo
 
+- Fusca inspirado nos modelos clássicos dos anos 60: capô alongado, teto arredondado, para-brisa e janelas separados com quebra-ventos, para-lamas com caixas de roda abertas, estribos, para-choques cromados curvos, faróis redondos, lanternas pequenas, saídas de escapamento duplas e calotas abauladas. Geometria compartilhada entre os carros, com menos subdivisões no celular.
 - Fusca com física de derrapagem, assistência em curvas e freio de mão para drifts.
 - Colisões com impulso: batidas empurram carros e sacodem a câmera.
 - Batidas fortes derrubam postes, semáforos e coqueiros (a prefeitura conserta depois de uns minutos, longe de você). Derrubar conta como infração.
@@ -56,7 +57,7 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 - Bairro novo a leste, do outro lado de um canal, ligado por uma ponte estaiada na avenida central, com roda-gigante no parque.
 - Outdoors da Fantin pela cidade: nas praças do centro, na orla, na entrada da ponte e no topo dos prédios mais altos, iluminados à noite.
 - Carros antigos na rua: Fusca, Kombi, Opala SS, Mustang 67 e Cadillac 1959. Chegue perto de qualquer um a pé (ele para) e aperte E para furtar; cada modelo tem aceleração, velocidade e peso próprios.
-- Kombi, Opala SS, Mustang 67 e Cadillac 1959 com carrocerias chanfradas, caixas de roda recortadas, cabines e vidros inclinados, rodas próprias, frisos, retrovisores, limpadores, placas e grades detalhadas. Geometrias compartilhadas por modelo; a modelagem do Fusca permanece igual.
+- Kombi, Opala SS, Mustang 67 e Cadillac 1959 com carrocerias chanfradas, caixas de roda recortadas, cabines e vidros inclinados, rodas próprias, frisos, retrovisores, limpadores, placas e grades detalhadas. Geometrias compartilhadas por modelo.
 - Caminhões bicudos dos anos 70 no trânsito, com capô longo, para-lamas redondos, cabine quadrada e carroceria de madeira carregada de caixotes e sacos. Sete rodam pela cidade (cinco no centro, dois no bairro leste) no ritmo dos carros; dá para furtar e dirigir, pesados mas com bom fôlego.
 - Batidas fortes capotam os carros do trânsito: uma pancada lateral (ou muito forte de frente) faz o veículo tombar, rolar e parar de lado ou de cabeça para baixo. Carros altos e estreitos como a Kombi capotam mais fácil; caminhões pesados quase nunca. O guincho desvira o carro depois de um tempo, longe de você.
 - Kombi T1 com frente convexa em duas cores, faixa clara em V, teto abaulado contínuo, cantos curvos, vidros de cantos arredondados e emblema frontal, inspirada em referências da corujinha real.

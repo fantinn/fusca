@@ -6,6 +6,13 @@
       "runtimeExecutable": "powershell",
       "runtimeArgs": ["-NoProfile", "-Command", "$l=[System.Net.HttpListener]::new();$l.Prefixes.Add('http://localhost:8137/');$l.Start();while($true){$c=$l.GetContext();$b=[IO.File]::ReadAllBytes((Join-Path $PWD 'index.html'));$c.Response.ContentType='text/html; charset=utf-8';$c.Response.OutputStream.Write($b,0,$b.Length);$c.Response.Close()}"],
       "port": 8137
+    },
+    {
+      "name": "fusca-node",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "require('http').createServer((q,r)=>{r.setHeader('Content-Type','text/html; charset=utf-8');r.end(require('fs').readFileSync('index.html'))}).listen(process.env.PORT||8191)"],
+      "port": 8191,
+      "autoPort": true
     }
   ]
 }
