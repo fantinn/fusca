@@ -1826,7 +1826,7 @@ function drive(dt){const slices=Math.max(1,Math.ceil(dt*120)),h=dt/slices;for(le
 // SI units. a/b: CG to front/rear axle, h: load shift per m/s², vMin: slip-angle speed floor, hb*: handbrake,
 // esc: yaw pull-back (N·m/rad), tract: throttle that saturates the rear friction circle, corner*: slowdown on full lock,
 // imp*: post-crash assist fade (s) and tyre grip cut while skidding.
-const CAR={m:820,I:1500,L:2.4,a:1.44,b:.96,cg:.24,h:.005,mu:2.5,off:.7,rear:1.06,Bf:16,Br:14,shape:1.3,lock:.6,vMin:4,acc:23,turbo:39,brake:48,rev:15,revMax:13,vmax:57,vmaxTurbo:83,drag:.24,dragOff:.8,roll:.35,hbGrip:.55,hbBrake:4,hbTorque:2000,hbRecover:6,latDamp:2.4,counter:.55,esc:16000,tract:60,tractMin:.15,cornerDecel:40,cornerRate:3.2,yawFollow:1,yawCenter:4,hbYaw:.05,hbStick:.8,impHold:.5,impGrip:.25},drv={car:null,vel:0,angle:0,t:-1,grip:1,hold:0,ax:0,al:0,at:0};
+const CAR={m:820,I:1500,L:2.4,a:1.44,b:.96,cg:.24,h:.005,mu:2.5,off:.7,rear:1.06,Bf:16,Br:14,shape:1.3,lock:.6,vMin:4,acc:23,turbo:39,brake:48,rev:15,revMax:13,vmax:57,vmaxTurbo:83,drag:.24,dragOff:.8,roll:.35,hbGrip:.55,hbBrake:4,hbTorque:2000,hbRecover:6,latDamp:2.4,counter:.55,esc:16000,tract:60,tractMin:.15,cornerDecel:26,cornerRate:2.2,yawFollow:1,yawCenter:4,hbYaw:.05,hbStick:.8,impHold:.5,impGrip:.25},drv={car:null,vel:0,angle:0,t:-1,grip:1,hold:0,ax:0,al:0,at:0};
 // Lateral force / (mu*load): linear at small slip, peaks near 2.4/B rad, then sags ~11%.
 const tyreCurve=(al,B)=>Math.sin(CAR.shape*Math.atan(B*al));
 function driveStep(dt){
@@ -1856,7 +1856,7 @@ function driveStep(dt){
  const slideW=M.clamp((Math.abs(rearSlip)-.08)/.25,0,1)*(K.counter*assist+.35)*free,frontVel=u>2?Math.atan2(v+K.a*r,u):0;
  const delta=M.clamp((1-slideW)*steer*lock+slideW*(frontVel+.4*steer*lock),-K.lock,K.lock);
  // Drive/brake demand (m/s²). Braking to a stop holds briefly before reverse engages.
- const vmax=turbo?K.vmaxTurbo:K.vmax,cornerSpeed=(turbo?28:18)+65*Math.pow(1-amount,2);drv.hold=Math.max(0,drv.hold-dt);
+ const vmax=turbo?K.vmaxTurbo:K.vmax,cornerSpeed=(turbo?31:21)+65*Math.pow(1-amount,2);drv.hold=Math.max(0,drv.hold-dt);
  let accel=0,brake=0;
  // Traction left on the driven axle shrinks while it is busy cornering (friction circle).
  if(forward){if(u<-.5)brake=42;else if(u<=vmax&&!(u>cornerSpeed&&amount>.2))accel=(turbo?K.turbo:K.acc)*Math.sqrt(Math.max(K.tractMin,1-(drv.at/(mu*g))**2))}
@@ -1877,7 +1877,7 @@ function driveStep(dt){
  // Arcade: damp rear sideslip (keeping most of the speed) and ease off a committed high-speed turn.
  const vs=v-K.b*r,vs2=vs*Math.exp(-dt*K.latDamp*(offroad?.5:1)*(K.hbStick+(1-K.hbStick)*assist)*free);
  if(Math.abs(u)>1)u=Math.sign(u)*Math.sqrt(u*u+.7*(vs*vs-vs2*vs2));v+=vs2-vs;
- if(u>cornerSpeed&&amount>.2&&hb<.5)u-=Math.min((u-cornerSpeed)*(1-Math.exp(-dt*K.cornerRate*amount)),Math.max(8,K.cornerDecel-drag*u)*dt);
+ if(u>cornerSpeed&&amount>.2&&hb<.5)u-=Math.min((u-cornerSpeed)*(1-Math.exp(-dt*K.cornerRate*amount)),Math.max(6,K.cornerDecel-drag*u)*dt);
  // Yaw follows the front wheels (grip-limited), firmly once the key is released so the car settles.
  if(u>2){const ry=M.clamp(u/K.L*Math.tan(delta),-mu*g/u,mu*g/u);r+=(ry-r)*(1-Math.exp(-dt*(input?K.yawFollow:K.yawCenter)*assist*free))}
  // Low speed: blend into the kinematic bicycle so it neither spins in place nor jitters.
