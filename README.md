@@ -74,6 +74,7 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 - Trânsito mais movimentado: cerca de 60 carros circulando no computador (44 no celular), espalhados para não nascerem sobrepostos.
 - Viaturas caracterizadas (Opala, Fusca e Kombi): pintura branca com faixa lateral azul-marinho, filetes dourados e "POLÍCIA" nas duas laterais, giroflex em barra arredondada com lentes vermelha e azul que piscam com halo de luz, para-choque de impulsão e antena.
 - Viaturas de patrulha circulam pela cidade junto com o trânsito, mesmo sem perseguição: giroflex apagado enquanto está tudo calmo, piscando quando você está sendo procurado. Roubar uma delas conta como roubo de viatura. Quando a polícia pede reforço, uma viatura de patrulha que esteja a até 90 m entra na perseguição antes de chegar uma nova; terminada a ocorrência, ela volta à ronda.
+- Sirene (com SOM ligado, também a pé): as viaturas ligam a sirene ao entrar na perseguição, mais alta conforme a mais próxima chega perto. De longe ela faz o lamento lento; a menos de 30 m passa para o toque rápido.
 - Viaturas com massa, impulso, giro e deslizamento nas colisões, usando o mesmo sistema de contato dos outros carros.
 - Perseguição com motor e volante: os motoristas aceleram forte, corrigem tarde, derrapam, cortam por calçadas e áreas abertas e tentam dar ré quando ficam presos. A velocidade é moderada; a dificuldade para controlar o carro é intencional.
 
