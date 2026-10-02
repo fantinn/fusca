@@ -356,7 +356,7 @@ const CLM=new T.MeshBasicMaterial({vertexColors:true,toneMapped:false,fog:false}
 for(let i=0;i<24;i++){const b=mb(),S=geos.cs,n=4+Math.floor(r2()*4);if(++lowClouds>(LOW?40:90)){for(let k=0;k<6*n+3;k++)r2();continue}for(let k=0;k<n;k++)madd(b,S,'#fff',mx(k*11+r2()*6,r2()*4,(r2()-.5)*8,9+r2()*9,5+r2()*5,6+r2()*6));for(let v=0;v<b.p.length/3;v++){if(b.p[v*3+1]<-1.5)b.p[v*3+1]=-1.5;const l=Math.min(1,.62+.26*b.n[v*3+1]+.2*Math.max(0,b.n[v*3]*SUND.x+b.n[v*3+1]*SUND.y+b.n[v*3+2]*SUND.z));_C.set('#aec6dd').lerp(_C2.set('#ffffff'),l);b.c[v*4]=_C.r;b.c[v*4+1]=_C.g;b.c[v*4+2]=_C.b}const m=new T.Mesh(mgeo(b),CLM);m.position.set(-500+r2()*1100,90+r2()*45,-480+r2()*960);scene.add(m);clouds.push(m)}
  for(let v=0;v<b.p.length/3;v++){if(b.p[v*3+1]<-1.5)b.p[v*3+1]=-1.5;const l=Math.min(1,.62+.26*b.n[v*3+1]+.2*Math.max(0,b.n[v*3]*SUND.x+b.n[v*3+1]*SUND.y+b.n[v*3+2]*SUND.z));_C.set('#aec6dd').lerp(_C2.set('#ffffff'),l);b.c[v*4]=_C.r;b.c[v*4+1]=_C.g;b.c[v*4+2]=_C.b}const m=new T.Mesh(mgeo(b),CLM);m.position.set(px,py,pz);scene.add(m);clouds.push(m)}
 // Fusca: body parts merged per material (paint/glass/chrome/trim/lamps), geometry shared by every car.
-const FUSCA_SCALE=1.00; // World units follow the classic Beetle's approximately 4.07 m length.
+const FUSCA_SCALE=1.15; // Slightly enlarged for readability beside the other vehicles.
 let CARG=null;const PAINT={},CM={glass:new T.MeshStandardMaterial({color:'#1b2f38',roughness:.04,metalness:.4,envMap:ENV}),chrome:new T.MeshStandardMaterial({color:'#f4f5f4',metalness:1,roughness:.18,envMap:ENV}),trim:new T.MeshStandardMaterial({vertexColors:true,roughness:.7}),lamp:new T.MeshBasicMaterial({vertexColors:true,toneMapped:false})};
 const FUSCA_LENS=new T.MeshStandardMaterial({color:'#d5ded8',roughness:.19,metalness:.12,envMap:ENV,envMapIntensity:.40});
 const FUSCA_GLASS=new T.MeshStandardMaterial({color:'#29444c',roughness:.22,metalness:.08,envMap:ENV,envMapIntensity:.22,side:T.DoubleSide});
@@ -376,7 +376,7 @@ function carGeo(){
  const profileAt=(keys,z)=>{let i=0;while(i<keys.length-2&&z>keys[i+1][0])i++;const a=keys[i],b=keys[i+1],prev=keys[Math.max(0,i-1)],next=keys[Math.min(keys.length-1,i+2)],d=b[0]-a[0],t=T.MathUtils.clamp((z-a[0])/d,0,1);return[1,2].map(k=>{const m0=(b[k]-prev[k])/(b[0]-prev[0]),m1=(next[k]-a[k])/(next[0]-a[0]);return(2*t*t*t-3*t*t+1)*a[k]+(t*t*t-2*t*t+t)*d*m0+(-2*t*t*t+3*t*t)*b[k]+(t*t*t-t*t)*d*m1})};
  const sample=z=>profileAt(profile,z);
  // Lofted roof and upright side panels follow the 1200 silhouette instead of an ellipsoid.
- const roofKeys=[[-1.50,.44,1.23],[-1.28,.70,1.57],[-1.00,.80,1.85],[-.72,.835,2.025],[-.35,.85,2.09],[.08,.84,2.075],[.42,.80,1.97],[.66,.77,1.69],[.94,.70,1.30]];
+ const roofKeys=[[-1.50,.46,1.23],[-1.28,.77,1.57],[-1.00,.90,1.85],[-.72,.95,2.025],[-.35,.97,2.09],[.08,.96,2.075],[.42,.92,1.97],[.66,.87,1.69],[.94,.73,1.30]];
  const roofSection=z=>{const [w,top]=profileAt(roofKeys,z);return{w,top,n:2.45}};
  const roofY=(x,z)=>{const r=roofSection(z);return .91+(r.top-.91)*Math.pow(Math.max(0,1-Math.pow(Math.abs(x)/r.w,r.n)),1/r.n)};
  const flankX=(y,z)=>{const r=roofSection(z);return r.w*Math.pow(Math.max(0,1-Math.pow(T.MathUtils.clamp((y-.91)/(r.top-.91),0,1),r.n)),1/r.n)};
@@ -461,7 +461,7 @@ function carGeo(){
   const door=[sidePoint(side,1.335,.805),sidePoint(side,1.335,-.48),sidePoint(side,.78,-.50),sidePoint(side,.53,-.41),sidePoint(side,.53,.61),sidePoint(side,.76,.78),sidePoint(side,1.335,.805)];line('trim',surfacePath(door,side),.004,false,'#4a4841',40);
   const belt=[];for(let i=0;i<=24;i++){const z=.84-2.02*i/24;belt.push(sidePoint(side,1.28,z))}line('chrome',surfacePath(belt,side),.007,false,'#fff',36);
   const handle=sidePoint(side,1.23,-.37);e('chrome',small,'#fff',handle[0],handle[1],handle[2],.024,.024,.095);
-  if(side<0){const base=sidePoint(side,1.42,.63);line('chrome',[base,[side*.965,1.55,.63]],.014,false,'#fff',8);e('chrome',small,'#fff',side*.99,1.57,.63,.10,.067,.030);e('glass',small,'#fff',side*.99,1.57,.604,.082,.053,.008);}
+  if(side<0){const base=sidePoint(side,1.42,.63);line('chrome',[base,[side*1.065,1.55,.63]],.014,false,'#fff',8);e('chrome',small,'#fff',side*1.09,1.57,.63,.10,.067,.030);e('glass',small,'#fff',side*1.09,1.57,.604,.082,.053,.008);}
   // Round headlamps sunk into the forward wings, with thin chrome bezels.
   e('paint',geos.s,'#fff',side*.925,.90,1.59,.215,.235,.255,-.43);
   e('chrome',new T.TorusGeometry(.173,.014,8,28),'#fff',side*.925,.947,1.837,1,1,1,-.43);
