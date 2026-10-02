@@ -87,6 +87,14 @@ No celular, jogue com a tela deitada: o jogo entra em tela cheia ao começar e m
 
 O progresso fica apenas na sessão atual e é reiniciado ao recarregar a página. Gráficos e física são estilizados; este é um protótipo de jogo.
 
+## Desempenho e resolução
+
+- No celular, a resolução interna começa em até 1,3× a resolução CSS (antes 1,1×) e pode subir até 1,5× quando há desempenho disponível. Em aparelhos lentos, diminui automaticamente até 0,75×, respeitando a densidade da tela.
+- No PC, a resolução se adapta até 1,7×. Aumentos exigem desempenho estável para reduzir oscilações na qualidade.
+- As sombras atualizam em até 30 Hz no celular e 60 Hz no PC; os demais quadros reutilizam o mapa de sombras. Modelos detalhados distantes deixam de projetar sombras, com alcance menor no celular.
+- Pausar interrompe a atualização do mundo e do painel. Abas ocultas suspendem a simulação e a renderização, limpam os controles e silenciam o áudio.
+- Para verificar o layout de celular no computador, abra `index.html?touch=1`. `?low=1` aplica apenas o perfil gráfico leve.
+
 ## Tecnologia e atribuição
 
 JavaScript, WebGL e Three.js r170. O Three.js é distribuído sob a licença MIT, reproduzida em `THIRD-PARTY-LICENSE.txt`.

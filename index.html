@@ -68,10 +68,10 @@ function onMountainRoad(x,z){return z<-260&&trailDistance(x,z)<6.1}
 
 const physicalObstacles=[];let vehicleCache=[],gridCount=-1;const collisionGrid=new Map(),navEdgeCache=new Map();
 // Device tier: touch devices get the landscape touch layout and a lighter renderer (no MSAA, 1024 hard-edged shadow map, lower pixel-ratio cap).
-// PR: adaptive pixel ratio range (see adapt() by the render loop). ?touch=1 / ?low=1 force the tiers for testing on desktop.
-const TOUCH=/[?&]touch=1/.test(location.search)||matchMedia('(pointer:coarse)').matches&&matchMedia('(hover:none)').matches,LOW=TOUCH||/[?&]low=1/.test(location.search),SHADOW_RES=LOW?1024:2048,PR={max:Math.min(devicePixelRatio,LOW?1.5:1.7),min:LOW?.6:.8,cur:0};PR.cur=LOW?Math.min(PR.max,1.1):PR.max;document.body.classList.toggle('touch',TOUCH);
+// PR: adaptive pixel ratio range, starting sharper on mobile (see adapt() by the render loop). ?touch=1 / ?low=1 force the tiers for testing on desktop.
+const TOUCH=/[?&]touch=1/.test(location.search)||matchMedia('(pointer:coarse)').matches&&matchMedia('(hover:none)').matches,LOW=TOUCH||/[?&]low=1/.test(location.search),SHADOW_RES=LOW?1024:2048,PR={max:Math.min(devicePixelRatio,LOW?1.5:1.7),min:Math.min(devicePixelRatio,LOW?.75:.8),cur:0};PR.cur=LOW?Math.min(PR.max,1.3):PR.max;document.body.classList.toggle('touch',TOUCH);
 const $=id=>document.getElementById(id),scene=new T.Scene();scene.background=new T.Color('#c3e3ee');scene.fog=new T.Fog('#c3e3ee',150,640);
-const renderer=new T.WebGLRenderer({antialias:!LOW,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(PR.cur);renderer.shadowMap.enabled=true;renderer.shadowMap.type=LOW?T.PCFShadowMap:T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NeutralToneMapping;renderer.toneMappingExposure=.98;$('game').appendChild(renderer.domElement);
+const renderer=new T.WebGLRenderer({antialias:!LOW,powerPreference:'high-performance'});renderer.setPixelRatio(PR.cur);renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.type=LOW?T.PCFShadowMap:T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NeutralToneMapping;renderer.toneMappingExposure=.98;$('game').appendChild(renderer.domElement);
 const cam=new T.PerspectiveCamera(58,innerWidth/innerHeight,.15,1000);const hemi=new T.HemisphereLight(0xcfe8ff,0xa89468,1.75);scene.add(hemi);const sun=new T.DirectionalLight(0xffe3bd,3.3);sun.position.set(-60,100,40);sun.castShadow=true;sun.shadow.mapSize.set(SHADOW_RES,SHADOW_RES);Object.assign(sun.shadow.camera,{left:-72,right:72,top:72,bottom:-72,near:1,far:340});sun.shadow.bias=-.0004;sun.shadow.normalBias=.04;scene.add(sun,sun.target);
 // Sky dome: zenith→horizon gradient + sun glow. The horizon is the fog colour, so distant geometry melts into it; the same dome is baked into a PMREM env map for glossy reflections.
 const SUNOFF=new T.Vector3(-120,50,40),SUND=SUNOFF.clone().normalize(),skyU={zen:{value:new T.Color('#3b8bd8')},hor:{value:scene.fog.color},gnd:{value:new T.Color('#7d8a6c')},sunC:{value:new T.Color('#fff0cc')},sunD:{value:SUND},enc:{value:0}};
@@ -2169,6 +2169,7 @@ for(const t of traffic){t.g.position.set(t.axis?t.pos:t.road-t.dir*4,0,t.axis?t.
 const CULL={t:0,p:(LOW?140:210)**2,c:(LOW?230:330)**2,b:(LOW?110:170)**2};function cullFar(dt){if((CULL.t-=dt)>0)return;CULL.t=.2;const c=cam.position;for(const p of people)p.g.visible=!p.driving&&p.g.position.distanceToSquared(c)<CULL.p;for(const t of traffic)t.g.visible=t.g===car||t.g.position.distanceToSquared(c)<CULL.c;for(const b of birds)b.g.visible=b.g.position.distanceToSquared(c)<CULL.b}
 const clock=new T.Clock(),target=new T.Vector3(),look=new T.Vector3();let elapsed=0,hudTimer=0;cam.position.set(11,7,44);
 function update(dt){
+ if(paused){if(gain)gain.gain.value=0;if(siren)siren.g.gain.value=0;return}
  if(!paused){elapsed+=dt;simTime+=dt;oceanStep(dt);sprayStep(dt);
   for(const c of clouds){c.position.x+=dt*.6;if(c.position.x>600)c.position.x=-600}
   updateTraffic(dt);updateLooseVehicles(dt);updateFallers(dt);updatePeople(dt);for(const v of vehicleList())if(!v.userData.police&&!v.userData.aiDriver&&(v!==car||!inCar))groundVehicle(v,dt);updateDistrict(dt);cullFar(dt);shopGoods.visible=simTime>=shopRestock;
@@ -2180,23 +2181,45 @@ function update(dt){
    carAudio(dt);sirenAudio(dt);
   }else{target.set(car.position.x+10+Math.sin(elapsed*.1)*2,5.5,car.position.z-11);cam.position.lerp(target,dt*2);cam.lookAt(car.position.x-2,1.3,car.position.z+1)}
   const pos=actorPos();sun.position.set(pos.x-60,100,pos.z+40);sun.target.position.copy(pos);updateWorld(dt);shadowLod(dt,pos);
- }else{if(gain)gain.gain.value=0;if(siren)siren.g.gain.value=0}
+ }
  destinationRing.visible=destinationLabel.visible=cargo;destinationRing.position.copy(destination());destinationRing.position.y=.3;destinationLabel.position.copy(destination());destinationLabel.position.y=4+Math.sin(elapsed*2)*.2;
  hudTimer+=dt;if(hudTimer>.12){hudTimer=0;updateHUD()}
 }
-// Adaptive resolution: every 1.5 s the average frame time nudges the pixel ratio within PR (down fast when slow, up slowly when smooth).
-// While paused the last frame stays on screen instead of re-rendering the city every frame.
+// Resolution changes require sustained load / headroom; ignore stalls and reset on resume.
+// Mobile starts at 1.3x (was 1.1x), with a 1.5x cap and a 0.75x fallback.
 // Shadow LOD: heavy meshes (cars, 14-28k tris) only cast shadows near the player, cutting the shadow pass.
-var lodScanT=0,lodNearT=0,lodHeavy=[],LOD_SHADOW_DIST=62;
-function shadowLod(dt,pos){lodScanT-=dt;if(lodScanT<=0){lodScanT=3;lodHeavy=[];scene.traverse(o=>{if(!o.isMesh||o.isInstancedMesh||o.isSkinnedMesh||!(o.castShadow||o.userData.lodHeavy))return;const g=o.geometry,n=g.index?g.index.count:g.attributes.position.count;if(n>24000){o.userData.lodHeavy=true;lodHeavy.push(o)}})}
+var lodScanT=0,lodSceneCount=-1,lodNearT=0,lodHeavy=[],LOD_SHADOW_DIST=LOW?48:62;
+function shadowLod(dt,pos){lodScanT-=dt;if(lodScanT<=0||lodSceneCount!==scene.children.length){lodScanT=10;lodSceneCount=scene.children.length;lodHeavy=[];scene.traverse(o=>{if(!o.isMesh||!o.matrixAutoUpdate||o.isInstancedMesh||o.isSkinnedMesh||!(o.castShadow||o.userData.lodHeavy))return;const g=o.geometry,n=g.index?g.index.count:g.attributes.position.count;if(n>(LOW?6000:24000)){o.userData.lodHeavy=true;lodHeavy.push(o)}})}
 lodNearT-=dt;if(lodNearT>0)return;lodNearT=.2;const e=LOD_SHADOW_DIST*LOD_SHADOW_DIST;for(const o of lodHeavy){const m=o.matrixWorld.elements,dx=m[12]-pos.x,dz=m[14]-pos.z;o.castShadow=dx*dx+dz*dz<e}}
-let perfT=0,perfN=0,pausedDrawn=false;function adapt(dt){if(paused||dt>.25)return;perfT+=dt;perfN++;if(perfT<1.5)return;const avg=perfT/perfN;perfT=perfN=0;const p=avg>1/42?Math.max(PR.min,PR.cur-.1):avg<1/56?Math.min(PR.max,PR.cur+.05):PR.cur;if(Math.abs(p-PR.cur)>.01){PR.cur=p;renderer.setPixelRatio(p)}}
+let perfT=0,perfN=0,perfGood=0,pausedDrawn=false,shadowTimer=0,wasIdle=false;
+function resetPerformance(){perfT=perfN=perfGood=0;shadowTimer=0}
+function adapt(dt){
+ if(paused||dt<=0||dt>.1)return;perfT+=dt;perfN++;if(perfT<1.5||perfN<20)return;
+ const avg=perfT/perfN;perfT=perfN=0;let p=PR.cur;
+ if(avg>1/42){perfGood=0;p=Math.max(PR.min,PR.cur-.1)}
+ else if(avg<1/56){if(++perfGood>=2){p=Math.min(PR.max,PR.cur+.05);perfGood=0}}
+ else perfGood=0;
+ if(Math.abs(p-PR.cur)>.01){PR.cur=Math.round(p*100)/100;renderer.setPixelRatio(PR.cur);pausedDrawn=false}
+}
 const DEBUG=/[?&]debug=1/.test(location.search)?{freeze:false}:null;
-function tick(){requestAnimationFrame(tick);const dt=clock.getDelta();if(DEBUG?.freeze)return;adapt(dt);update(Math.min(dt,.045));if(paused){if(pausedDrawn)return;pausedDrawn=true}else pausedDrawn=false;renderer.render(scene,cam)}tick();
-function fit(){cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);pausedDrawn=false;if(TOUCH&&started&&!paused&&innerHeight>innerWidth)pause()}addEventListener('resize',fit);screen.orientation?.addEventListener?.('change',()=>setTimeout(fit,250));
+function tick(){
+ requestAnimationFrame(tick);const dt=clock.getDelta();
+ if(document.hidden||DEBUG?.freeze){wasIdle=true;return}
+ if(wasIdle){wasIdle=false;resetPerformance();return}
+ if(paused&&pausedDrawn)return;
+ if(paused||pausedDrawn)resetPerformance();
+ adapt(dt);update(Math.min(dt,.045));
+ // Reuse the shadow map between updates, especially on high-refresh displays.
+ shadowTimer-=Math.min(dt,.1);
+ if(shadowTimer<=0||!sun.shadow.map){renderer.shadowMap.needsUpdate=true;shadowTimer=Math.max(shadowTimer,-1/(LOW?30:60))+1/(LOW?30:60)}
+ renderer.render(scene,cam);pausedDrawn=paused;
+}
+tick();
+addEventListener('visibilitychange',()=>{keysClear();resetPerformance();pausedDrawn=false;if(document.hidden){if(gain)gain.gain.value=0;if(siren)siren.g.gain.value=0}});
+function fit(){cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);resetPerformance();pausedDrawn=false;renderer.shadowMap.needsUpdate=true;if(TOUCH&&started&&!paused&&innerHeight>innerWidth)pause()}addEventListener('resize',fit);screen.orientation?.addEventListener?.('change',()=>setTimeout(fit,250));
 const context=document.modelContext;if(context?.registerTool){for(const tool of [{name:'start_driving',description:'Iniciar o jogo local.',execute:()=>{start();return{started,paused}}},{name:'reset_car',description:'Reposicionar fora de perseguições.',execute:()=>{reset();return{x:car.position.x,z:car.position.z,wanted}}}]){try{Promise.resolve(context.registerTool({...tool,inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:false},execute:input=>{if(input&&Object.keys(input).length)throw new Error('Nenhum argumento é aceito.');return tool.execute()}})).catch(()=>{})}catch{}}}
 
 // Test hook (only with ?debug=1): lets automated checks step the simulation and read state.
-if(DEBUG)window.__g={race,rival,TRK,RL,raceTry,trkPose,physicalObstacles,get car(){return car},get velocity(){return velocity},set velocity(v){velocity=v},get angle(){return angle},set angle(v){angle=v},surfToPeak,T,scene,cam,renderer,surf,player,keys,DEBUG,SURF_CONFIG,surfStep,surfSample,updateSurf,waveAt,WS,OI,OC,spawnWave,oceanStep,oceanInfo,oceanHeight,seaU,start,startSurf,stopSurf,update,keysClear,shore,sandY,get heading(){return heading},set heading(v){heading=v},get simTime(){return simTime},get cash(){return cash},get inCar(){return inCar},set inCar(v){inCar=v;player.visible=!v?true:false},people,traffic,get grab(){return grab},arrested,crime,set simTime(v){simTime=v},get lastCrime(){return lastCrime},render(){renderer.render(scene,cam)},step(n=1,dt=1/60){for(let i=0;i<n;i++)update(dt);renderer.render(scene,cam)}};
+if(DEBUG)window.__g={race,rival,TRK,RL,raceTry,trkPose,physicalObstacles,get car(){return car},get velocity(){return velocity},set velocity(v){velocity=v},get angle(){return angle},set angle(v){angle=v},surfToPeak,T,scene,cam,renderer,PR,adapt,resetPerformance,surf,player,keys,DEBUG,SURF_CONFIG,surfStep,surfSample,updateSurf,waveAt,WS,OI,OC,spawnWave,oceanStep,oceanInfo,oceanHeight,seaU,start,startSurf,stopSurf,update,keysClear,shore,sandY,get heading(){return heading},set heading(v){heading=v},get simTime(){return simTime},get cash(){return cash},get inCar(){return inCar},set inCar(v){inCar=v;player.visible=!v?true:false},people,traffic,get grab(){return grab},arrested,crime,set simTime(v){simTime=v},get lastCrime(){return lastCrime},render(){renderer.render(scene,cam)},step(n=1,dt=1/60){for(let i=0;i<n;i++)update(dt);renderer.render(scene,cam)}};
 
 </script></body></html>
