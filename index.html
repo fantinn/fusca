@@ -1691,8 +1691,10 @@ function bodyLoad(B,v){const u=v.userData,m=massOf(v);B.v=v;B.x=v.position.x;B.z
  else{B.kind=2;if(u.loose){B.vx=u.vel.x;B.vz=u.vel.z;B.w=u.spin||0}else{const t=u.traffic,sp=t&&v!==car&&!stolenCars.has(v)&&!t.align?t.actual||0:0;B.vx=Math.sin(v.rotation.y)*sp;B.vz=Math.cos(v.rotation.y)*sp;B.w=0}}
  B.vx0=B.vx;B.vz0=B.vz;return B}
 // Hard side hits trip NPC vehicles over: tall, narrow bodies (Kombi) roll at lower speed changes than wide, heavy ones.
-function startNpcRoll(v,dvx,dvz){const u=v.userData;if(u.npcRoll||!u.wheels||v===originalCar||stolenCars.has(v))return;const s=v.scale.x,W=(u.size?.w||1.12)*s,H=(u.roof||1.8)*.5*s,yaw=v.rotation.y,lat=dvx*Math.cos(yaw)-dvz*Math.sin(yaw),lon=dvx*Math.sin(yaw)+dvz*Math.cos(yaw),thr=T.MathUtils.clamp(4.6*W/H,4.5,9)*Math.sqrt(Math.max(1,massOf(v)/1500));
- let dir=-Math.sign(lat),k=Math.abs(lat)/thr;if(k<1){const tot=Math.hypot(lat,lon)/(thr*1.6);if(tot<1)return;k=tot;dir=Math.random()<.5?-1:1}
+// rollGuard raises the threshold for crashes the player is not part of, so NPC fender-benders rarely end upside down.
+let rollGuard=1;
+function startNpcRoll(v,dvx,dvz){const u=v.userData;if(u.npcRoll||!u.wheels||v===originalCar||stolenCars.has(v))return;const s=v.scale.x,W=(u.size?.w||1.12)*s,H=(u.roof||1.8)*.5*s,yaw=v.rotation.y,lat=dvx*Math.cos(yaw)-dvz*Math.sin(yaw),lon=dvx*Math.sin(yaw)+dvz*Math.cos(yaw),thr=T.MathUtils.clamp(8*W/H,8,13)*Math.sqrt(Math.max(1,massOf(v)/1500))*rollGuard;
+ let dir=-Math.sign(lat),k=Math.abs(lat)/thr;if(k<1){const tot=Math.hypot(lat,lon)/(thr*2.2);if(tot<1)return;k=tot;dir=Math.random()<.5?-1:1}
  const dv=Math.hypot(dvx,dvz);u.npcRoll={th:0,w:dir*T.MathUtils.clamp(2.6+k*1.6,3,9),pitch:0,wp:T.MathUtils.clamp(lon*.06,-.6,.6),y:v.position.y+H+.05,vy:T.MathUtils.clamp(1.2+dv*.18,1.5,5),W,H,sx:0,sz:0,rest:0,done:false};
  for(const w of u.wheels)w.pivot.position.y=w.baseY??w.pivot.position.y;if(u.body)u.body.position.y=0}
 function updateNpcRoll(v,dt){const u=v.userData,r=u.npcRoll,p=v.position;if(!dt)return;const ca=Math.cos(v.rotation.y),sa=Math.sin(v.rotation.y);p.x-=r.sx;p.z-=r.sz;
@@ -1709,7 +1711,9 @@ function endNpcRoll(v){const u=v.userData,r=u.npcRoll;v.position.x-=r.sx;v.posit
 function bodyStore(B){if(!B.hit||!B.kind)return;const u=B.v.userData;if(!(Math.abs(B.vx)+Math.abs(B.vz)+Math.abs(B.w)<1e4))B.vx=B.vz=B.w=0;
  if(B.kind===1){u.vel.x=B.vx;u.vel.z=B.vz;u.yawRate=B.w;return} // driveStep re-reads vel/yawRate and derives `velocity`
  if(B.kind===3){const dv=Math.hypot(B.vx-u.vel.x,B.vz-u.vel.z),dw=Math.abs(B.w-(u.spin||0));u.vel.x=B.vx;u.vel.z=B.vz;u.spin=B.w;if(dv>.65||dw>.25){u.impactUntil=simTime+Math.min(.9,.3+dv*.035);u.patrol.carRepath=0;u.patrol.think=Math.max(u.patrol.think,.22)}return}
- if(!u.loose){u.loose=true;u.looseT=0;if(u.traffic)u.traffic.actual=0}const vel=u.vel||(u.vel={x:0,z:0});vel.x=B.vx;vel.z=B.vz;u.spin=B.w;startNpcRoll(B.v,B.vx-B.vx0,B.vz-B.vz0)}
+ if(!u.loose){u.loose=true;u.looseT=0;if(u.traffic)u.traffic.actual=0}const vel=u.vel||(u.vel={x:0,z:0});vel.x=B.vx;vel.z=B.vz;u.spin=B.w;
+ // One crash is resolved over several contact passes: sum its velocity change within the frame before judging a rollover.
+ const hd=u.hitDv&&u.hitDv.t===simTime?u.hitDv:(u.hitDv={t:simTime,x:0,z:0});hd.x+=B.vx-B.vx0;hd.z+=B.vz-B.vz0;startNpcRoll(B.v,hd.x,hd.z)}
 function applyImpulse(B,jx,jz,rx,rz){if(!B.kind)return;B.vx+=jx*B.im;B.vz+=jz*B.im;B.w+=(jx*rz-jz*rx)*B.ii;B.hit=true}
 // Contact point: average of the corners of each box lying inside the other (face contact -> middle of the overlap).
 function addInside(r,o){const c=Math.cos(r.a||0),s=Math.sin(r.a||0),oc=Math.cos(o.a||0),os=Math.sin(o.a||0);for(let i=0;i<4;i++){const lx=i&1?r.w:-r.w,lz=i&2?r.d:-r.d,x=r.x+c*lx+s*lz,z=r.z-s*lx+c*lz,dx=x-o.x,dz=z-o.z;if(Math.abs(dx*oc-dz*os)<=o.w+.02&&Math.abs(dx*os+dz*oc)<=o.d+.02){cpx+=x;cpz+=z;cpn++}}}
@@ -1731,7 +1735,7 @@ function reportImpact(sp,x,z,nx,nz,byPlayer){const u=car.userData;if(slide>1.5){
 // Resolve one contact of vehicle v (from carContacts): impulse, then positional separation.
 function collidePair(v,c,byPlayer){const a=rectFor(v),r=c.other?rectFor(c.other):c.r,h=obbContact(a,r);if(!h)return 0;if(!c.other&&r.brk){h.r=r;if(tryBreak(v,h))return 0}
  const A=bodyLoad(BODY_A,v),B=c.other?bodyLoad(BODY_B,c.other):WALL,p=contactPoint(a,r,h),px=p.x,pz=p.z,hit=solveContact(A,B,h.x,h.z,px,pz,c.other?.3:.2,c.other?.35:.45);
- separate(A,B,h.x,h.z,h.depth);bodyStore(A);bodyStore(B);if(A.kind===1||B.kind===1){const s=A.kind===1?1:-1;reportImpact(hit,px,pz,h.x*s,h.z*s,byPlayer)}return hit}
+ separate(A,B,h.x,h.z,h.depth);rollGuard=A.kind===1||B.kind===1?1:1.6;bodyStore(A);bodyStore(B);rollGuard=1;if(A.kind===1||B.kind===1){const s=A.kind===1?1:-1;reportImpact(hit,px,pz,h.x*s,h.z*s,byPlayer)}return hit}
 function moveCar(dt,oldAngle){
  const u=car.userData,vel=u.vel||(u.vel={x:0,z:0}),p=car.position;if(!(Math.abs(vel.x)+Math.abs(vel.z)<1e4))vel.x=vel.z=0;
  const steps=Math.max(1,Math.ceil(Math.hypot(vel.x,vel.z)*dt/.22)),h=dt/steps;
