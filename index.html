@@ -356,6 +356,7 @@ const CLM=new T.MeshBasicMaterial({vertexColors:true,toneMapped:false,fog:false}
 for(let i=0;i<24;i++){const b=mb(),S=geos.cs,n=4+Math.floor(r2()*4);if(++lowClouds>(LOW?40:90)){for(let k=0;k<6*n+3;k++)r2();continue}for(let k=0;k<n;k++)madd(b,S,'#fff',mx(k*11+r2()*6,r2()*4,(r2()-.5)*8,9+r2()*9,5+r2()*5,6+r2()*6));for(let v=0;v<b.p.length/3;v++){if(b.p[v*3+1]<-1.5)b.p[v*3+1]=-1.5;const l=Math.min(1,.62+.26*b.n[v*3+1]+.2*Math.max(0,b.n[v*3]*SUND.x+b.n[v*3+1]*SUND.y+b.n[v*3+2]*SUND.z));_C.set('#aec6dd').lerp(_C2.set('#ffffff'),l);b.c[v*4]=_C.r;b.c[v*4+1]=_C.g;b.c[v*4+2]=_C.b}const m=new T.Mesh(mgeo(b),CLM);m.position.set(-500+r2()*1100,90+r2()*45,-480+r2()*960);scene.add(m);clouds.push(m)}
  for(let v=0;v<b.p.length/3;v++){if(b.p[v*3+1]<-1.5)b.p[v*3+1]=-1.5;const l=Math.min(1,.62+.26*b.n[v*3+1]+.2*Math.max(0,b.n[v*3]*SUND.x+b.n[v*3+1]*SUND.y+b.n[v*3+2]*SUND.z));_C.set('#aec6dd').lerp(_C2.set('#ffffff'),l);b.c[v*4]=_C.r;b.c[v*4+1]=_C.g;b.c[v*4+2]=_C.b}const m=new T.Mesh(mgeo(b),CLM);m.position.set(px,py,pz);scene.add(m);clouds.push(m)}
 // Fusca: body parts merged per material (paint/glass/chrome/trim/lamps), geometry shared by every car.
+const FUSCA_SCALE=1.20;
 let CARG=null;const PAINT={},CM={glass:new T.MeshStandardMaterial({color:'#1b2f38',roughness:.04,metalness:.4,envMap:ENV}),chrome:new T.MeshStandardMaterial({color:'#f4f5f4',metalness:1,roughness:.18,envMap:ENV}),trim:new T.MeshStandardMaterial({vertexColors:true,roughness:.7}),lamp:new T.MeshBasicMaterial({vertexColors:true,toneMapped:false})};
 const FUSCA_GLASS=new T.MeshPhysicalMaterial({color:'#8ba6a9',roughness:.13,metalness:.08,envMap:ENV,envMapIntensity:.5,transparent:true,opacity:LOW?.53:.43,depthWrite:false,side:T.DoubleSide,forceSinglePass:true});
 function carGeo(){
@@ -486,11 +487,13 @@ function carGeo(){
  for(const x of [-.28,.28]){const z=.86;line('trim',[[x,roofY(x,z)+.025,z],[x+.20,roofY(x+.20,.77)+.025,.77]],.008,false,'#262d30',6)}
  line('trim',onHood([[-.57,1.26,-1.30],[-.48,1.14,-1.64],[-.26,.96,-1.88],[0,.88,-1.98],[.26,.96,-1.88],[.48,1.14,-1.64],[.57,1.26,-1.30]]),.006,false,'#414748',32);
  for(let i=0;i<16;i++){const x=-.45+i*.06,points=[];for(let j=0;j<=4;j++){const z=-1.28-.14*j/4;points.push([x,Math.max(roofY(x,z),shellTop(x,z))+.018,z])}line('trim',points,.008,false,'#293335',6)}
- const badge=[];for(let i=0;i<24;i++){const a=i/24*Math.PI*2;badge.push([.054*Math.cos(a),shellTop(.054*Math.cos(a),1.18+.054*Math.sin(a))+.020,1.18+.054*Math.sin(a)])}line('chrome',badge,.007,true,'#fff',24);
- for(const points of [[[-.025,0,1.205],[0,0,1.177],[.025,0,1.205]],[[-.039,0,1.182],[-.021,0,1.154],[0,0,1.173],[.021,0,1.154],[.039,0,1.182]]])line('chrome',onHood(points),.005,false,'#fff',12);
+ // Raised VW medallion follows the bonnet surface, with a dark backing for legibility.
+ const badgeDisc=new T.CircleGeometry(.087,24),bp=badgeDisc.attributes.position;for(let i=0;i<bp.count;i++){const x=bp.getX(i),z=1.18+bp.getY(i);bp.setXYZ(i,x,shellTop(x,z)+.022,z)}const bi=badgeDisc.index;for(let i=0;i<bi.count;i+=3){const b=bi.getX(i+1);bi.setX(i+1,bi.getX(i+2));bi.setX(i+2,b)}badgeDisc.computeVertexNormals();e('trim',badgeDisc,'#243137');
+ const badge=[];for(let i=0;i<24;i++){const a=i/24*Math.PI*2;badge.push([.087*Math.cos(a),shellTop(.087*Math.cos(a),1.18+.087*Math.sin(a))+.031,1.18+.087*Math.sin(a)])}line('chrome',badge,.007,true,'#fff',24);
+ for(const points of [[[-.040,0,1.232],[0,0,1.184],[.040,0,1.232]],[[-.061,0,1.188],[-.035,0,1.132],[0,0,1.174],[.035,0,1.132],[.061,0,1.188]]])line('chrome',onHood(points).map(p=>[p[0],p[1]+.019,p[2]]),.008,false,'#fff',12);
  e('chrome',small,'#fff',0,1.02,-1.91,.085,.022,.027);
  e('trim',GB,'#22272a',0,.33,0,1.45,.14,3.5);
- CARG={};for(const k in B)CARG[k]=mgeo(B[k]).scale(.67,.725,.938).translate(0,-.055,0);
+ CARG={};for(const k in B)CARG[k]=mgeo(B[k]).scale(.67,.725,.938).translate(0,-.055,0).scale(FUSCA_SCALE,FUSCA_SCALE,FUSCA_SCALE);
  // Slim whitewalls, steel rims and domed chrome hubcaps, shared by all four wheels.
  const tire=mb(),hub=mb();madd(tire,new T.CylinderGeometry(.47,.47,.26,24),'#25292b',mx());
  for(const side of [1]){
@@ -498,12 +501,12 @@ function carGeo(){
   madd(tire,new T.RingGeometry(.320,.404,20),'#e9e4d6',mx(0,side*.171,0,1,1,1,-side*Math.PI/2));
   madd(tire,new T.RingGeometry(.23,.312,20),'#bcb4a1',mx(0,side*.172,0,1,1,1,-side*Math.PI/2));
   madd(hub,new T.TorusGeometry(.298,.014,5,20),'#fff',mx(0,side*.164,0,1,1,1,Math.PI/2));
-  madd(hub,new T.SphereGeometry(1,16,8),'#fff',mx(0,side*.151,0,.237,.030,.237));
+  madd(hub,new T.SphereGeometry(1,16,8),'#fff',mx(0,side*.156,0,.237,.060,.237));
   for(let i=0;i<5;i++){const a=i/5*Math.PI*2;madd(tire,new T.CircleGeometry(1,10),'#33383a',mx(Math.cos(a)*.274,side*.177,Math.sin(a)*.274,.023,.034,1,-side*Math.PI/2,0,a))}
  }
- CARG.tire=mgeo(tire).scale(.725,.725,.725);CARG.hub=mgeo(hub).scale(.725,.725,.725);return CARG;
+ CARG.tire=mgeo(tire).scale(.725*FUSCA_SCALE,.725*FUSCA_SCALE,.725*FUSCA_SCALE);CARG.hub=mgeo(hub).scale(.725*FUSCA_SCALE,.725*FUSCA_SCALE,.725*FUSCA_SCALE);return CARG;
 }
-function beetle(color){let g=new T.Group();const body=new T.Group(),G=carGeo();g.add(body);for(const k of ['paint','glass','chrome','trim','lamp']){const m=new T.Mesh(G[k],k==='paint'?PAINT[color]??=new T.MeshPhysicalMaterial({color,roughness:.30,metalness:0,clearcoat:.85,clearcoatRoughness:.12,envMap:ENV,envMapIntensity:.6}):k==='glass'?FUSCA_GLASS:CM[k]);m.castShadow=k!=='lamp'&&k!=='glass';m.receiveShadow=k==='paint';body.add(m)}const wheels=[];for(let x of [-.645,.645])for(let z of [-1.2,1.2]){let pivot=new T.Group();pivot.position.set(x,.30,z);g.add(pivot);let w=new T.Mesh(G.tire,CM.trim);w.rotation.z=-Math.sign(x)*Math.PI/2;w.castShadow=true;pivot.add(w);let hub=new T.Mesh(G.hub,CM.chrome);hub.rotation.z=-Math.sign(x)*Math.PI/2;pivot.add(hub);wheels.push({pivot,w,hub,front:z>0})}g.userData={body,wheels,size:{w:.82,d:2.07},roof:1.47,wheelRadius:.47*.725};return g}
+function beetle(color){let g=new T.Group();const body=new T.Group(),G=carGeo();g.add(body);for(const k of ['paint','glass','chrome','trim','lamp']){const m=new T.Mesh(G[k],k==='paint'?PAINT[color]??=new T.MeshPhysicalMaterial({color,roughness:.26,metalness:0,clearcoat:.90,clearcoatRoughness:.12,envMap:ENV,envMapIntensity:.6}):k==='glass'?FUSCA_GLASS:CM[k]);m.castShadow=k!=='lamp'&&k!=='glass';m.receiveShadow=k==='paint';body.add(m)}const wheels=[];for(let x of [-.645,.645])for(let z of [-1.2,1.2]){let pivot=new T.Group();pivot.position.set(x*FUSCA_SCALE,.30*FUSCA_SCALE,z*FUSCA_SCALE);g.add(pivot);let w=new T.Mesh(G.tire,CM.trim);w.rotation.z=-Math.sign(x)*Math.PI/2;w.castShadow=true;pivot.add(w);let hub=new T.Mesh(G.hub,CM.chrome);hub.rotation.z=-Math.sign(x)*Math.PI/2;pivot.add(hub);wheels.push({pivot,w,hub,front:z>0})}g.userData={body,wheels,size:{w:.82*FUSCA_SCALE,d:2.07*FUSCA_SCALE},roof:1.47*FUSCA_SCALE,wheelRadius:.47*.725*FUSCA_SCALE};return g}
 let car=beetle('#ffc94d');scene.add(car);car.position.set(4,0,30);let angle=Math.PI,velocity=0,steer=0,distance=0,nitro=100,started=false,paused=false,cameraMode=0;
 // Classic car catalogue: each model is merged per material once (paint/glass/chrome/trim/lamp) and shared by every copy.
 // spec: wheels {x,z,r}, collision half-size, mass, display name and handling overrides (K) read by driveStep.
@@ -695,7 +698,7 @@ CLS.caminhao={roof:2.8,name:'Caminhão',wheels:{x:1.0,z:[2.75,2.1],r:1.25},size:
  for(const [x,z]of [[-.5,-.6],[.45,-.5],[0,-.15],[-.4,.25],[.5,.3]])e('trim',s,'#d8c8a0',x,1.6,z,.42,.24,.3);
  // Rear lamps and plate.
  for(const x of [-.95,.95]){e('lamp',GB,'#d8392c',x,.92,-3.64,.2,.12,.04);e('lamp',GB,'#f2a12a',x*.8,.92,-3.64,.1,.12,.04)}e('trim',GB,'#ece9d6',0,.9,-3.64,.4,.14,.02)}};
-const traffic=[];for(let i=0;i<(LOW?32:40);i++){const col=['#e8553d','#3f86c6','#f2ead2','#6fae7b','#f19a38','#9ec9e6','#c9463d','#2f5d8a'][i%8];let g=i%2?classic(['kombi','opala','mustang'][(i>>1)%3],col):beetle(col);if(!g.userData.model)g.scale.setScalar(.94);scene.add(g);traffic.push({g,road:roads[i%7],axis:i%2,dir:i%3===0?-1:1,pos:rand()*510-255,speed:7+rand()*7})}
+const traffic=[];for(let i=0;i<(LOW?32:40);i++){const col=['#e8553d','#3f86c6','#f2ead2','#6fae7b','#f19a38','#9ec9e6','#c9463d','#2f5d8a'][i%8];let g=i%2?classic(['kombi','opala','mustang'][(i>>1)%3],col):beetle(col);scene.add(g);traffic.push({g,road:roads[i%7],axis:i%2,dir:i%3===0?-1:1,pos:rand()*510-255,speed:7+rand()*7})}
 // 1959 Cadillac: smooth superellipse-lofted body (rounded in plan, profile and section), skirted rear wheels, soft tail fins with bullet lights, wraparound glass, white roof, curved chrome bumpers.
 // smoothLoft rows: [z,cx,w,lo,hi,nTop,nBot,taperTop,taperBot], sorted by z; hook(x,y,z,c) may reshape a ring vertex (wheel arches).
 function smoothLoft(rows,seg=36,hook){const v=[],idx=[],R=rows.length;
@@ -975,7 +978,7 @@ for(const k in SB){const b=SB[k],m=new T.Mesh(mgeo(b),KM[b.k]);m.receiveShadow=k
 // Extra traffic: Cadillacs in both districts plus the east district's own traffic (wraps within x 380..XMAX).
 {const CC=['#35b8cc','#c93b4a','#f2e6d0','#e889a8','#2f6f96','#3fb9a8'],add=(g,road,axis,dir,pos,speed,lo,hi)=>{scene.add(g);traffic.push({g,road,axis,dir,pos,speed,lo,hi})};
  for(let i=0;i<4;i++)add(cadillac(CC[i]),roads[(i*3+1)%7],i%2,i%2?1:-1,-200+r2()*400,8+r2()*5);
- for(let i=0;i<(LOW?12:16);i++){const g=i%3===0?cadillac(CC[(i+2)%6]):i%3===1?classic(['kombi','opala','mustang'][(i/3|0)%3],CC[i%6]):beetle(['#e8553d','#3f86c6','#f2ead2','#6fae7b','#f19a38'][i%5]);if(!g.userData.model)g.scale.setScalar(.94);
+ for(let i=0;i<(LOW?12:16);i++){const g=i%3===0?cadillac(CC[(i+2)%6]):i%3===1?classic(['kombi','opala','mustang'][(i/3|0)%3],CC[i%6]):beetle(['#e8553d','#3f86c6','#f2ead2','#6fae7b','#f19a38'][i%5]);
   if(i<6)add(g,ROADX2[i%2],0,(i>>1)%2?-1:1,-240+r2()*480,8+r2()*6);else add(g,roads[i%7],1,i%2?1:-1,390+r2()*160,8+r2()*6,380,XMAX+4)}
  // Trucks: five in the old town, two in the east district.
  const TC=['#d23b2f','#2f6fae','#f0c23a','#3e8a57','#f2ece0','#e07a2e','#7a4fa0'];
@@ -1137,8 +1140,9 @@ function hideField(){if(race.field)for(const R of race.field){R.g.visible=false;
 // Advance a progress record {i,p} from a position; returns the signed lateral offset. Far off the circuit or a jump > 60 m does not count.
 function raceTrack(o,x,z,win=12){const i=trkNear(x,z,o.i,win);if(i<0)return Infinity;const dx=x-TRK.x[i],dz=z-TRK.z[i],lat=dx*TRK.lx[i]+dz*TRK.lz[i];if(Math.abs(lat)>TRK.hw+TRK.run+3)return lat;
  const s=i*TRK.ds+dx*TRK.tx[i]+dz*TRK.tz[i];let d=s-(o.p%TRK.L+TRK.L)%TRK.L;d-=Math.round(d/TRK.L)*TRK.L;if(Math.abs(d)>60)return lat;o.i=i;o.p+=d;return lat}
-// Everyone on the circuit this frame: progress p, lateral offset d and speed along the track v (key 'me' = the player).
-function raceCars(){const out=[];if(inCar){const lat=raceTrack(race.me,car.position.x,car.position.z),i=race.me.i,PV=car.userData.vel;if(Math.abs(lat)<TRK.hw+3&&i>=0)out.push({key:'me',p:race.me.p,d:lat,v:PV?PV.x*TRK.tx[i]+PV.z*TRK.tz[i]:0})}
+// Everyone on the circuit this frame: progress p, lateral offset d and speed along the track v (key 'me' = the player's vehicle,
+// driven or left standing on the track).
+function raceCars(){const out=[];{const lat=raceTrack(race.me,car.position.x,car.position.z),i=race.me.i,PV=car.userData.vel;if(Math.abs(lat)<TRK.hw+3&&i>=0)out.push({key:'me',p:race.me.p,d:lat,v:PV?PV.x*TRK.tx[i]+PV.z*TRK.tz[i]:0})}
  for(const R of race.field){const q=R.g.position,V=R.g.userData.vel,i=R.i;out.push({key:R,p:R.p,d:(q.x-TRK.x[i])*TRK.lx[i]+(q.z-TRK.z[i])*TRK.lz[i],v:V.x*TRK.tx[i]+V.z*TRK.tz[i]})}return out}
 function racePos(){let n=1;for(const R of race.field)if(R.fin||R.p>race.me.p)n++;return n}
 function raceText(){const M=RACE_MODES[race.mode];if(race.t<0)return M.name+' • largada: '+(race.slot+1)+'º de '+RACE_N+' no grid • 1º leva R$ '+race.prize;const me=race.me.p,pos=racePos();let gap=Infinity;
@@ -1649,7 +1653,7 @@ const POLICE_FIT={fusca:{roof:1.465,rz:-.1,L:.40,front:2.04,bar:.26,y0:.525,y1:.
 let POLICE_TEX=null,POLICE_HALO=null;const POLICE_PAINT={},POLICE_KIT={};
 function policeTex(){if(POLICE_TEX)return POLICE_TEX;const c=document.createElement('canvas');c.width=1024;c.height=192;const x=c.getContext('2d');x.font='900 150px "Arial Black",Arial,sans-serif';x.textBaseline='middle';x.fillStyle='#fff';const w=x.measureText('POLÍCIA').width;x.translate(512,104);x.scale(Math.min(1,940/w),1);x.textAlign='center';x.fillText('POLÍCIA',0,0);POLICE_TEX=new T.CanvasTexture(c);POLICE_TEX.anisotropy=4;return POLICE_TEX}
 function policeHalo(){if(POLICE_HALO)return POLICE_HALO;const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d'),g=x.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.25,'rgba(255,255,255,.55)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,64,64);return POLICE_HALO=new T.CanvasTexture(c)}
-function policePaint(model){return POLICE_PAINT[model]??=(()=>{const F=POLICE_FIT[model],aa=.006,f=v=>v.toFixed(3),m=new T.MeshPhysicalMaterial({color:'#f5f4ef',roughness:.34,clearcoat:.8,clearcoatRoughness:.08,envMap:ENV,envMapIntensity:.65});
+function policePaint(model){return POLICE_PAINT[model]??=(()=>{const F=model==='fusca'?Object.fromEntries(Object.entries(POLICE_FIT[model]).map(([k,v])=>[k,v*FUSCA_SCALE])):POLICE_FIT[model],aa=.006,f=v=>v.toFixed(3),m=new T.MeshPhysicalMaterial({color:'#f5f4ef',roughness:.34,clearcoat:.8,clearcoatRoughness:.08,envMap:ENV,envMapIntensity:.65});
  m.onBeforeCompile=s=>{s.uniforms.livTex={value:policeTex()};s.vertexShader='varying vec3 vLivP;varying vec3 vLivN;\n'+s.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvLivP=position;vLivN=normal;');
   // The band is matte (no clearcoat, rougher): a dark glossy stripe only mirrors the sky and reads as see-through glass.
   s.fragmentShader='uniform sampler2D livTex;varying vec3 vLivP;varying vec3 vLivN;float livBand=0.;\n'+s.fragmentShader.replace('#include <lights_physical_fragment>','#include <lights_physical_fragment>\nmaterial.roughness=mix(material.roughness,.62,livBand);\n#ifdef USE_CLEARCOAT\nmaterial.clearcoat*=1.-livBand;\n#endif').replace('#include <color_fragment>',`#include <color_fragment>
@@ -1669,7 +1673,7 @@ function policeKit(model){return POLICE_KIT[model]??=(()=>{const F=POLICE_FIT[mo
  const fz=F.front,h=F.bar;for(const s of [-1,1]){madd(trim,GB,'#16191c',mx(s*.36,h+.2,fz,.07,.52,.07));madd(trim,GB,'#16191c',mx(s*.36,h+.02,fz-.12,.06,.06,.26))}for(const yy of [h+.08,h+.38])madd(trim,GB,'#16191c',mx(0,yy,fz+.02,.86,.07,.07));madd(trim,GB,'#2a2f33',mx(0,h+.23,fz+.04,.62,.22,.03));
  madd(trim,new T.CylinderGeometry(.006,.011,.95,5),'#121416',mx(L*.62,y+.47,z-.12));madd(chrome,geos.s,'#fff',mx(L*.62,y+.95,z-.12,.018,.018,.018));
  return {trim:mgeo(trim),chrome:mgeo(chrome),lens:mgeo(lens),red:mgeo(red),blue:mgeo(blue),redAt:new T.Vector3(-L*.5,y+.08,z),blueAt:new T.Vector3(L*.5,y+.08,z)}})()}
-function dressPolice(v,model){const K=policeKit(model),body=v.userData.body,paint=body.children.find(m=>m.receiveShadow);if(paint)paint.material=policePaint(model);
+function dressPolice(v,model){const K=policeKit(model);if(model==='fusca'&&!K.fuscaScaled){for(const k of ['trim','chrome','lens','red','blue'])K[k].scale(FUSCA_SCALE,FUSCA_SCALE,FUSCA_SCALE);K.redAt.multiplyScalar(FUSCA_SCALE);K.blueAt.multiplyScalar(FUSCA_SCALE);K.fuscaScaled=true}const body=v.userData.body,paint=body.children.find(m=>m.receiveShadow);if(paint)paint.material=policePaint(model);
  CM.lens??=new T.MeshStandardMaterial({vertexColors:true,roughness:.32,metalness:0,envMap:ENV,envMapIntensity:.35});CM.sirenR??=new T.MeshBasicMaterial({color:'#ff2a3a',toneMapped:false});CM.sirenB??=new T.MeshBasicMaterial({color:'#3a7dff',toneMapped:false});
  for(const [k,m] of [['trim',CM.trim],['chrome',CM.chrome],['lens',CM.lens]]){const o=new T.Mesh(K[k],m);o.castShadow=k!=='lens';body.add(o)}
  const lit=(geo,m,at,color)=>{const g=new T.Group(),s=new T.Sprite(new T.SpriteMaterial({map:policeHalo(),color,blending:T.AdditiveBlending,depthWrite:false,transparent:true,opacity:.7,toneMapped:false}));g.add(new T.Mesh(geo,m));s.position.copy(at);s.scale.setScalar(1.15);g.add(s);body.add(g);return g};
@@ -2033,10 +2037,10 @@ function updatePeople(dt){updateCityEvents(dt);for(const p of people){if(p.carTa
  if(!p.goal||simTime>p.decision&&rand()<dt*.35)chooseTask(p);if(p.goal&&followGoal(p,p.goal,p.mode==='jog'?4.3:1.2+p.curiosity,dt)<1.4)arrive(p);
  }separateCrowd();}
 function obbContact(a,b){const ca=Math.cos(a.a||0),sa=Math.sin(a.a||0),cb=Math.cos(b.a||0),sb=Math.sin(b.a||0),dx=a.x-b.x,dz=a.z-b.z;let depth=Infinity,nx=0,nz=0;for(let i=0;i<4;i++){const x=i===0?ca:i===1?sa:i===2?cb:sb,z=i===0?-sa:i===1?ca:i===2?-sb:cb,s=dx*x+dz*z,overlap=a.w*Math.abs(x*ca-z*sa)+a.d*Math.abs(x*sa+z*ca)+b.w*Math.abs(x*cb-z*sb)+b.d*Math.abs(x*sb+z*cb)-Math.abs(s);if(overlap<=0)return null;if(overlap<depth){depth=overlap;nx=s<0?-x:x;nz=s<0?-z:z}}return{x:nx,z:nz,depth:depth+.002}}
-function carContacts(v){const a=rectFor(v),hits=[];for(const b of localStatics(a,3)){if(Math.abs(a.x-b.x)>(b.ex??b.w)+3||Math.abs(a.z-b.z)>(b.ez??b.d)+3)continue;const h=obbContact(a,b);if(h){h.r=b;hits.push(h)}}for(const other of vehicleList()){if(other===v||Math.abs(v.position.y-other.position.y)>2.8)continue;const r=rectFor(other);if(Math.hypot(a.x-r.x,a.z-r.z)>Math.hypot(a.w,a.d)+Math.hypot(r.w,r.d))continue;const h=obbContact(a,r);if(h){h.other=other;h.r=r;hits.push(h)}}return hits}
+function carContacts(v){const a=rectFor(v),hits=[];for(const b of localStatics(a,3)){if(Math.abs(a.x-b.x)>(b.ex??b.w)+3||Math.abs(a.z-b.z)>(b.ez??b.d)+3)continue;const h=obbContact(a,b);if(h){h.r=b;hits.push(h)}}for(const other of vehicleList()){if(other===v||Math.abs(v.position.y-other.position.y)>2.8)continue;const os=other.userData.size;if(Math.hypot(a.x-other.position.x,a.z-other.position.z)>Math.hypot(a.w,a.d)+Math.hypot(os?os.w:1.12,os?os.d:2.1))continue;const r=rectFor(other);const h=obbContact(a,r);if(h){h.other=other;h.r=r;hits.push(h)}}return hits}
 // Direction and effective speed of a vehicle hit: frontal contacts take the car's full velocity, glancing ones mostly shove sideways.
 function carThrow(v,pos,speed){const u=v.userData,vel=u.vel&&Math.hypot(u.vel.x,u.vel.z)>1?u.vel:{x:Math.sin(v.rotation.y)*speed,z:Math.cos(v.rotation.y)*speed},sp=Math.hypot(vel.x,vel.z)||1,vd=new T.Vector3(vel.x/sp,0,vel.z/sp),rad=new T.Vector3(pos.x-v.position.x,0,pos.z-v.position.z).normalize(),k=smooth01(.15,.75,rad.dot(vd));return{dir:vd.clone().multiplyScalar(.25+k).addScaledVector(rad,(1-k)*.9+.15),speed:sp*(.4+.6*k)}}
-function hitPedestrians(v,speed,dt){if(Math.abs(speed)<3)return;for(const p of impactActors()){if(p.driving||p.g.userData.rag||simTime<p.hitUntil)continue;if(Math.abs(p.g.position.y-v.position.y)>2)continue;if(contactCircle(p.g.position,.34,rectFor(v))){const hit=carThrow(v,p.g.position,speed);beginFall(p.g,hit.dir,Math.min(8,2+hit.speed*.10),p,{car:hit});if(v===car&&inCar)shake=Math.max(shake,Math.min(.3,.04+hit.speed*.01));p.ambientImpact=v!==car||!inCar;p.hitUntil=simTime+6;p.mode='fallen';p.stun=5;if(v===car&&inCar){velocity*=.82;reactToFight(p,p.g.position);reportViolence(p,Math.abs(speed)*4,p.isPolice?32:24,p.isPolice?'Policial atropelado':'Pedestre atingido')}}}if(!inCar&&!player.userData.rag&&v!==car&&contactCircle(player.position,.34,rectFor(v))&&simTime-lastHit>2){lastHit=simTime;health-=15;const hit=carThrow(v,player.position,speed);beginFall(player,hit.dir,Math.min(7,hit.speed*.2),null,{car:hit});if(health<=0)arrested('Você foi socorrido.',true)}}
+function hitPedestrians(v,speed,dt){if(Math.abs(speed)<3)return;const rv=rectFor(v),reach=Math.hypot(rv.w,rv.d)+.34;for(const p of impactActors()){if(p.driving||p.g.userData.rag||simTime<p.hitUntil)continue;const pp=p.g.position;if(Math.abs(pp.y-v.position.y)>2||Math.abs(pp.x-rv.x)>reach||Math.abs(pp.z-rv.z)>reach)continue;if(contactCircle(pp,.34,rv)){const hit=carThrow(v,p.g.position,speed);beginFall(p.g,hit.dir,Math.min(8,2+hit.speed*.10),p,{car:hit});if(v===car&&inCar)shake=Math.max(shake,Math.min(.3,.04+hit.speed*.01));p.ambientImpact=v!==car||!inCar;p.hitUntil=simTime+6;p.mode='fallen';p.stun=5;if(v===car&&inCar){velocity*=.82;reactToFight(p,p.g.position);reportViolence(p,Math.abs(speed)*4,p.isPolice?32:24,p.isPolice?'Policial atropelado':'Pedestre atingido')}}}if(!inCar&&!player.userData.rag&&v!==car&&contactCircle(player.position,.34,rectFor(v))&&simTime-lastHit>2){lastHit=simTime;health-=15;const hit=carThrow(v,player.position,speed);beginFall(player,hit.dir,Math.min(7,hit.speed*.2),null,{car:hit});if(health<=0)arrested('Você foi socorrido.',true)}}
 
 function groundVehicleAttached(v,dt){const u=v.userData,s=v.scale.x,sa=Math.sin(v.rotation.y),ca=Math.cos(v.rotation.y);let front=0,rear=0,left=0,right=0,zf=0,zr=0,xl=0,xr=0,nf=0,nr=0,nl=0,nn=0,h=0;for(const w of u.wheels){const p=w.pivot.position,x=p.x*s,z=p.z*s,y=((u.police||u.aiDriver)?patrolGround:surfaceY)(v.position.x+x*ca+z*sa,v.position.z-x*sa+z*ca);w.ground=y;w.baseY??=p.y;h+=y;if(w.front){front+=y;zf+=z;nf++}else{rear+=y;zr+=z;nr++}if(x<0){left+=y;xl+=x;nl++}else{right+=y;xr+=x;nn++}}h/=u.wheels.length;const f=(front/nf-rear/nr)/(zf/nf-zr/nr),r=(right/nn-left/nl)/(xr/nn-xl/nl);v.rotation.order='YXZ';v.rotation.x=-Math.atan(f);v.rotation.z=Math.atan(r);v.position.y=h+.045;for(const w of u.wheels){const p=w.pivot.position,plane=h+f*p.z*s+r*p.x*s;p.y=w.baseY+T.MathUtils.clamp((w.ground-plane)/s,-.2,.2)}const moved=u.groundX===undefined?Infinity:Math.hypot(v.position.x-u.groundX,v.position.z-u.groundZ);if(moved>8||!dt){u.heave=0;u.heaveV=0;u.groundV=0}else{const dy=T.MathUtils.clamp((h-u.groundY)/dt,-30,30),acc=(dy-(u.groundV||0))/dt,target=T.MathUtils.clamp(-acc*.002,-.09,.10);u.heave??=0;u.heaveV??=0;const steps=Math.max(1,Math.ceil(dt/.008)),t=dt/steps;for(let i=0;i<steps;i++){u.heaveV+=(115*(target-u.heave)-13*u.heaveV)*t;u.heave+=u.heaveV*t}u.heave=T.MathUtils.clamp(u.heave,-.10,.12);u.groundV=dy}u.groundY=h;u.groundX=v.position.x;u.groundZ=v.position.z;if(v!==car||!inCar)u.body.position.y=u.heave||0}
 
@@ -2427,7 +2431,7 @@ for(let i=0;i<(LOW?3:5);i++){const model=['opala','fusca','kombi'][i%3],g=model=
 for(const t of traffic){t.g.position.set(t.axis?t.pos:t.road-t.dir*4,0,t.axis?t.road+t.dir*4:t.pos);t.g.rotation.y=t.axis?t.dir*Math.PI/2:t.dir<0?Math.PI:0}
 // Serra traffic: mostly trucks plus a few classics, spread over the mountain roads away from the tunnels.
 {const SC=['#d23b2f','#2f6fae','#f0c23a','#3e8a57','#e07a2e','#f2ece0'],total=SERRA_ROUTES.reduce((a,r)=>a+r.length,0),spots=[];
- for(let i=0;i<(LOW?10:14);i++){const g=i%2===0||i===3?classic('caminhao',SC[i%6]):i%3?classic(['kombi','opala','mustang'][i%3],SC[(i+2)%6]):beetle(SC[(i+3)%6]);if(!g.userData.model)g.scale.setScalar(.94);
+ for(let i=0;i<(LOW?10:14);i++){const g=i%2===0||i===3?classic('caminhao',SC[i%6]):i%3?classic(['kombi','opala','mustang'][i%3],SC[(i+2)%6]):beetle(SC[(i+3)%6]);
   const t={g,speed:g.userData.model==='Caminhão'?9.5+r2()*3:10+r2()*4,actual:0};
   for(let k=0;k<40;k++){let x=Math.floor(r2()*total),r=0;while(x>=SERRA_ROUTES[r].length){x-=SERRA_ROUTES[r].length;r++}serraEnter(t,r,T.MathUtils.clamp(x,2,SERRA_ROUTES[r].length-3));const [px,pz]=serraPoint(t,t.idx,t.off);if(!tunnelAt(px,pz,10)&&!spots.some(s=>Math.hypot(s[0]-px,s[1]-pz)<25))break}
   const [px,pz]=serraPoint(t,t.idx,t.off),[qx,qz]=serraPoint(t,t.idx+t.dir,t.off);spots.push([px,pz]);g.position.set(px,surfaceY(px,pz),pz);g.rotation.y=Math.atan2(qx-px,qz-pz);scene.add(g);traffic.push(t)}}
@@ -2453,8 +2457,23 @@ function simplifyGeo(geo,cell){const A=geo.attributes;for(const k in A)if(k!=='p
   const qa=vclu[a],qb=vclu[b],qc=vclu[c],m=Math.min(qa,qb,qc),key=m===qa?qa+','+qb+','+qc:m===qb?qb+','+qc+','+qa:qc+','+qa+','+qb;if(seen.has(key))continue;seen.add(key);ix.push(vert(qa),vert(qb),vert(qc))}
  const out=new T.BufferGeometry();out.setAttribute('position',new T.Float32BufferAttribute(pos,3));out.setAttribute('normal',new T.Float32BufferAttribute(nor,3));if(cs)out.setAttribute('color',new T.Float32BufferAttribute(col,cs));out.setIndex(ix);out.computeBoundingSphere();return out}
 function vlodLevels(geo){let l=VLOD_GEO.get(geo);if(l===undefined){l=null;if((geo.index?geo.index.count:geo.attributes.position.count)>=900){const a=simplifyGeo(geo,VLOD_CELLS[0]);if(a)l=[geo,a,simplifyGeo(geo,VLOD_CELLS[1])]}VLOD_GEO.set(geo,l)}return l}
-function vlodMeshes(v){const u=v.userData;if(!u.lodMeshes){u.lodMeshes=[];v.traverse(o=>{if(o.isMesh&&!o.isInstancedMesh&&vlodLevels(o.geometry)){o.userData.lod0=o.geometry;u.lodMeshes.push(o)}})}return u.lodMeshes}
-function vehicleLods(){const c=cam.position,px=2*Math.tan(cam.fov*Math.PI/360)/(innerHeight*PR.cur);for(const v of vehicleList()){if(!v.visible)continue;const u=v.userData,L=u.lodLevel||0,p=Math.sqrt(v.position.distanceToSquared(c))*px;let k=0;for(let i=VLOD_CELLS.length;i>0;i--)if(VLOD_CELLS[i-1]<=p*(i<=L?.9:.85)){k=i;break}if(k===L)continue;u.lodLevel=k;for(const o of vlodMeshes(v))o.geometry=VLOD_GEO.get(o.userData.lod0)[k]}}
+// From LOD 1 on, each tyre and hubcap is also merged in its rest pose into the body batch that already uses its material (trim, chrome),
+// so a far car costs 5 draw calls instead of 13; wheel spin, steering and travel are below a pixel at that distance.
+const VLOD_MERGE=new Map(),VLOD_A=new T.Matrix4(),VLOD_B=new T.Matrix4();
+function mergeParts(parts){const pos=[],nor=[],col=[],ix=[];let cs=0;for(const [g] of parts)if(g.attributes.color)cs=g.attributes.color.itemSize;
+ for(const [g,M] of parts){const P=g.attributes.position,N=g.attributes.normal,C=g.attributes.color,o=pos.length/3;if(M)_N.getNormalMatrix(M);
+  for(let i=0;i<P.count;i++){_P.fromBufferAttribute(P,i);if(M)_P.applyMatrix4(M);pos.push(_P.x,_P.y,_P.z);_P.fromBufferAttribute(N,i);if(M)_P.applyMatrix3(_N).normalize();nor.push(_P.x,_P.y,_P.z);for(let j=0;j<cs;j++)col.push(C&&j<C.itemSize?C.array[i*C.itemSize+j]:1)}
+  if(g.index)for(const k of g.index.array)ix.push(o+k);else for(let k=0;k<P.count;k++)ix.push(o+k)}
+ const out=new T.BufferGeometry();out.setAttribute('position',new T.Float32BufferAttribute(pos,3));out.setAttribute('normal',new T.Float32BufferAttribute(nor,3));if(cs)out.setAttribute('color',new T.Float32BufferAttribute(col,cs));out.setIndex(ix);out.computeBoundingSphere();return out}
+function wheelRest(w,m,bm){const p=w.pivot.position;VLOD_A.compose(_P.set(p.x,w.baseY??p.y,p.z),_Q.identity(),_S.set(1,1,1));VLOD_B.compose(m.position,_Q.setFromEuler(_E.set(0,m.rotation.y,m.rotation.z)),m.scale);VLOD_A.multiply(VLOD_B);return VLOD_B.compose(bm.position,bm.quaternion,bm.scale).invert().multiply(VLOD_A).clone()}
+function vlodMeshes(v){const u=v.userData;if(!u.lodMeshes){u.lodMeshes=[];u.lodMerge=[];u.lodWheels=[];v.traverse(o=>{if(o.isMesh&&!o.isInstancedMesh&&vlodLevels(o.geometry)){o.userData.lod0=o.geometry;u.lodMeshes.push(o)}});
+  const free=[];for(const w of u.wheels||[])for(const m of [w.w,w.hub])if(m?.isMesh&&m.userData.lod0)free.push([w,m]);
+  for(const bm of u.body?.children||[]){if(!bm.userData.lod0)continue;const mine=free.filter(([,m])=>m.material===bm.material&&!u.lodWheels.includes(m));if(!mine.length)continue;
+   let merged=VLOD_MERGE.get(bm.userData.lod0);if(!merged){merged=[bm.userData.lod0];for(let k=1;k<=VLOD_CELLS.length;k++)merged.push(mergeParts([[VLOD_GEO.get(bm.userData.lod0)[k],null],...mine.map(([w,m])=>[VLOD_GEO.get(m.userData.lod0)[k],wheelRest(w,m,bm)])]));VLOD_MERGE.set(bm.userData.lod0,merged)}
+   u.lodMerge.push({m:bm,merged});for(const [,m] of mine)u.lodWheels.push(m)}}
+ return u.lodMeshes}
+function vehicleLods(){const c=cam.position,px=2*Math.tan(cam.fov*Math.PI/360)/(innerHeight*PR.cur);for(const v of vehicleList()){if(!v.visible)continue;const u=v.userData,L=u.lodLevel||0,p=Math.sqrt(v.position.distanceToSquared(c))*px;let k=0;for(let i=VLOD_CELLS.length;i>0;i--)if(VLOD_CELLS[i-1]<=p*(i<=L?.9:.85)){k=i;break}if(k===L)continue;u.lodLevel=k;
+ for(const o of vlodMeshes(v))o.geometry=VLOD_GEO.get(o.userData.lod0)[k];for(const {m,merged} of u.lodMerge)m.geometry=merged[k];for(const w of u.lodWheels)w.visible=!k}}
 for(const v of vehicleList())vlodMeshes(v); // build the shared simplified geometries while loading
 // Per-instance culling for the static InstancedMeshes (palms, lamps, traffic lights and bulbs, shrubs, tree belts). Each one spans the whole
 // map, so three drew every instance in the view and again in every shadow update. The originals stay the source of truth (knock-downs and
@@ -2462,14 +2481,20 @@ for(const v of vehicleList())vlodMeshes(v); // build the shared simplified geome
 // touch the camera or sun-shadow frustum (the same test three applies to ordinary meshes), so the picture is unchanged.
 const ICULL=[],IC_F=new T.Frustum(),IC_S=new T.Sphere(),IC_M=new T.Matrix4();
 for(const src of scene.children.filter(o=>o.isInstancedMesh&&!o.material.transparent&&o.count>=40)){const g=src.geometry,dst=new T.InstancedMesh(g,src.material,src.count);if(!g.boundingSphere)g.computeBoundingSphere();
- if(src.instanceColor)dst.instanceColor=new T.InstancedBufferAttribute(new Float32Array(src.count*3),3);dst.castShadow=src.castShadow;dst.receiveShadow=src.receiveShadow;dst.frustumCulled=false;dst.count=0;src.visible=false;scene.add(dst);ICULL.push({src,dst,version:-1,bounds:new Float32Array(src.count*4)})}
+ if(src.instanceColor)dst.instanceColor=new T.InstancedBufferAttribute(new Float32Array(src.count*3),3);dst.castShadow=src.castShadow;dst.receiveShadow=src.receiveShadow;dst.frustumCulled=false;dst.count=0;src.visible=false;scene.add(dst);ICULL.push({src,dst,version:-1,colors:-1,bounds:new Float32Array(src.count*4),sel:new Int32Array(src.count),n:-1})}
+function icUpload(attr,n,size){attr.clearUpdateRanges();attr.addUpdateRange(0,n*size);attr.needsUpdate=true}
+sun.shadow.camera.updateProjectionMatrix(); // its ±72 m box, before the first shadow map exists (three only applies it then)
 scene.onBeforeRender=(r,s,camera)=>{IC_M.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);IC_F.setFromProjectionMatrix(IC_M);sun.shadow.updateMatrices(sun);const SF=sun.shadow.getFrustum();
- for(const c of ICULL){const {src,dst,bounds:B}=c,A=src.instanceMatrix.array,D=dst.instanceMatrix.array,CA=src.instanceColor?.array,CD=dst.instanceColor?.array;
+ for(const c of ICULL){const {src,dst,bounds:B,sel}=c,A=src.instanceMatrix.array,D=dst.instanceMatrix.array,CA=src.instanceColor?.array,CD=dst.instanceColor?.array;
   // Instance bounds are rebuilt only when the source matrices change; the .5 m pad covers the palm fronds' vertex sway. Hidden (zero-scale) instances get radius 0.
-  if(c.version!==src.instanceMatrix.version){c.version=src.instanceMatrix.version;for(let i=0;i<src.count;i++){IC_S.copy(src.geometry.boundingSphere).applyMatrix4(IC_M.fromArray(A,i*16));B[i*4]=IC_S.center.x;B[i*4+1]=IC_S.center.y;B[i*4+2]=IC_S.center.z;B[i*4+3]=IC_S.radius>1e-6?IC_S.radius+.5:0}}
+  let same=c.version===src.instanceMatrix.version;
+  if(!same){c.version=src.instanceMatrix.version;for(let i=0;i<src.count;i++){IC_S.copy(src.geometry.boundingSphere).applyMatrix4(IC_M.fromArray(A,i*16));B[i*4]=IC_S.center.x;B[i*4+1]=IC_S.center.y;B[i*4+2]=IC_S.center.z;B[i*4+3]=IC_S.radius>1e-6?IC_S.radius+.5:0}}
   let n=0;for(let i=0;i<src.count;i++){if(!B[i*4+3])continue;IC_S.center.set(B[i*4],B[i*4+1],B[i*4+2]);IC_S.radius=B[i*4+3];if(!IC_F.intersectsSphere(IC_S)&&!(dst.castShadow&&SF.intersectsSphere(IC_S)))continue;
-   D.set(A.subarray(i*16,i*16+16),n*16);if(CD){CD[n*3]=CA[i*3];CD[n*3+1]=CA[i*3+1];CD[n*3+2]=CA[i*3+2]}n++}
-  dst.count=n;dst.instanceMatrix.needsUpdate=true;if(CD)dst.instanceColor.needsUpdate=true}};
+   if(same&&(n>=c.n||sel[n]!==i))same=false;sel[n++]=i}
+  // Re-upload only when the visible set (or the source) changed, and only the part in use.
+  if(n!==c.n)same=false;c.n=dst.count=n;if(!n)continue;
+  if(!same){for(let j=0;j<n;j++)D.set(A.subarray(sel[j]*16,sel[j]*16+16),j*16);icUpload(dst.instanceMatrix,n,16)}
+  if(CD&&(!same||c.colors!==src.instanceColor.version)){c.colors=src.instanceColor.version;for(let j=0;j<n;j++){const i=sel[j]*3;CD[j*3]=CA[i];CD[j*3+1]=CA[i+1];CD[j*3+2]=CA[i+2]}icUpload(dst.instanceColor,n,3)}}};
 const clock=new T.Clock(),target=new T.Vector3(),look=new T.Vector3();let elapsed=0,hudTimer=0;cam.position.set(11,7,44);
 function update(dt){
  if(paused){if(gain)gain.gain.value=0;if(siren)siren.g.gain.value=0;return}
