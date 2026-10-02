@@ -2421,13 +2421,13 @@ function serraTraffic(t,dt){const g=t.g,u=g.userData,p=g.position,P=t.path,n=P.l
  if(t.align){// After a crash: ease back into the lane, or (player far away) drop onto a free stretch of the route.
   if(t.align===1){let bd=1e9;for(let i=0;i<=n;i++){const d=(P[i].x-p.x)**2+(P[i].z-p.z)**2;if(d<bd){bd=d;t.idx=i}}const a=P[Math.max(0,t.idx-1)],b=P[Math.min(n,t.idx+1)];t.dir=Math.cos(Math.atan2(b.x-a.x,b.z-a.z)-g.rotation.y)>=0?1:-1;t.off=t.dir*SERRA_LANE;t.align=2}
   const [lx,lz]=serraPoint(t,t.idx,t.off),[qx,qz]=serraPoint(t,t.idx+t.dir,t.off),ra=Math.atan2(qx-lx,qz-lz),d=Math.hypot(lx-p.x,lz-p.z),ox=p.x,oz=p.z,oa=g.rotation.y;
-  if(d>8||(t.wait||0)>4){t.wait=(t.wait||0)+dt;if(p.distanceTo(actorPos())>160)serraRelocate(t);return}
+  if(d>8||(t.wait||0)>4){t.wait=(t.wait||0)+dt;if(p.distanceTo(actorPos())>160&&serraRelocate(t))tgAdd(tgV,g,p);return}
   const k=Math.min(1,dt*1.5);p.x+=(lx-p.x)*k;p.z+=(lz-p.z)*k;g.rotation.y+=wrapAngle(ra-g.rotation.y)*k;if(carContacts(g).length){p.x=ox;p.z=oz;g.rotation.y=oa;t.wait=(t.wait||0)+dt}else if(d<.1&&Math.abs(wrapAngle(ra-g.rotation.y))<.02){t.align=0;t.wait=0}return}
  // Look ahead along the road (in its own lane), so hairpins don't make oncoming cars block each other.
  const ra=g.rotation.y,hx=Math.sin(ra),hz=Math.cos(ra),reach=3+(u.size?u.size.d:2),[ax,az]=serraPoint(t,t.idx+t.dir*reach/1.2,t.dir*SERRA_LANE),ahead=TA.set(ax,p.y,az);
  // Stuck for long out of the player's sight: quietly move to another stretch of road.
- if((t.wait||0)>8&&p.distanceTo(actorPos())>160&&serraRelocate(t))return;
- const caution=vehicleList().some(v=>v!==g&&v.position.distanceTo(ahead)<3.4)||people.some(q=>!q.driving&&!q.g.userData.rag&&q.g.position.distanceTo(ahead)<2)||(!inCar&&(player.position.distanceTo(ahead)<2||player.position.distanceTo(p)<4.5));
+ if((t.wait||0)>8&&p.distanceTo(actorPos())>160&&serraRelocate(t)){tgAdd(tgV,g,p);return}
+ const caution=trafficNear(ahead,g)||(!inCar&&(player.position.distanceTo(ahead)<2||player.position.distanceTo(p)<4.5));
  const turning=Math.abs(t.off-t.dir*SERRA_LANE)>.4,tgt=caution||t.theftHold>simTime?0:turning?3:Math.min(t.speed,serraCornerSpeed(t));t.actual=T.MathUtils.lerp(t.actual??t.speed,tgt,Math.min(1,dt*(tgt<(t.actual??t.speed)?6:2)));
  const old={x:p.x,z:p.z,a:ra,idx:t.idx,off:t.off,route:t.route,path:t.path,dir:t.dir},step=t.actual*dt,from=Math.floor(t.idx);
  t.idx+=t.dir*step/1.2;t.off+=T.MathUtils.clamp(t.dir*SERRA_LANE-t.off,-step*.6,step*.6);
@@ -2441,9 +2441,9 @@ function serraTraffic(t,dt){const g=t.g,u=g.userData,p=g.position,P=t.path,n=P.l
  // Already overlapping another car for a while (e.g. both met at a junction): drive on and let them separate.
  const hits=overlap?[]:carContacts(g);if(hits.length){p.x=old.x;p.z=old.z;g.rotation.y=old.a;Object.assign(t,{idx:old.idx,off:old.off,route:old.route,path:old.path,dir:old.dir});if(t.actual>2.5&&hits.some(h=>h.other)){const vel=u.vel||(u.vel={x:0,z:0});vel.x=hx*t.actual;vel.z=hz*t.actual;u.spin=0;u.loose=true;u.looseT=0;t.align=1}t.actual=0}else hitPedestrians(g,t.actual,dt);t.wait=t.actual<.3?(t.wait||0)+dt:0;
  for(const w of u.wheels)w.w.rotation.x+=t.actual*dt/(u.wheelRadius||.5)}
-// Spatial hash for the "anything just ahead?" check: vehicles and pedestrians are binned in 8 m cells once per frame and each car
-// only scans the 3×3 cells around its look-ahead point (radius ≤ 3.4 m plus well under 1 m of motion this frame, inside 8 m).
-const TG_CELL=8,tgV=new Map(),tgP=new Map(),tgKey=(cx,cz)=>(cx+4096)*8192+cz+4096;
+// Spatial hash for the "anything just ahead?" check: vehicles and pedestrians are binned in 5 m cells once per frame and each car
+// only scans the 3×3 cells around its look-ahead point (radius ≤ 3.4 m plus well under 1 m of motion this frame, inside 5 m).
+const TG_CELL=5,tgV=new Map(),tgP=new Map(),tgKey=(cx,cz)=>(cx+4096)*8192+cz+4096;
 function tgAdd(m,o,p){const k=tgKey(Math.floor(p.x/TG_CELL),Math.floor(p.z/TG_CELL));let b=m.get(k);if(!b)m.set(k,b=[]);b.push(o)}
 function trafficGridBuild(){for(const b of tgV.values())b.length=0;for(const b of tgP.values())b.length=0;for(const v of vehicleList())tgAdd(tgV,v,v.position);for(const p of people)tgAdd(tgP,p,p.g.position)}
 function trafficNear(a,g){const cx=Math.floor(a.x/TG_CELL),cz=Math.floor(a.z/TG_CELL);
