@@ -358,41 +358,36 @@ for(let i=0;i<24;i++){const b=mb(),S=geos.cs,n=4+Math.floor(r2()*4);if(++lowClou
 // Fusca: body parts merged per material (paint/glass/chrome/trim/lamps), geometry shared by every car.
 const FUSCA_SCALE=1.20;
 let CARG=null;const PAINT={},CM={glass:new T.MeshStandardMaterial({color:'#1b2f38',roughness:.04,metalness:.4,envMap:ENV}),chrome:new T.MeshStandardMaterial({color:'#f4f5f4',metalness:1,roughness:.18,envMap:ENV}),trim:new T.MeshStandardMaterial({vertexColors:true,roughness:.7}),lamp:new T.MeshBasicMaterial({vertexColors:true,toneMapped:false})};
-const FUSCA_GLASS=new T.MeshPhysicalMaterial({color:'#8ba6a9',roughness:.13,metalness:.08,envMap:ENV,envMapIntensity:.5,transparent:true,opacity:LOW?.53:.43,depthWrite:false,side:T.DoubleSide,forceSinglePass:true});
+const FUSCA_LENS=new T.MeshStandardMaterial({color:'#d5ded8',roughness:.19,metalness:.12,envMap:ENV,envMapIntensity:.40});
+const FUSCA_GLASS=new T.MeshStandardMaterial({color:'#29444c',roughness:.22,metalness:.08,envMap:ENV,envMapIntensity:.22,side:T.DoubleSide});
 function carGeo(){
  if(CARG)return CARG;
- const B={paint:mb(),glass:mb(),chrome:mb(),trim:mb(),lamp:mb()},small=new T.SphereGeometry(1,LOW?8:10,LOW?5:6);
+ const B={paint:mb(),glass:mb(),chrome:mb(),trim:mb(),lamp:mb(),lens:mb()},small=new T.SphereGeometry(1,LOW?8:10,LOW?5:6);
  geos.s??=new T.SphereGeometry(1,16,10); // also used by the shared classic-car catalogue
  const e=(k,g,c,x=0,y=0,z=0,sx=1,sy=1,sz=1,rx=0,ry=0,rz=0)=>madd(B[k],g,c,mx(x,y,z,sx,sy,sz,rx,ry,rz));
  const mesh=(v,ix)=>{const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(v,3));g.setIndex(ix);g.computeVertexNormals();return g};
  const line=(k,pts,r=.012,closed=false,c='#fff',steps=24)=>e(k,new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(...p)),closed),Math.min(steps,LOW?18:24),r,4,closed),c);
  // Narrow central shell: a long sloping luggage hood and a rounded rear engine lid.
- const profile=[[-2.02,.10,.77],[-1.85,.46,1.02],[-1.5,.68,1.26],[-1.05,.78,1.36],[-.5,.81,1.39],[.4,.81,1.38],[.85,.76,1.36],[1.25,.65,1.28],[1.65,.43,1.07],[1.94,.20,.82],[2.02,.05,.69]];
+ const profile=[[-2.02,.10,.77],[-1.85,.46,1.02],[-1.5,.68,1.26],[-1.05,.78,1.36],[-.5,.81,1.39],[.4,.81,1.38],[.85,.80,1.39],[1.25,.77,1.34],[1.65,.60,1.16],[1.94,.40,.90],[2.02,.27,.75]];
  const profileAt=(keys,z)=>{let i=0;while(i<keys.length-2&&z>keys[i+1][0])i++;const a=keys[i],b=keys[i+1],prev=keys[Math.max(0,i-1)],next=keys[Math.min(keys.length-1,i+2)],d=b[0]-a[0],t=T.MathUtils.clamp((z-a[0])/d,0,1);return[1,2].map(k=>{const m0=(b[k]-prev[k])/(b[0]-prev[0]),m1=(next[k]-a[k])/(next[0]-a[0]);return(2*t*t*t-3*t*t+1)*a[k]+(t*t*t-2*t*t+t)*d*m0+(-2*t*t*t+3*t*t)*b[k]+(t*t*t-t*t)*d*m1})};
  const sample=z=>profileAt(profile,z);
- {const v=[],ix=[],rows=LOW?32:40,n=LOW?16:20;
-  for(let j=0;j<=rows;j++){const z=-2.02+4.04*j/rows,[w,top]=sample(z);for(let i=0;i<=n;i++){const a=i/n*Math.PI*2;v.push(w*Math.cos(a),.35+(top-.35)*(Math.sin(a)+1)*.5,z)}}
-  for(let j=0;j<rows;j++)for(let i=0;i<n;i++){const a=j*(n+1)+i,b=a+n+1;ix.push(a,a+1,b,b,a+1,b+1)}
-  e('paint',mesh(v,ix),'#fff');
- }
  // Lofted roof and upright side panels follow the 1200 silhouette instead of an ellipsoid.
  const roofKeys=[[-1.50,.44,1.23],[-1.28,.70,1.57],[-1.00,.80,1.85],[-.72,.835,2.025],[-.35,.85,2.09],[.08,.84,2.075],[.42,.80,1.97],[.66,.77,1.69],[.94,.70,1.30]];
- const roofSection=z=>{const [w,top]=profileAt(roofKeys,z);return{w,top,n:3+1.1*T.MathUtils.smoothstep(z,.25,.65)}};
+ const roofSection=z=>{const [w,top]=profileAt(roofKeys,z);return{w,top,n:2.45}};
  const roofY=(x,z)=>{const r=roofSection(z);return .91+(r.top-.91)*Math.pow(Math.max(0,1-Math.pow(Math.abs(x)/r.w,r.n)),1/r.n)};
  const flankX=(y,z)=>{const r=roofSection(z);return r.w*Math.pow(Math.max(0,1-Math.pow(T.MathUtils.clamp((y-.91)/(r.top-.91),0,1),r.n)),1/r.n)};
  const shellTop=(x,z)=>{const [w,top]=sample(z);return .35+(top-.35)*(1+Math.sqrt(Math.max(0,1-(x/w)**2)))*.5};
  const onHood=points=>{const c=new T.CatmullRomCurve3(points.map(([x,y,z])=>new T.Vector3(x,0,z)));return c.getPoints(LOW?24:40).map(p=>[p.x,shellTop(p.x,p.z)+.016,p.z])};
  const sidePoint=(side,y,z)=>{const [w,top]=sample(z),h=2*(y-.35)/(top-.35)-1,bx=w*Math.sqrt(Math.max(0,1-h*h)),cx=z>=-1.50&&z<=.94?flankX(y,z):0;return[side*(Math.max(bx,cx)+.012),y,z]};
- // Each pane has a real opening in the roof shell; seats and the steering wheel can be seen inside.
- const openings=[];
+ // Curved tinted panes sit on the continuous shell, matching the classic catalogue finish.
 
- const roundUV=(u,v)=>{const r=.08,d=Math.min(v,1-v),inset=d<r?r*(1-Math.sqrt(Math.max(0,1-(1-d/r)**2))):0;return[inset+(1-2*inset)*u,v]};
+ const roundUV=(u,v)=>{const r=.16,d=Math.min(v,1-v),inset=d<r?r*(1-Math.sqrt(Math.max(0,1-(1-d/r)**2))):0;return[inset+(1-2*inset)*u,v]};
  function windowPanel(map,project=p=>[p[0],p[2]],accept=p=>p[1]>1.2){const v=[],ix=[],nx=LOW?6:10,ny=LOW?4:6;
   for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++)v.push(...map(...roundUV(i/nx,j/ny),.016));
   for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const a=j*(nx+1)+i,b=a+nx+1;ix.push(a,a+1,b,b,a+1,b+1)}
   e('glass',mesh(v,ix),'#fff');
-  const sh=new T.Shape(),r=.08;sh.moveTo(r,0);sh.lineTo(1-r,0);sh.quadraticCurveTo(1,0,1,r);sh.lineTo(1,1-r);sh.quadraticCurveTo(1,1,1-r,1);sh.lineTo(r,1);sh.quadraticCurveTo(0,1,0,1-r);sh.lineTo(0,r);sh.quadraticCurveTo(0,0,r,0);
-  const edge=sh.getPoints(4).slice(0,-1);openings.push({outline:edge.map(p=>project(map(p.x,p.y))),project,accept});line('trim',edge.map(p=>map(p.x,p.y,.020)),.012,true,'#242b2a',36);line('chrome',edge.map(p=>map(p.x,p.y,.026)),.005,true,'#fff',36);
+  const sh=new T.Shape(),r=.16;sh.moveTo(r,0);sh.lineTo(1-r,0);sh.quadraticCurveTo(1,0,1,r);sh.lineTo(1,1-r);sh.quadraticCurveTo(1,1,1-r,1);sh.lineTo(r,1);sh.quadraticCurveTo(0,1,0,1-r);sh.lineTo(0,r);sh.quadraticCurveTo(0,0,r,0);
+  const edge=sh.getPoints(4).slice(0,-1);line('trim',edge.map(p=>map(p.x,p.y,.020)),.009,true,'#283233',36);line('chrome',edge.map(p=>map(p.x,p.y,.026)),.0035,true,'#fff',36);
  }
  function roofWindow(zBottom,zTop,half){
   const map=(u,v,pad=0)=>{const z=zBottom+(zTop-zBottom)*v,x=(u*2-1)*roofSection(z).w*half;return[x,roofY(x,z)+pad,z]};
@@ -404,29 +399,23 @@ function carGeo(){
   const map=(u,v,pad=0)=>{const front=W.fb+(W.ft-W.fb)*v,rear=W.rb+(W.rt-W.rb)*v,z=front+(rear-front)*u,y=W.yb+((W.yf+(W.yr-W.yf)*u)-W.yb)*v;return[side*(flankX(y,z)+pad),y,z]};
   windowPanel(map,p=>[p[2],p[1]],p=>Math.sign(p[0])===side&&Math.abs(p[0])>.52);
  }
- // Clip convex window outlines out of a modest roof grid. The cut and glazing share the same outline.
- {const v=[],ix=[],nz=LOW?44:60,ns=LOW?28:40;
-  for(let j=0;j<=nz;j++){const z=-1.5+2.44*j/nz,r=roofSection(z);for(let i=0;i<=ns;i++){const a=i/ns*Math.PI*2,sy=Math.sin(a),x=r.w*Math.sign(Math.cos(a))*Math.pow(Math.abs(Math.cos(a)),2/(sy>=0?r.n:2));v.push(x,sy>=0?roofY(x,z):.91+.56*sy,z)}}
-  const weld=new Map();for(let i=0;i<v.length/3;i++)weld.set(v.slice(i*3,i*3+3).map(n=>n.toFixed(6)).join(','),i);
-  const at=i=>v.slice(i*3,i*3+3),index=p=>{const key=p.map(n=>n.toFixed(6)).join(',');if(weld.has(key))return weld.get(key);const i=v.length/3;v.push(...p);weld.set(key,i);return i};
-  for(const W of openings){let area=0;W.min=[Infinity,Infinity];W.max=[-Infinity,-Infinity];for(let i=0;i<W.outline.length;i++){const a=W.outline[i],b=W.outline[(i+1)%W.outline.length];area+=a[0]*b[1]-b[0]*a[1];for(let k=0;k<2;k++){W.min[k]=Math.min(W.min[k],a[k]);W.max[k]=Math.max(W.max[k],a[k])}}W.sign=Math.sign(area)}
-  function subtract(poly,W){
-   const centre=[0,0,0];for(const p of poly)for(let k=0;k<3;k++)centre[k]+=p[k]/poly.length;if(!W.accept(centre))return[poly];
-   const q=poly.map(W.project);for(let k=0;k<2;k++)if(Math.max(...q.map(p=>p[k]))<W.min[k]||Math.min(...q.map(p=>p[k]))>W.max[k])return[poly];
-   // A separating edge means the whole triangle is outside; avoid needless subdivisions.
-   for(let i=0;i<W.outline.length;i++){const a=W.outline[i],b=W.outline[(i+1)%W.outline.length];if(q.every(p=>W.sign*((b[0]-a[0])*(p[1]-a[1])-(b[1]-a[1])*(p[0]-a[0]))<0))return[poly]}
-   const outside=[];let remaining=poly;
-   for(let i=0;i<W.outline.length;i++){
-    const a=W.outline[i],b=W.outline[(i+1)%W.outline.length],distance=p=>{const q=W.project(p);return W.sign*((b[0]-a[0])*(q[1]-a[1])-(b[1]-a[1])*(q[0]-a[0]))};
-    const inner=[],outer=[];
-    for(let j=0;j<remaining.length;j++){const p=remaining[j],next=remaining[(j+1)%remaining.length],d=distance(p),dn=distance(next);(d>=0?inner:outer).push(p);if((d>=0)!==(dn>=0)){const t=d/(d-dn),cut=p.map((n,k)=>n+(next[k]-n)*t);inner.push(cut);outer.push(cut)}}
-    if(outer.length>=3)outside.push(outer);if(inner.length<3)return outside;remaining=inner;
+ // One continuous central shell: smoothly unite the luggage compartment, door skin and roof.
+ // The same surface supplies the glazing, panel seams and surface normals.
+ {const v=[],ix=[],rows=LOW?64:80,n=LOW?32:44;
+  const bodyPoint=(z,a)=>{const [w,top]=sample(z),cabin=z>=-1.50&&z<=.94,r=cabin?roofSection(z):null,hi=r?Math.max(top,r.top):top;
+   const y=.35+(hi-.35)*(Math.sin(a)+1)*.5,h=2*(y-.35)/(top-.35)-1;
+   let x=w*Math.sqrt(Math.max(0,1-h*h));
+   if(r){const cx=y>=.91?flankX(y,z):r.w*Math.sqrt(Math.max(0,1-((.91-y)/.56)**2));
+    const delta=x-cx;x=(x+cx+Math.sqrt(delta*delta+.0004))*.5;
    }
-   return outside;
-  }
-  const tri=(a,b,c)=>{let polys=[[at(a),at(b),at(c)]];for(const W of openings)polys=polys.flatMap(p=>subtract(p,W));for(const p of polys){const a=index(p[0]);for(let i=1;i<p.length-1;i++)ix.push(a,index(p[i]),index(p[i+1]))}};
-  for(let j=0;j<nz;j++)for(let i=0;i<ns;i++){const a=j*(ns+1)+i,b=a+ns+1;tri(a,a+1,b);tri(b,a+1,b+1)}
-  e('paint',mesh(v,ix),'#fff');
+   return new T.Vector3(Math.sign(Math.cos(a))*x,y,z)};
+  const normals=[];
+  for(let j=0;j<=rows;j++){const z=-2.02+4.04*j/rows;for(let i=0;i<=n;i++){const a=i/n*Math.PI*2,p=bodyPoint(z,a);
+   v.push(...p.toArray());const da=bodyPoint(z,a+.0001).sub(bodyPoint(z,a-.0001)),dz=bodyPoint(Math.min(2.02,z+.0001),a).sub(bodyPoint(Math.max(-2.02,z-.0001),a));
+   normals.push(...da.cross(dz).normalize().toArray());
+  }}
+  for(let j=0;j<rows;j++)for(let i=0;i<n;i++){const a=j*(n+1)+i,b=a+n+1;ix.push(a,a+1,b,b,a+1,b+1)}
+  const g=mesh(v,ix);g.setAttribute('normal',new T.Float32BufferAttribute(normals,3));e('paint',g,'#fff');
  }
  // Simple ivory upholstery and dashboard use the existing trim batch, adding no extra objects.
  e('trim',GB,'#303638',0,.82,-.08,1.38,.16,1.85);e('trim',GB,'#d8d0b9',0,1.235,.53,1.34,.13,.26);e('trim',GB,'#4c595e',0,1.315,.53,1.32,.025,.25);
@@ -434,20 +423,25 @@ function carGeo(){
  e('trim',small,'#d6c9ab',0,1.1,-.86,.62,.10,.26);e('trim',small,'#d6c9ab',0,1.39,-1.02,.62,.26,.09,-.22);
  e('trim',new T.TorusGeometry(.155,.014,5,20),'#e6dfce',-.40,1.44,.29,1,1,1,-.38);e('trim',small,'#e6dfce',-.40,1.44,.29,.048,.048,.035);
  for(const a of [0,Math.PI*2/3,Math.PI*4/3])line('trim',[[-.40,1.44,.29],[-.40+.15*Math.cos(a),1.44+.14*Math.sin(a),.29-.056*Math.sin(a)]],.009,false,'#dcd4c3',6);
- // Separate domed wings with open wheel arches; tyre tops sit inside the wings.
+ // Rounded pontoon wings: a single curved skin from the body joint to the wheel opening.
  for(const side of [-1,1])for(const axle of [-1.2,1.2]){
-  const v=[],ix=[],nz=LOW?18:24,nx=LOW?4:6;
-  for(let j=0;j<=nz;j++){const dz=-.72+1.44*j/nz,top=.47+.59*Math.sqrt(Math.max(0,1-(dz/.73)**2));for(let i=0;i<=nx;i++){const q=i/nx;v.push(side*(.69+.47*q),top+.115*Math.sin(q*Math.PI),axle+dz)}}
+  const v=[],ix=[],nz=LOW?24:32,nx=LOW?8:10;
+  const wing=(dz,q)=>{const z=axle+dz,[w]=sample(z),inner=Math.min(.65,w*.96),bulge=Math.sqrt(Math.max(0,1-(dz/.78)**2)),outer=inner+.53*bulge**.7,top=.45+.64*bulge;
+   const arch=Math.abs(dz)<.505?.49+Math.sqrt(.505**2-dz*dz):.34+.10*(1-bulge),start=shellTop(inner,z),t=1-q;
+   const x=t*t*t*inner+3*t*t*q*(inner+.16)+3*t*q*q*outer+q*q*q*outer;
+   const fade=T.MathUtils.smoothstep(bulge,0,.4),p1=start+(Math.max(start,top)+.14*bulge-start)*fade,p2=start+(top+.10*bulge-start)*fade,p3=start+(Math.min(top,arch)-start)*fade;
+   const y=t*t*t*start+3*t*t*q*p1+3*t*q*q*p2+q*q*q*p3;
+   return new T.Vector3(side*x,y,z)};
+  const normals=[];
+  for(let j=0;j<=nz;j++){const dz=-.78+1.56*j/nz;for(let i=0;i<=nx;i++){const q=i/nx,p=wing(dz,q);v.push(...p.toArray());
+   const dq=wing(dz,Math.min(1,q+.0001)).sub(wing(dz,Math.max(0,q-.0001))),dd=wing(Math.min(.78,dz+.0001),q).sub(wing(Math.max(-.78,dz-.0001),q));
+   const normal=dd.cross(dq).normalize().multiplyScalar(side);normals.push(...normal.toArray());
+  }}
   for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const a=j*(nx+1)+i,b=a+nx+1;if(side>0)ix.push(a,b,a+1,b,b+1,a+1);else ix.push(a,a+1,b,b,a+1,b+1)}
-  const off=v.length/3;
-  for(let j=0;j<=nz;j++){const dz=-.72+1.44*j/nz,top=.47+.59*Math.sqrt(Math.max(0,1-(dz/.73)**2)),opening=Math.abs(dz)<.505?.49+Math.sqrt(.505**2-dz*dz):.29;v.push(side*1.16,top,axle+dz,side*1.145,Math.min(top-.015,opening),axle+dz)}
-  for(let j=0;j<nz;j++){const a=off+j*2;if(side>0)ix.push(a,a+1,a+2,a+2,a+1,a+3);else ix.push(a,a+2,a+1,a+2,a+3,a+1)}
-  e('paint',mesh(v,ix),'#fff');
-  // The inner wing joins the central shell: there is no open gap beside the luggage hood.
-  {const v=[],ix=[];for(let j=0;j<=nz;j++){const dz=-.72+1.44*j/nz,z=axle+dz,[w]=sample(z),x=Math.min(.69,w*.96),y=.47+.59*Math.sqrt(Math.max(0,1-(dz/.73)**2));v.push(side*x,shellTop(x,z),z,side*.69,y,z)}for(let j=0;j<nz;j++){const a=j*2;if(side>0)ix.push(a,a+2,a+1,a+1,a+2,a+3);else ix.push(a,a+1,a+2,a+1,a+3,a+2)}e('paint',mesh(v,ix),'#fff')}
-  const seam=[];for(let j=0;j<=18;j++){const dz=-.69+1.38*j/18;seam.push([side*.70,.47+.59*Math.sqrt(Math.max(0,1-(dz/.73)**2))+.014,axle+dz])}line('trim',seam,.009,false,'#343738',24);
+  const g=mesh(v,ix);g.setAttribute('normal',new T.Float32BufferAttribute(normals,3));e('paint',g,'#fff');
+  const seam=[];for(let j=0;j<=24;j++){const p=wing(-.76+1.52*j/24,0);p.y+=.006;seam.push(p.toArray())}line('trim',seam,.005,false,'#414847',24);
  }
- for(const front of [-1,1]){const v=[],ix=[],nx=LOW?16:24,ny=4;for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++){const x=-.93+1.86*i/nx,t=j/ny,top=.72+.09*T.MathUtils.smoothstep(Math.abs(x),.3,.85),bottom=.37+.22*(Math.abs(x)/.93)**4;v.push(x,bottom+(top-bottom)*t,front*(2.008-.10*(x/.93)**2-.025*Math.sin(t*Math.PI)))}for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const a=j*(nx+1)+i,b=a+nx+1;if(front>0)ix.push(a,a+1,b,b,a+1,b+1);else ix.push(a,b,a+1,b,b+1,a+1)}e('paint',mesh(v,ix),'#fff')}
+ for(const front of [-1,1]){const v=[],ix=[],nx=LOW?16:24,ny=4;for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++){const x=-.93+1.86*i/nx,t=j/ny,top=.81+.04*T.MathUtils.smoothstep(Math.abs(x),.3,.85),bottom=.37+.22*(Math.abs(x)/.93)**4;v.push(x,bottom+(top-bottom)*t,front*(2.008-.10*(x/.93)**2-.025*Math.sin(t*Math.PI)))}for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const a=j*(nx+1)+i,b=a+nx+1;if(front>0)ix.push(a,a+1,b,b,a+1,b+1);else ix.push(a,b,a+1,b,b+1,a+1)}e('paint',mesh(v,ix),'#fff')}
  for(const side of [-1,1]){
   // Black running boards, sill trim and a visible door outline below the glazing.
   e('trim',GB,'#292c2d',side*.98,.43,0,.34,.075,1.38);
@@ -457,11 +451,11 @@ function carGeo(){
   const handle=sidePoint(side,1.23,-.37);e('chrome',small,'#fff',handle[0],handle[1],handle[2],.024,.024,.095);
   if(side<0){const base=sidePoint(side,1.42,.63);line('chrome',[base,[side*.965,1.55,.63]],.014,false,'#fff',8);e('chrome',small,'#fff',side*.99,1.57,.63,.10,.067,.030);e('glass',small,'#fff',side*.99,1.57,.604,.082,.053,.008);}
   // Round headlamps sunk into the forward wings, with thin chrome bezels.
-  e('paint',geos.s,'#fff',side*.925,.90,1.67,.215,.235,.255,-.43);
-  e('chrome',new T.TorusGeometry(.173,.022,6,20),'#fff',side*.925,.947,1.917,1,1,1,-.43);
-  e('chrome',geos.s,'#fff',side*.925,.947,1.917,.151,.151,.020,-.43);e('glass',geos.s,'#fff',side*.925,.950,1.924,.148,.148,.022,-.43);
-  for(const x of [-.075,-.0375,0,.0375,.075])line('trim',[[side*.925+x,.844,1.982],[side*.925+x,1.058,1.884]],.003,false,'#e0e4d7',4);
-  e('chrome',small,'#fff',side*.91,1.105,1.31,.081,.043,.142);e('lamp',small,'#f4ad3c',side*.91,1.12,1.335,.064,.028,.114);
+  e('paint',geos.s,'#fff',side*.925,.90,1.59,.215,.235,.255,-.43);
+  e('chrome',new T.TorusGeometry(.173,.014,8,28),'#fff',side*.925,.947,1.837,1,1,1,-.43);
+  e('chrome',geos.s,'#fff',side*.925,.947,1.837,.145,.145,.020,-.43);e('lens',geos.s,'#fff',side*.925,.950,1.844,.148,.148,.022,-.43);
+  for(const x of [-.075,-.0375,0,.0375,.075])line('trim',[[side*.925+x,.844,1.902],[side*.925+x,1.058,1.804]],.003,false,'#e0e4d7',4);
+  e('chrome',small,'#fff',side*.91,1.285,1.31,.081,.043,.142);e('lamp',small,'#f4ad3c',side*.91,1.307,1.335,.064,.028,.114);
   // Small early-style rear lamps, twin exhaust tips and bumper overriders.
   e('chrome',small,'#fff',side*.98,.84,-1.842,.108,.153,.042,.20);
   e('lamp',small,'#bd352a',side*.98,.86,-1.875,.086,.116,.026,.20);
@@ -481,9 +475,9 @@ function carGeo(){
   for(let i=0;i<6;i++)e('trim',GB,'#39404a',-.125+i*.05,.64,front*2.062,.020,.047,.006);
  }
  // Luggage hood seam and its central chrome spear; rear engine ventilation slots.
- line('trim',onHood([[-.59,1.24,.94],[-.51,1.21,1.28],[-.34,1.04,1.64],[-.13,.86,1.88],[0,.82,1.92],[.13,.86,1.88],[.34,1.04,1.64],[.51,1.21,1.28],[.59,1.24,.94]]),.005,false,'#4b4841',40);
+ line('trim',onHood([[-.66,1.24,.94],[-.63,1.21,1.28],[-.49,1.04,1.64],[-.29,.86,1.88],[0,.82,1.965],[.29,.86,1.88],[.49,1.04,1.64],[.63,1.21,1.28],[.66,1.24,.94]]),.005,false,'#4b4841',40);
  line('chrome',onHood([[0,1.37,.94],[0,1.30,1.25],[0,1.10,1.61],[0,.94,1.81]]),.010,false,'#fff',24);
- e('chrome',small,'#fff',0,.925,1.85,.034,.06,.026,-.40);
+ e('chrome',small,'#fff',0,shellTop(0,1.86)+.025,1.86,.034,.055,.025,-.40);
  for(const x of [-.28,.28]){const z=.86;line('trim',[[x,roofY(x,z)+.025,z],[x+.20,roofY(x+.20,.77)+.025,.77]],.008,false,'#262d30',6)}
  line('trim',onHood([[-.57,1.26,-1.30],[-.48,1.14,-1.64],[-.26,.96,-1.88],[0,.88,-1.98],[.26,.96,-1.88],[.48,1.14,-1.64],[.57,1.26,-1.30]]),.006,false,'#414748',32);
  for(let i=0;i<16;i++){const x=-.45+i*.06,points=[];for(let j=0;j<=4;j++){const z=-1.28-.14*j/4;points.push([x,Math.max(roofY(x,z),shellTop(x,z))+.018,z])}line('trim',points,.008,false,'#293335',6)}
@@ -506,7 +500,7 @@ function carGeo(){
  }
  CARG.tire=mgeo(tire).scale(.725*FUSCA_SCALE,.725*FUSCA_SCALE,.725*FUSCA_SCALE);CARG.hub=mgeo(hub).scale(.725*FUSCA_SCALE,.725*FUSCA_SCALE,.725*FUSCA_SCALE);return CARG;
 }
-function beetle(color){let g=new T.Group();const body=new T.Group(),G=carGeo();g.add(body);for(const k of ['paint','glass','chrome','trim','lamp']){const m=new T.Mesh(G[k],k==='paint'?PAINT[color]??=new T.MeshPhysicalMaterial({color,roughness:.26,metalness:0,clearcoat:.90,clearcoatRoughness:.12,envMap:ENV,envMapIntensity:.6}):k==='glass'?FUSCA_GLASS:CM[k]);m.castShadow=k!=='lamp'&&k!=='glass';m.receiveShadow=k==='paint';body.add(m)}const wheels=[];for(let x of [-.645,.645])for(let z of [-1.2,1.2]){let pivot=new T.Group();pivot.position.set(x*FUSCA_SCALE,.30*FUSCA_SCALE,z*FUSCA_SCALE);g.add(pivot);let w=new T.Mesh(G.tire,CM.trim);w.rotation.z=-Math.sign(x)*Math.PI/2;w.castShadow=true;pivot.add(w);let hub=new T.Mesh(G.hub,CM.chrome);hub.rotation.z=-Math.sign(x)*Math.PI/2;pivot.add(hub);wheels.push({pivot,w,hub,front:z>0})}g.userData={body,wheels,size:{w:.82*FUSCA_SCALE,d:2.07*FUSCA_SCALE},roof:1.47*FUSCA_SCALE,wheelRadius:.47*.725*FUSCA_SCALE};return g}
+function beetle(color){let g=new T.Group();const body=new T.Group(),G=carGeo();g.add(body);for(const k of ['paint','glass','chrome','trim','lamp','lens']){const m=new T.Mesh(G[k],k==='paint'?PAINT[color]??=new T.MeshPhysicalMaterial({color,roughness:.44,metalness:0,clearcoat:.7,clearcoatRoughness:.16,envMap:ENV,envMapIntensity:.45}):k==='glass'?FUSCA_GLASS:k==='lens'?FUSCA_LENS:CM[k]);m.castShadow=k!=='lamp'&&k!=='glass';m.receiveShadow=k==='paint';body.add(m)}const wheels=[];for(let x of [-.645,.645])for(let z of [-1.2,1.2]){let pivot=new T.Group();pivot.position.set(x*FUSCA_SCALE,.30*FUSCA_SCALE,z*FUSCA_SCALE);g.add(pivot);let w=new T.Mesh(G.tire,CM.trim);w.rotation.z=-Math.sign(x)*Math.PI/2;w.castShadow=true;pivot.add(w);let hub=new T.Mesh(G.hub,CM.chrome);hub.rotation.z=-Math.sign(x)*Math.PI/2;pivot.add(hub);wheels.push({pivot,w,hub,front:z>0})}g.userData={body,wheels,size:{w:.82*FUSCA_SCALE,d:2.07*FUSCA_SCALE},roof:1.47*FUSCA_SCALE,wheelRadius:.47*.725*FUSCA_SCALE};return g}
 let car=beetle('#ffc94d');scene.add(car);car.position.set(4,0,30);let angle=Math.PI,velocity=0,steer=0,distance=0,nitro=100,started=false,paused=false,cameraMode=0;
 // Classic car catalogue: each model is merged per material once (paint/glass/chrome/trim/lamp) and shared by every copy.
 // spec: wheels {x,z,r}, collision half-size, mass, display name and handling overrides (K) read by driveStep.
@@ -1074,6 +1068,31 @@ function moto(color){const g=new T.Group(),body=new T.Group(),P=mat(color),D=mat
 function motoPose(v,dt){const u=v.userData,M=u.moto,V=u.vel||{x:0,z:0},mine=v===car&&inCar,r=(mine?u.yawRate:u.spin)||0,fwd=V.x*Math.sin(v.rotation.y)+V.z*Math.cos(v.rotation.y),Mt=T.MathUtils;
  M.lean+=(Mt.clamp(-Math.atan(r*fwd/9.81),-.8,.8)*Mt.smoothstep(Math.abs(fwd),1,6)-M.lean)*(1-Math.exp(-dt*9));u.body.rotation.z=M.lean;u.body.rotation.x*=.4;
  M.spin=(M.spin+fwd*dt/.32)%(Math.PI*2);for(const w of M.real)w.rotation.x=M.spin;const fw=u.wheels.find(w=>w.front);M.fork.rotation.y=fw?fw.pivot.rotation.y*.7:0;M.rider.visible=mine||!!u.aiDriver}
+// Kart: low tube-frame racer (nose cone, side pods, rear bumper, side-mounted engine) with a seated driver. Its four small wheels are
+// real wheel entries (pivot → spinning group), so steering, spin and ground contact use the shared code. Light and grippy, short
+// wheelbase, modest top speed; K follows the Fusca's model scaled to 230 kg (esc/hbTorque ∝ I).
+const KART_K={m:230,I:200,L:1.22,a:.62,b:.6,cg:.04,mu:2.8,acc:20,turbo:30,vmax:35,vmaxTurbo:45,brake:40,esc:2130,hbTorque:270,lock:.5,cornerDecel:16},karts=[];
+function kart(color){const g=new T.Group(),body=new T.Group(),P=mat(color),D=mat('#202428'),S=mat('#3a4247'),C=CM.chrome,add=(par,geo,m,x,y,z,sx=1,sy=1,sz=1,rx=0,ry=0,rz=0)=>{const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.rotation.set(rx,ry,rz);o.castShadow=true;par.add(o);return o};
+ g.add(body);
+ // Frame, floor, bodywork.
+ for(const s of [-1,1]){add(body,C8,S,s*.34,.12,0,.025,1.55,.025,Math.PI/2);add(body,C8,S,s*.47,.13,.6,.02,.3,.02,0,0,Math.PI/2);add(body,C8,S,s*.5,.14,-.62,.022,.3,.022,0,0,Math.PI/2)}
+ add(body,GB,D,0,.09,-.05,.66,.03,1.3);add(body,GB,P,0,.2,.83,.92,.15,.26,.18);add(body,GB,P,0,.27,.6,.5,.14,.4,-.28);add(body,GB,mat('#f4f1ea'),0,.36,.69,.36,.24,.02,-.45);
+ for(const s of [-1,1]){add(body,GB,P,s*.6,.2,-.04,.17,.17,.72);add(body,GB,mat('#f4f1ea'),s*.69,.24,-.04,.01,.08,.5)}
+ add(body,GB,D,0,.22,-.93,1.28,.11,.1);for(const s of [-1,1])add(body,C8,S,s*.45,.2,-.85,.02,.18,.02,Math.PI/2);
+ add(body,GB,D,0,.3,-.28,.44,.34,.12,-.3);add(body,GB,D,0,.17,-.18,.44,.08,.36);
+ add(body,GB,S,.3,.3,-.58,.24,.26,.3);add(body,GB,mat('#596268'),.3,.48,-.58,.2,.06,.26);add(body,C8,C,.47,.3,-.7,.05,.42,.05,Math.PI/2+.2);add(body,C8,C,.47,.33,-.92,.06,.1,.06,Math.PI/2+.2);
+ // Steering column and wheel (st turns with the front wheels).
+ add(body,C8,S,0,.37,.35,.02,.4,.02,-.88);const st=new T.Group();st.position.set(0,.5,.2);st.rotation.x=.69;body.add(st);add(st,new T.TorusGeometry(.13,.018,6,20),D,0,0,0);add(st,GB,D,0,0,0,.24,.025,.025);
+ // Driver: suit, helmet in the kart's colour, hands on the wheel, legs stretched to the pedals.
+ const drv=new T.Group();body.add(drv);const suit=mat('#1d2226'),limb=(a,b,r,m)=>{const A=new T.Vector3(...a),B=new T.Vector3(...b),o=new T.Mesh(C8,m);o.position.copy(A).add(B).multiplyScalar(.5);o.scale.set(r,A.distanceTo(B),r);o.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),B.sub(A).normalize());o.castShadow=true;drv.add(o)};
+ add(drv,GB,suit,0,.58,-.22,.38,.44,.24,-.22);add(drv,GB,P,0,.66,-.21,.39,.1,.25,-.22);add(drv,geos.s,P,0,.95,-.16,.15,.15,.16);add(drv,GB,mat('#14181b'),0,.96,-.03,.17,.07,.04);
+ for(const s of [-1,1]){limb([s*.18,.74,-.17],[s*.17,.6,.02],.055,suit);limb([s*.17,.6,.02],[s*.11,.52,.17],.05,suit);limb([s*.11,.36,-.2],[s*.13,.34,.2],.075,suit);limb([s*.13,.34,.2],[s*.15,.24,.52],.065,suit);add(drv,GB,D,s*.15,.22,.58,.09,.1,.14)}
+ // Wheels: slick tyres (wider at the rear) on coloured rims.
+ const wheels=[];for(const [x,z,r,wd] of [[-.58,.6,.14,.15],[.58,.6,.14,.15],[-.62,-.62,.165,.22],[.62,-.62,.165,.22]]){const pivot=new T.Group();pivot.position.set(x,r,z);g.add(pivot);const w=new T.Group();pivot.add(w);
+  add(w,C12,D,0,0,0,r,wd,r,0,0,Math.PI/2);add(w,C12,P,Math.sign(x)*(wd/2+.004),0,0,r*.62,.02,r*.62,0,0,Math.PI/2);wheels.push({pivot,w,front:z>0,bar:new T.Object3D()})}
+ g.userData={body,wheels,size:{w:.72,d:1.0},mass:230,model:'Kart',K:KART_K,roof:.95,wheelRadius:.15,kart:{st,drv}};karts.push(g);return g}
+// Kart driver shows only while someone drives it; the steering wheel follows the front wheels; no body roll to speak of.
+function kartPose(v){const u=v.userData,fw=u.wheels[0];u.kart.st.rotation.z=-(fw.pivot.rotation.y||0)*2.2;u.kart.drv.visible=v===car&&inCar||!!u.aiDriver;u.body.rotation.z*=.3;u.body.rotation.x*=.5}
 const RACE_MODES={
  carro:{name:'Carro',sub:'Fuscas • 2 voltas',laps:2,make:c=>beetle(c),who:R=>'O Fusca '+R.col[1],
   rc:{alat:19,brake:18,vtop:56,engine:22,drag:.2,beta:.55,turbo:64},icon:'<path d="M5 21c0-8 7-14 17-14s16 5 18 9l4 1c2 1 2 3 2 4z" fill="currentColor"/><circle cx="14" cy="21" r="4.5" fill="#0c2229" stroke="currentColor" stroke-width="2"/><circle cx="36" cy="21" r="4.5" fill="#0c2229" stroke="currentColor" stroke-width="2"/>'},
@@ -1081,7 +1100,8 @@ const RACE_MODES={
   rc:{alat:13,brake:10,vtop:30,engine:10.5,drag:.15,beta:.18,turbo:35},icon:'<path d="M2 5h27v15H2zM31 9h8l7 7v5H31z" fill="currentColor"/><circle cx="10" cy="22" r="4" fill="#0c2229" stroke="currentColor" stroke-width="2"/><circle cx="38" cy="22" r="4" fill="#0c2229" stroke="currentColor" stroke-width="2"/>'},
  moto:{name:'Moto',sub:'Esportivas • 2 voltas',laps:2,make:c=>moto(c),who:R=>'A moto '+R.col[2],
   rc:{alat:20,brake:21,vtop:55,engine:24,drag:.22,beta:.06,turbo:62},icon:'<circle cx="10" cy="20" r="6" fill="none" stroke="currentColor" stroke-width="2.5"/><circle cx="38" cy="20" r="6" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M10 20l9-8h11l8 8M30 12l4-6h4M17 12l4-4h7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><circle cx="25" cy="5" r="3" fill="currentColor"/>'},
- kart:{name:'Kart',sub:'Em breve',soon:true,icon:'<path d="M3 20l7-4h24l11 3v3H3z" fill="currentColor"/><circle cx="22" cy="10" r="3.5" fill="currentColor"/><circle cx="10" cy="22" r="4" fill="#0c2229" stroke="currentColor" stroke-width="2"/><circle cx="38" cy="22" r="4" fill="#0c2229" stroke="currentColor" stroke-width="2"/>'}},RACE_ORDER=Object.keys(RACE_MODES);
+ kart:{name:'Kart',sub:'Karts de corrida • 2 voltas',laps:2,make:c=>kart(c),who:R=>'O kart '+R.col[1],
+  rc:{alat:22,brake:20,vtop:35,engine:19,drag:.25,beta:.28,turbo:43},icon:'<path d="M3 20l7-4h24l11 3v3H3z" fill="currentColor"/><circle cx="22" cy="10" r="3.5" fill="currentColor"/><circle cx="10" cy="22" r="4" fill="#0c2229" stroke="currentColor" stroke-width="2"/><circle cx="38" cy="22" r="4" fill="#0c2229" stroke="currentColor" stroke-width="2"/>'}},RACE_ORDER=Object.keys(RACE_MODES);
 const race={on:false,t:0,bet:0,stake:0,prize:0,shown:0,lap:1,laps:2,time:0,wrong:0,away:0,after:0,go:0,skill:.95,slot:0,me:{i:-1,p:0},field:null,fin:[],cars:[],mode:'carro',rc:RACE_MODES.carro.rc,pools:{},mine:{},sel:0};
 // Rival vehicles per mode, built on first use and reused afterwards.
 function racePool(mode){return race.pools[mode]??=RIVAL_COL.slice(0,RACE_N-1).map(col=>{const g=RACE_MODES[mode].make(col[0]);g.visible=false;g.userData.racer=col;scene.add(g);return g})}
@@ -1090,7 +1110,7 @@ const raceRing=new T.Mesh(new T.TorusGeometry(4.5,.22,8,40),new T.MeshBasicMater
 // Mode menu (built here so the race code stays self-contained): 1–4 / arrows + Enter / click; Esc or E closes.
 {const st=document.createElement('style');st.textContent='#racemenu{position:absolute;inset:0;z-index:23;display:flex;align-items:center;justify-content:center;padding:16px;background:radial-gradient(ellipse at center,#0f2c45b8,#07131fe6);animation:bustIn .35s ease-out}#racemenu[hidden]{display:none}.rm-card{width:100%;max-width:780px;text-align:center;color:#fff}.rm-eye{font-size:11px;letter-spacing:3px;color:var(--ha)}#racemenu h2{font:800 clamp(34px,6vw,62px)/1 "Bahnschrift Condensed","Arial Narrow",sans-serif;margin:8px 0 8px}#racemenu p{color:#ffffffc8;font-size:13px;line-height:1.5;margin:0 0 18px}.rm-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.rm-grid button{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:20px 10px 14px;border-radius:12px;background:var(--hb);border:1px solid var(--hl);color:#fff;cursor:pointer;font:inherit;transition:transform .12s,box-shadow .12s}.rm-grid button.sel,.rm-grid button:hover:not(:disabled){box-shadow:0 0 0 2px var(--ha) inset;background:#123540f0;transform:translateY(-2px)}.rm-grid button:disabled{opacity:.5;cursor:default}.rm-grid svg{width:76px;height:44px;color:var(--ha)}.rm-grid button:disabled svg{color:var(--hd)}.rm-grid b{font:700 24px var(--hn);letter-spacing:.5px}.rm-grid small{font-size:11px;color:var(--hd)}.rm-grid kbd{position:absolute;top:8px;left:10px;font-size:10px;opacity:.75}.rm-grid em{position:absolute;top:8px;right:8px;font-style:normal;font-size:9px;font-weight:700;letter-spacing:1px;background:var(--hw);color:#2a1a0c;padding:2px 6px;border-radius:4px}.rm-foot{margin-top:16px;font-size:11px;color:var(--hd)}@media (max-width:620px){.rm-grid{grid-template-columns:repeat(2,1fr)}}@media (max-height:430px){#racemenu h2{font-size:30px}#racemenu p{margin-bottom:10px}.rm-grid button{padding:14px 8px 10px}.rm-grid svg{height:30px}}';document.head.appendChild(st)}
 const raceMenu=document.createElement('div');raceMenu.id='racemenu';raceMenu.hidden=true;
-raceMenu.innerHTML='<div class="rm-card"><div class="rm-eye">AUTÓDROMO COSTA DO SOL</div><h2>Escolha a corrida</h2><p id="rmInfo"></p><div class="rm-grid">'+RACE_ORDER.map((k,i)=>{const M=RACE_MODES[k];return '<button data-mode="'+k+'"'+(M.soon?' disabled':'')+'><kbd>'+(i+1)+'</kbd><svg viewBox="0 0 48 28">'+M.icon+'</svg><b>'+M.name+'</b><small>'+M.sub+'</small>'+(M.soon?'<em>EM BREVE</em>':'')+'</button>'}).join('')+'</div><div class="rm-foot">1–3 ou setas + Enter escolhem • Esc fecha</div></div>';
+raceMenu.innerHTML='<div class="rm-card"><div class="rm-eye">AUTÓDROMO COSTA DO SOL</div><h2>Escolha a corrida</h2><p id="rmInfo"></p><div class="rm-grid">'+RACE_ORDER.map((k,i)=>{const M=RACE_MODES[k];return '<button data-mode="'+k+'"'+(M.soon?' disabled':'')+'><kbd>'+(i+1)+'</kbd><svg viewBox="0 0 48 28">'+M.icon+'</svg><b>'+M.name+'</b><small>'+M.sub+'</small>'+(M.soon?'<em>EM BREVE</em>':'')+'</button>'}).join('')+'</div><div class="rm-foot">1–4 ou setas + Enter escolhem • Esc fecha</div></div>';
 document.body.appendChild(raceMenu);
 for(const b of raceMenu.querySelectorAll('button'))b.addEventListener('click',e=>{e.stopPropagation();b.blur();racePick(b.dataset.mode)});
 addEventListener('keydown',e=>{if(raceMenu.hidden)return;const k=e.key;let used=true;
@@ -1112,7 +1132,7 @@ function raceTry(){if(!raceNear())return false;if(Math.abs(velocity)>2){toast('P
  raceMenu.hidden=false;return true}
 // The player's vehicle for a mode: the current one when it already belongs to that class, else the mode's race vehicle (built once,
 // registered as a parked, already-owned traffic entry so it collides, can be re-entered and never counts as a theft).
-function raceClass(v){const m=v.userData.model;return m==='Caminhão'?'caminhao':m==='Moto'?'moto':'carro'}
+function raceClass(v){const m=v.userData.model;return m==='Caminhão'?'caminhao':m==='Moto'?'moto':m==='Kart'?'kart':'carro'}
 function raceVehicle(mode){if(raceClass(car)===mode)return car;let v=race.mine[mode];
  if(!v){v=race.mine[mode]=RACE_MODES[mode].make(RACE_MINE);scene.add(v);const t={g:v,road:0,axis:0,dir:1,pos:0,speed:0,raceOwned:true};traffic.push(t);v.userData.traffic=t;v.userData.vel={x:0,z:0};stolenCars.add(v);vehicleCache=[]}
  v.visible=true;return v}
@@ -1152,7 +1172,7 @@ function updateRace(dt){const pos=actorPos(),idle=!race.on&&!race.field;raceLabe
  if(!raceMenu.hidden&&(!inCar||race.on||car.position.distanceTo(RACE_RING)>9||Math.abs(velocity)>4))raceMenuClose();
  if(race.go>0&&(race.go-=dt)<=0)setLights(0);
  if(race.field){race.cars=raceCars();for(const R of race.field)rivalDrive(R,dt)}
- for(const v of motos)if(v.visible)motoPose(v,dt);
+ for(const v of motos)if(v.visible)motoPose(v,dt);for(const v of karts)if(v.visible)kartPose(v);
  if(!race.on){if(race.field&&(race.after-=dt)<=0&&(race.after<-12||race.field.every(R=>R.g.position.distanceTo(cam.position)>70)))hideField();return}
  if(!inCar){endRace('Você saiu do veículo. Aposta perdida.');return}
  if(wanted){endRace('Com a polícia na cola a corrida acabou. Aposta perdida.');return}
