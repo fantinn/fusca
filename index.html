@@ -416,6 +416,7 @@ function carGeo(){
   }}
   for(let j=0;j<rows;j++)for(let i=0;i<n;i++){const a=j*(n+1)+i,b=a+n+1;ix.push(a,a+1,b,b,a+1,b+1)}
   const g=mesh(v,ix);g.setAttribute('normal',new T.Float32BufferAttribute(normals,3));e('paint',g,'#fff');
+  for(const end of [-1,1]){const z=end*2.02,[w,top]=sample(z),cv=[0,(top+.35)*.5,z],ci=[];for(let i=0;i<=n;i++){const a=i/n*Math.PI*2;cv.push(w*Math.cos(a),.35+(top-.35)*(Math.sin(a)+1)*.5,z);if(i<n)ci.push(0,end>0?i+1:i+2,end>0?i+2:i+1)}e('paint',mesh(cv,ci),'#fff')}
  }
  // Simple ivory upholstery and dashboard use the existing trim batch, adding no extra objects.
  e('trim',GB,'#303638',0,.82,-.08,1.38,.16,1.85);e('trim',GB,'#d8d0b9',0,1.235,.53,1.34,.13,.26);e('trim',GB,'#4c595e',0,1.315,.53,1.32,.025,.25);
@@ -424,14 +425,14 @@ function carGeo(){
  e('trim',new T.TorusGeometry(.155,.014,5,20),'#e6dfce',-.40,1.44,.29,1,1,1,-.38);e('trim',small,'#e6dfce',-.40,1.44,.29,.048,.048,.035);
  for(const a of [0,Math.PI*2/3,Math.PI*4/3])line('trim',[[-.40,1.44,.29],[-.40+.15*Math.cos(a),1.44+.14*Math.sin(a),.29-.056*Math.sin(a)]],.009,false,'#dcd4c3',6);
  // Rounded pontoon wings: a single curved skin from the body joint to the wheel opening.
- for(const side of [-1,1])for(const axle of [-1.2,1.2]){
-  const v=[],ix=[],nz=LOW?24:32,nx=LOW?8:10;
-  const wing=(dz,q)=>{const z=axle+dz,[w]=sample(z),inner=Math.min(.65,w*.96),bulge=Math.sqrt(Math.max(0,1-(dz/.78)**2)),outer=inner+.53*bulge**.7,top=.45+.64*bulge;
+ const wingSurface=(side,axle,dz,q)=>{const z=axle+dz,[w]=sample(z),inner=Math.min(.65,w*.96),bulge=Math.sqrt(Math.max(0,1-(dz/.78)**2)),outer=inner+.53*bulge**.7,top=.45+.64*bulge;
    const arch=Math.abs(dz)<.505?.49+Math.sqrt(.505**2-dz*dz):.34+.10*(1-bulge),start=shellTop(inner,z),t=1-q;
    const x=t*t*t*inner+3*t*t*q*(inner+.16)+3*t*q*q*outer+q*q*q*outer;
    const fade=T.MathUtils.smoothstep(bulge,0,.4),p1=start+(Math.max(start,top)+.14*bulge-start)*fade,p2=start+(top+.10*bulge-start)*fade,p3=start+(Math.min(top,arch)-start)*fade;
    const y=t*t*t*start+3*t*t*q*p1+3*t*q*q*p2+q*q*q*p3;
    return new T.Vector3(side*x,y,z)};
+ for(const side of [-1,1])for(const axle of [-1.2,1.2]){
+  const v=[],ix=[],nz=LOW?24:32,nx=LOW?8:10,wing=(dz,q)=>wingSurface(side,axle,dz,q);
   const normals=[];
   for(let j=0;j<=nz;j++){const dz=-.78+1.56*j/nz;for(let i=0;i<=nx;i++){const q=i/nx,p=wing(dz,q);v.push(...p.toArray());
    const dq=wing(dz,Math.min(1,q+.0001)).sub(wing(dz,Math.max(0,q-.0001))),dd=wing(Math.min(.78,dz+.0001),q).sub(wing(Math.max(-.78,dz-.0001),q));
@@ -455,7 +456,7 @@ function carGeo(){
   e('chrome',new T.TorusGeometry(.173,.014,8,28),'#fff',side*.925,.947,1.837,1,1,1,-.43);
   e('chrome',geos.s,'#fff',side*.925,.947,1.837,.145,.145,.020,-.43);e('lens',geos.s,'#fff',side*.925,.950,1.844,.148,.148,.022,-.43);
   for(const x of [-.075,-.0375,0,.0375,.075])line('trim',[[side*.925+x,.844,1.902],[side*.925+x,1.058,1.804]],.003,false,'#e0e4d7',4);
-  e('chrome',small,'#fff',side*.91,1.285,1.31,.081,.043,.142);e('lamp',small,'#f4ad3c',side*.91,1.307,1.335,.064,.028,.114);
+  const turn=wingSurface(side,1.2,.11,.45);e('chrome',small,'#fff',turn.x,turn.y+.015,turn.z,.078,.024,.122);e('lamp',small,'#f4ad3c',turn.x,turn.y+.033,turn.z+.008,.063,.014,.100);
   // Small early-style rear lamps, twin exhaust tips and bumper overriders.
   e('chrome',small,'#fff',side*.98,.84,-1.842,.108,.153,.042,.20);
   e('lamp',small,'#bd352a',side*.98,.86,-1.875,.086,.116,.026,.20);
@@ -1062,7 +1063,7 @@ function moto(color){const g=new T.Group(),body=new T.Group(),P=mat(color),D=mat
  add(rider,GB,suit,0,1.22,0,.36,.5,.24,.95);add(rider,GB,P,0,1.24,.02,.37,.18,.25,.95);add(rider,geos.s,P,0,1.42,.34,.16,.16,.18);add(rider,GB,mat('#14181b'),0,1.43,.48,.17,.08,.04,-.2);
  for(const s of [-1,1]){limb([s*.17,1.32,.18],[s*.27,1.14,.38],.07,suit);limb([s*.27,1.14,.38],[s*.3,1.0,.5],.06,suit);limb([s*.13,.98,-.18],[s*.24,.86,.2],.09,suit);limb([s*.24,.86,.2],[s*.2,.46,-.06],.08,suit);add(rider,GB,D,s*.2,.42,.0,.09,.08,.22)}
  const wheels=[];for(const x of [-.3,.3])for(const z of [-.72,.72]){const pivot=new T.Group();pivot.position.set(x,.16,z);pivot.visible=false;g.add(pivot);const w=new T.Object3D();pivot.add(w);wheels.push({pivot,w,front:z>0})}
- g.userData={body,wheels,size:{w:.5,d:1.15},mass:300,model:'Moto',K:MOTO_K,roof:1.6,wheelRadius:.32,moto:{real,fork,rider,lean:0,spin:0}};motos.push(g);return g}
+ g.userData={body,wheels,size:{w:.5,d:1.15},mass:300,model:'Moto',K:MOTO_K,roof:1.6,wheelRadius:.32,camScale:.75,moto:{real,fork,rider,lean:0,spin:0}};motos.push(g);return g}
 // Lean into the turn by the lateral acceleration (atan(yaw rate × speed / g)), spin the real wheels, turn the fork with the front ghost
 // pivot, and show the rider only while someone rides it.
 function motoPose(v,dt){const u=v.userData,M=u.moto,V=u.vel||{x:0,z:0},mine=v===car&&inCar,r=(mine?u.yawRate:u.spin)||0,fwd=V.x*Math.sin(v.rotation.y)+V.z*Math.cos(v.rotation.y),Mt=T.MathUtils;
@@ -1080,7 +1081,7 @@ function kart(color){const g=new T.Group(),body=new T.Group(),P=mat(color),D=mat
  for(const s of [-1,1]){add(body,GB,P,s*.6,.2,-.04,.17,.17,.72);add(body,GB,mat('#f4f1ea'),s*.69,.24,-.04,.01,.08,.5)}
  add(body,GB,D,0,.22,-.93,1.28,.11,.1);for(const s of [-1,1])add(body,C8,S,s*.45,.2,-.85,.02,.18,.02,Math.PI/2);
  add(body,GB,D,0,.3,-.28,.44,.34,.12,-.3);add(body,GB,D,0,.17,-.18,.44,.08,.36);
- add(body,GB,S,.3,.3,-.58,.24,.26,.3);add(body,GB,mat('#596268'),.3,.48,-.58,.2,.06,.26);add(body,C8,C,.47,.3,-.7,.05,.42,.05,Math.PI/2+.2);add(body,C8,C,.47,.33,-.92,.06,.1,.06,Math.PI/2+.2);
+ add(body,GB,S,.3,.3,-.58,.24,.26,.3);add(body,GB,mat('#596268'),.3,.48,-.58,.2,.06,.26);add(body,C8,C,.33,.5,-.82,.045,.36,.045,Math.PI/2+.35);add(body,C8,C,.33,.56,-1.0,.055,.08,.055,Math.PI/2+.35);
  // Steering column and wheel (st turns with the front wheels).
  add(body,C8,S,0,.37,.35,.02,.4,.02,-.88);const st=new T.Group();st.position.set(0,.5,.2);st.rotation.x=.69;body.add(st);add(st,new T.TorusGeometry(.13,.018,6,20),D,0,0,0);add(st,GB,D,0,0,0,.24,.025,.025);
  // Driver: suit, helmet in the kart's colour, hands on the wheel, legs stretched to the pedals.
@@ -1090,7 +1091,7 @@ function kart(color){const g=new T.Group(),body=new T.Group(),P=mat(color),D=mat
  // Wheels: slick tyres (wider at the rear) on coloured rims.
  const wheels=[];for(const [x,z,r,wd] of [[-.58,.6,.14,.15],[.58,.6,.14,.15],[-.62,-.62,.165,.22],[.62,-.62,.165,.22]]){const pivot=new T.Group();pivot.position.set(x,r,z);g.add(pivot);const w=new T.Group();pivot.add(w);
   add(w,C12,D,0,0,0,r,wd,r,0,0,Math.PI/2);add(w,C12,P,Math.sign(x)*(wd/2+.004),0,0,r*.62,.02,r*.62,0,0,Math.PI/2);wheels.push({pivot,w,front:z>0,bar:new T.Object3D()})}
- g.userData={body,wheels,size:{w:.72,d:1.0},mass:230,model:'Kart',K:KART_K,roof:.95,wheelRadius:.15,kart:{st,drv}};karts.push(g);return g}
+ g.userData={body,wheels,size:{w:.72,d:1.0},mass:230,model:'Kart',K:KART_K,roof:.95,wheelRadius:.15,camScale:.62,kart:{st,drv}};karts.push(g);return g}
 // Kart driver shows only while someone drives it; the steering wheel follows the front wheels; no body roll to speak of.
 function kartPose(v){const u=v.userData,fw=u.wheels[0];u.kart.st.rotation.z=-(fw.pivot.rotation.y||0)*2.2;u.kart.drv.visible=v===car&&inCar||!!u.aiDriver;u.body.rotation.z*=.3;u.body.rotation.x*=.5}
 const RACE_MODES={
@@ -2522,8 +2523,8 @@ function update(dt){
   for(const c of clouds){c.position.x+=dt*.6;if(c.position.x>600)c.position.x=-600}
   updateTraffic(dt);updateLooseVehicles(dt);updateFallers(dt);updatePeople(dt);for(const v of vehicleList())if(!v.userData.police&&!v.userData.aiDriver&&(v!==car||!inCar))groundVehicle(v,dt);updateDistrict(dt);cullFar(dt);shopGoods.visible=simTime>=shopRestock;
   if(started){updateCombat(dt);updateCalm(dt);if(inCar)drive(dt);else walk(dt);updatePolice(dt);updateRace(dt);
-   const pos=actorPos(),a=inCar?carCam(dt):(camYaw=surf.active?surfCam(dt):heading),behind=inCar?(cameraMode?7.5:12)+camRig.pull:surf.active?surf.camBack:(cameraMode?5:7),lead=inCar?camRig.look:0;
-   target.set(pos.x-Math.sin(a)*behind+(inCar?camRig.x:surf.active?surf.camOX:0),pos.y+(inCar?5.5+camRig.pull*.3:surf.active?surf.camUp:4.4),pos.z-Math.cos(a)*behind+(inCar?camRig.z:surf.active?surf.camOZ:0));if(surf.active)target.copy(SC_T);else target.y=Math.max(target.y,surfaceY(target.x,target.z)+2.4);const bore=tunnelAt(pos.x,pos.z,1);if(bore){target.x=T.MathUtils.clamp(target.x,bore.x-4,bore.x+4);target.y=Math.min(target.y,tunnelFloor(bore,T.MathUtils.clamp(target.z,bore.z0,bore.z1))+5.8)}cam.position.lerp(target,1-Math.exp(-dt*(inCar?8:surf.active?9:5)));if(surf.active){surfCamClear(cam.position);cam.position.y=Math.max(cam.position.y,SEA_Y+oceanHeight(cam.position.x,cam.position.z)+1.1,surfaceY(cam.position.x,cam.position.z)+1.2)}else cam.position.y=Math.max(cam.position.y,surfaceY(cam.position.x,cam.position.z)+1.8);if(bore){cam.position.x=T.MathUtils.clamp(cam.position.x,bore.x-4,bore.x+4);cam.position.y=Math.min(cam.position.y,tunnelFloor(bore,T.MathUtils.clamp(cam.position.z,bore.z0,bore.z1))+5.8)}
+   const pos=actorPos(),camK=inCar?car.userData.camScale||1:1,a=inCar?carCam(dt):(camYaw=surf.active?surfCam(dt):heading),behind=inCar?((cameraMode?7.5:12)+camRig.pull)*camK:surf.active?surf.camBack:(cameraMode?5:7),lead=inCar?camRig.look:0;
+   target.set(pos.x-Math.sin(a)*behind+(inCar?camRig.x:surf.active?surf.camOX:0),pos.y+(inCar?(5.5+camRig.pull*.3)*camK:surf.active?surf.camUp:4.4),pos.z-Math.cos(a)*behind+(inCar?camRig.z:surf.active?surf.camOZ:0));if(surf.active)target.copy(SC_T);else target.y=Math.max(target.y,surfaceY(target.x,target.z)+2.4);const bore=tunnelAt(pos.x,pos.z,1);if(bore){target.x=T.MathUtils.clamp(target.x,bore.x-4,bore.x+4);target.y=Math.min(target.y,tunnelFloor(bore,T.MathUtils.clamp(target.z,bore.z0,bore.z1))+5.8)}cam.position.lerp(target,1-Math.exp(-dt*(inCar?8:surf.active?9:5)));if(surf.active){surfCamClear(cam.position);cam.position.y=Math.max(cam.position.y,SEA_Y+oceanHeight(cam.position.x,cam.position.z)+1.1,surfaceY(cam.position.x,cam.position.z)+1.2)}else cam.position.y=Math.max(cam.position.y,surfaceY(cam.position.x,cam.position.z)+1.8);if(bore){cam.position.x=T.MathUtils.clamp(cam.position.x,bore.x-4,bore.x+4);cam.position.y=Math.min(cam.position.y,tunnelFloor(bore,T.MathUtils.clamp(cam.position.z,bore.z0,bore.z1))+5.8)}
    look.set(pos.x+Math.sin(a+lead)*(inCar?6:surf.active?surf.camAhead:2),pos.y+(surf.active?.9:1.4),pos.z+Math.cos(a+lead)*(inCar?6:surf.active?surf.camAhead:2));if(surf.active)look.copy(SC_L);cam.lookAt(look);
    if(shake>0){cam.position.x+=Math.sin(simTime*91)*shake*.17;cam.position.y+=Math.cos(simTime*79)*shake*.12}
    carAudio(dt);sirenAudio(dt);
