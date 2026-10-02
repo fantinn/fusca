@@ -21,7 +21,7 @@ body.touch #surfhud{top:158px;right:var(--sr);width:150px;padding:8px 10px;borde
 const XMAX=560,BR={x0:266,x1:296,x2:344,x3:374,h:6.5};function deckY(x,z){if(Math.abs(z)>10.5||x<=BR.x0||x>=BR.x3)return 0;return x<BR.x1?(x-BR.x0)/(BR.x1-BR.x0)*BR.h:x<=BR.x2?BR.h:(BR.x3-x)/(BR.x3-BR.x2)*BR.h}function deckSlope(x,z){if(Math.abs(z)>10.5||x<=BR.x0||x>=BR.x3||x>BR.x1&&x<BR.x2)return 0;return x<BR.x1?BR.h/(BR.x1-BR.x0):-BR.h/(BR.x3-BR.x2)}
 
 // Shared road/terrain height field. All wheels, walkers and effects use this surface.
-const WORLD_Z_MIN=-1180,WORLD_Z_MAX=262;
+const WORLD_Z_MIN=-1180,WORLD_Z_MAX=700; // z>262: green belt, boundary wall (z=322) and the autódromo
 const SUMMITS=[{x:-110,z:-442,h:48,rx:112,rz:105,name:'MIRANTE DO SOL'},{x:112,z:-528,h:65,rx:123,rz:115,name:'PICO ALTO'},{x:412,z:-463,h:51,rx:113,rz:122,name:'PEDRA VERDE'},{x:112,z:-800,h:76,rx:128,rz:88,name:'SERRA DOS TÚNEIS'},{x:412,z:-965,h:88,rx:132,rz:94,name:'PICO DA NEBLINA'}];
 const terrainBlend=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t)};
 function terrainHeight(x,z){if(z>=-258)return 0;let h=0;for(const m of SUMMITS){const d=((x-m.x)/m.rx)**2+((z-m.z)/m.rz)**2;h+=m.h*Math.exp(-d*1.35)}const entry=terrainBlend((-z-258)/72),coast=terrainBlend((x+268)/55);return entry*coast*(h+(1.4+1.3*Math.sin(x*.042)*Math.cos(z*.034))*terrainBlend((-z-278)/45))}
@@ -330,7 +330,7 @@ function carGeo(){if(CARG)return CARG;const B={paint:mb(),glass:mb(),chrome:mb()
  e('chrome',C12,'#fff',0,1.2,2.03,.09,.03,.09,Math.PI/2-.7);e('chrome',GB,'#fff',0,1.4,1.4,.05,.025,.8,.3);e('trim',GB,'#1d2224',0,.42,0,1.6,.2,3.4);for(const x of [-.98,.98])e('trim',GB,'#2b3033',x,.58,0,.34,.08,1.5);e('trim',GB,'#f0eee4',0,.74,-2.0,.5,.17,.04);for(let k=0;k<4;k++)e('trim',GB,'#3a3f41',0,1.2+k*.06,-1.93+k*.05,.46,.025,.05);
  CARG={};for(const k in B)CARG[k]=mgeo(B[k]);const t=mb();madd(t,new T.CylinderGeometry(.47,.47,.29,20),'#24292b',mx());for(const sd of [-1,1]){madd(t,new T.RingGeometry(.31,.41,20),'#ecebe3',mx(0,sd*.15,0,1,1,1,-sd*Math.PI/2));madd(t,new T.RingGeometry(.25,.31,20),'#c8c3b6',mx(0,sd*.151,0,1,1,1,-sd*Math.PI/2))}CARG.tire=mgeo(t);CARG.hub=new T.CylinderGeometry(.26,.26,.31,16);return CARG}
 function beetle(color){let g=new T.Group();const body=new T.Group(),G=carGeo();g.add(body);for(const k of ['paint','glass','chrome','trim','lamp']){const m=new T.Mesh(G[k],k==='paint'?PAINT[color]??=new T.MeshPhysicalMaterial({color,roughness:.42,metalness:0,clearcoat:.6,clearcoatRoughness:.1,envMap:ENV,envMapIntensity:.6}):CM[k]);m.castShadow=k!=='lamp';m.receiveShadow=k==='paint';body.add(m)}const wheels=[];for(let x of [-1.02,1.02])for(let z of [-1.2,1.2]){let pivot=new T.Group();pivot.position.set(x,.49,z);g.add(pivot);let w=new T.Mesh(G.tire,CM.trim);w.rotation.z=Math.PI/2;w.castShadow=true;pivot.add(w);let hub=new T.Mesh(G.hub,CM.chrome);hub.rotation.z=Math.PI/2;pivot.add(hub);wheels.push({pivot,w,hub,front:z>0})}g.userData={body,wheels};return g}
-let car=beetle('#ffc94d');scene.add(car);car.position.set(-4,0,30);let angle=Math.PI,velocity=0,steer=0,distance=0,nitro=100,started=false,paused=false,cameraMode=0;
+let car=beetle('#ffc94d');scene.add(car);car.position.set(4,0,30);let angle=Math.PI,velocity=0,steer=0,distance=0,nitro=100,started=false,paused=false,cameraMode=0;
 // Classic car catalogue: each model is merged per material once (paint/glass/chrome/trim/lamp) and shared by every copy.
 // spec: wheels {x,z,r}, collision half-size, mass, display name and handling overrides (K) read by driveStep.
 // Coachwork helpers are used only by the non-Beetle catalogue; geometry remains shared per model.
@@ -689,6 +689,73 @@ for(const t of TUNNELS){roadSign(t.x+10,t.z1+12,t.name,'Reduza • faróis e pis
 for(const points of SERRA_ROUTES)for(let i=18;i<points.length-3;i+=24){const a=points[i-1],b=points[i+1],dx=b.x-a.x,dz=b.z-a.z,l=Math.hypot(dx,dz);for(const side of [-1,1]){const x=points[i].x+side*dz/l*7.1,z=points[i].z-side*dx/l*7.1,y=surfaceY(x,z);if(tunnelAt(x,z,2))continue;sb('wall',.17,.9,.17,'#f4edd8',x,y+.45,z);sb('wall',.2,.14,.2,'#e1ae49',x,y+.77,z)}}
 // Actual raised geometry: the same cosine profile is sampled by the wheels.
 for(const b of BUMPS){const g=new T.PlaneGeometry(18,4,36,24).rotateX(-Math.PI/2),p=g.attributes.position,cols=[];for(let i=0;i<p.count;i++){const across=p.getX(i),along=p.getZ(i),x=b.x+(b.axis?along:across),z=b.z+(b.axis?-across:along);p.setXYZ(i,x,.075+bumpHeight(x,z),z);_C.set(Math.floor((across+9)/1.5)%2?'#e7bd43':'#353b39');cols.push(_C.r,_C.g,_C.b,1)}g.setAttribute('color',new T.Float32BufferAttribute(cols,4));g.computeVertexNormals();const mesh=new T.Mesh(g,KM.flat);mesh.receiveShadow=true;mesh.name='speed-bump';scene.add(mesh);}
+// ===== Autódromo Costa do Sol: a closed circuit south of the city, reached by the x=0 avenue through a gate in the boundary wall =====
+// TRK is the centreline resampled every ~2 m: index 0 on the start/finish line, driving direction = increasing index. Lateral offsets run
+// along the left normal (lx,lz)=(tz,-tx), like the car frame; k = signed curvature (>0 turns left). Barriers stand at hw+run on both
+// sides with a single gap on the main straight towards the paddock, so the access road is the only way on and off the circuit.
+// RL is the rival's racing line: a lateral offset per sample that minimises curvature (biharmonic descent kept inside the kerbs), its
+// curvature and vc = 1/sqrt|k| (corner speed per unit of lateral grip); the braking look-ahead is done while driving.
+const TRK={hw:7.5,run:5,laps:2,wallZ:322,gateW:8.5,ph:{i:-1}},TRK_GRID=new Map(),RL={};
+{const C=[[-150,365],[0,365],[200,365],[330,373],[420,405],[475,465],[490,545],[460,610],[395,635],[340,615],[320,565],[295,515],[240,490],[185,510],[155,565],[105,625],[30,650],[-80,650],[-165,635],[-210,590],[-205,525],[-150,495],[-95,505],[-45,483],[-50,445],[-110,432],[-175,428],[-217,403],[-212,373]];
+ const curve=new T.CatmullRomCurve3(C.map(([x,z])=>new T.Vector3(x,0,z)),true,'centripetal');curve.arcLengthDivisions=4000;
+ const L=curve.getLength(),n=Math.round(L/2),pts=curve.getSpacedPoints(n);pts.pop();let i0=0;for(let i=1;i<n;i++)if(Math.hypot(pts[i].x+45,pts[i].z-365)<Math.hypot(pts[i0].x+45,pts[i0].z-365))i0=i;
+ const F=()=>new Float32Array(n),X=F(),Z=F(),LX=F(),LZ=F();Object.assign(TRK,{n,L,ds:L/n,x:X,z:Z,tx:F(),tz:F(),lx:LX,lz:LZ,k:F(),path:new Path2D()});
+ for(let i=0;i<n;i++){X[i]=pts[(i+i0)%n].x;Z[i]=pts[(i+i0)%n].z}
+ for(let i=0;i<n;i++){const a=(i+n-1)%n,b=(i+1)%n,dx=X[b]-X[a],dz=Z[b]-Z[a],l=Math.hypot(dx,dz);TRK.tx[i]=dx/l;TRK.tz[i]=dz/l;LX[i]=dz/l;LZ[i]=-dx/l}
+ for(let i=0;i<n;i++){const a=(i+n-3)%n,b=(i+3)%n;TRK.k[i]=wrapAngle(Math.atan2(TRK.tx[b],TRK.tz[b])-Math.atan2(TRK.tx[a],TRK.tz[a]))/(6*TRK.ds)}
+ for(let i=0;i<n;i++){const cx=Math.floor(X[i]/24),cz=Math.floor(Z[i]/24);for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const key=(cx+a)+','+(cz+b);let c=TRK_GRID.get(key);if(!c)TRK_GRID.set(key,c=[]);c.push(i)}}
+ TRK.path.moveTo(X[0],Z[0]);for(let i=2;i<n;i+=2)TRK.path.lineTo(X[i],Z[i]);TRK.path.closePath();
+ const d=RL.d=F(),px=F(),pz=F(),cx=F(),cz=F(),lim=TRK.hw-1.6;
+ for(const [st,it] of [[20,150],[10,150],[5,150],[2,120],[1,80]])for(let r=0;r<it;r++){for(let i=0;i<n;i++){px[i]=X[i]+LX[i]*d[i];pz[i]=Z[i]+LZ[i]*d[i]}
+  for(let i=0;i<n;i++){const a=(i-st+n)%n,b=(i+st)%n;cx[i]=px[a]-2*px[i]+px[b];cz[i]=pz[a]-2*pz[i]+pz[b]}
+  for(let i=0;i<n;i++){const a=(i-st+n)%n,b=(i+st)%n;d[i]=Math.max(-lim,Math.min(lim,d[i]-.1*((cx[a]-2*cx[i]+cx[b])*LX[i]+(cz[a]-2*cz[i]+cz[b])*LZ[i])))}}
+ RL.x=F();RL.z=F();RL.k=F();RL.vc=F();for(let i=0;i<n;i++){RL.x[i]=X[i]+LX[i]*d[i];RL.z[i]=Z[i]+LZ[i]*d[i]}
+ for(let i=0;i<n;i++){const a=(i+n-3)%n,b=(i+3)%n,h1=Math.atan2(RL.x[i]-RL.x[a],RL.z[i]-RL.z[a]),h2=Math.atan2(RL.x[b]-RL.x[i],RL.z[b]-RL.z[i]);cx[i]=wrapAngle(h2-h1)/(.5*(Math.hypot(RL.x[i]-RL.x[a],RL.z[i]-RL.z[a])+Math.hypot(RL.x[b]-RL.x[i],RL.z[b]-RL.z[i])))}
+ for(let i=0;i<n;i++){let s=0;for(let q=-2;q<=2;q++)s+=cx[(i+q+n)%n];RL.k[i]=s/5;RL.vc[i]=1/Math.sqrt(Math.max(1e-4,Math.abs(RL.k[i])))}}
+function trkNear(x,z,hint=-1,win=10){const X=TRK.x,Z=TRK.z,n=TRK.n;let best=-1,bd=Infinity;
+ if(hint>=0){for(let k=-win;k<=win;k++){const i=(hint+k+n)%n,q=(X[i]-x)**2+(Z[i]-z)**2;if(q<bd){bd=q;best=i}}if(bd<625)return best}
+ const c=TRK_GRID.get(Math.floor(x/24)+','+Math.floor(z/24));if(c)for(const i of c){const q=(X[i]-x)**2+(Z[i]-z)**2;if(q<bd){bd=q;best=i}}return best}
+function trkLat(x,z,o){const i=trkNear(x,z,o?o.i:-1);if(i<0)return Infinity;if(o)o.i=i;return Math.abs((x-TRK.x[i])*TRK.lx[i]+(z-TRK.z[i])*TRK.lz[i])}
+// Point s metres along the centreline (any lap, negative = before the line), shifted dl to the left.
+function trkPose(s,dl=0){const n=TRK.n,f=((s/TRK.ds)%n+n)%n,i=Math.floor(f)%n,j=(i+1)%n,w=f-Math.floor(f);return{x:TRK.x[i]+(TRK.x[j]-TRK.x[i])*w+TRK.lx[i]*dl,z:TRK.z[i]+(TRK.z[j]-TRK.z[i])*w+TRK.lz[i]*dl,yaw:Math.atan2(TRK.tx[i],TRK.tz[i]),i}}
+// Paved ground of the complex (grip and walk height): circuit with kerbs, access road, paddock apron.
+function circuitRoad(x,z,o){return Math.abs(x)<7.2&&z<362||x>-176&&x<-6&&z>341.5&&z<350.5||trkLat(x,z,o)<TRK.hw+1.3}
+{const n=TRK.n,X=TRK.x,Z=TRK.z,LX=TRK.lx,LZ=TRK.lz,hw=TRK.hw,ob=TRK.hw+TRK.run,W=TRK.wallZ;let sd=91;const rnd=()=>(sd=(sd*1664525+1013904223)>>>0)/4294967296;
+ const near=(i,f,r)=>{for(let q=-r;q<=r;q++)if(f((i+q+n)%n))return true;return false},corner=i=>near(i,j=>Math.abs(TRK.k[j])>1/90,3);
+ // Ground at road level (left open over the canal end, which the wall closes at z=322).
+ sadd('flat',GH,'#8fb872',mx(21.2,0,292,546.6,1,60),'AUT',.4);sadd('flat',GH,'#8fb872',mx(472.7,0,292,254.6,1,60),'AUT',.4);sadd('flat',GH,'#8fb872',mx(174,0,531,852,1,418),'AUT',.4);
+ physicalObstacles.push({x:(BR.x1+BR.x2)/2,z:262,w:(BR.x2-BR.x1)/2,d:60});
+ // Ribbon between lateral offsets a0<a1, one colour per 2 m segment (null = gap), batched per ~64 m of track.
+ const strip=(a0,a1,y,col,alpha)=>{for(let s=0;s<n;s+=32){const p=[],nm=[],c=[],ix=[];
+  for(let i=s;i<Math.min(n,s+32);i++){const cc=col(i);if(!cc)continue;const j=(i+1)%n,o=p.length/3;_C.set(cc);for(const [q,a] of [[i,a0],[i,a1],[j,a0],[j,a1]]){p.push(X[q]+LX[q]*a,y,Z[q]+LZ[q]*a);nm.push(0,1,0);c.push(_C.r,_C.g,_C.b)}ix.push(o,o+2,o+1,o+1,o+2,o+3)}
+  if(!ix.length)continue;const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));g.setAttribute('normal',new T.Float32BufferAttribute(nm,3));g.setAttribute('color',new T.Float32BufferAttribute(c,3));g.setIndex(ix);const m=(s+16)%n;sadd('flat',g,'#fff',mx(),cellOf(X[m],Z[m]),.8*(alpha>.5)+(alpha>.9?.2:0));g.dispose()}};
+ strip(-hw,hw,.055,()=>'#5d6367',.8);strip(hw-.55,hw-.25,.062,()=>'#f1efe6',1);strip(-hw+.25,-hw+.55,.062,()=>'#f1efe6',1);
+ const kerb=i=>corner(i)?(i%2?'#d33a2f':'#f4f1ea'):null,trap=side=>i=>near(i,j=>TRK.k[j]*side<-1/42,4)?'#dcc9a0':null;
+ strip(hw,hw+1.3,.066,kerb,1);strip(-hw-1.3,-hw,.066,kerb,1);strip(hw+1.3,ob-.8,.03,trap(1),0);strip(-ob+.8,-hw-1.3,.03,trap(-1),0);
+ // Barriers: red/white concrete on the straights, black/white tyre walls in the corners; colliders are rotated 4 m boxes (ex/ez = AABB).
+ const gap=(x,z)=>Math.abs(x)<TRK.gateW&&z>340&&z<360;
+ for(const side of [-1,1]){const o=side*ob,bx=i=>X[i]+LX[i]*o,bz=i=>Z[i]+LZ[i]*o;
+  for(let i=0;i<n;i++){const j=(i+1)%n,x0=bx(i),z0=bz(i),x1=bx(j),z1=bz(j),cxm=(x0+x1)/2,czm=(z0+z1)/2;if(gap(cxm,czm))continue;const tyre=corner(i),alt=(i>>1)%2;sg('wall',GB,tyre?(alt?'#2b2e31':'#efeee8'):(alt?'#d33a2f':'#f4f1ea'),cxm,.45,czm,.5,.9,Math.hypot(x1-x0,z1-z0)+.06,0,Math.atan2(x1-x0,z1-z0))}
+  for(let i=0;i<n;i+=2){const j=(i+2)%n,x0=bx(i),z0=bz(i),x1=bx(j),z1=bz(j),cxm=(x0+x1)/2,czm=(z0+z1)/2;if(gap(cxm,czm))continue;const a=Math.atan2(x1-x0,z1-z0),w=.3,dd=Math.hypot(x1-x0,z1-z0)/2+.15,c=Math.abs(Math.cos(a)),s=Math.abs(Math.sin(a));physicalObstacles.push({x:cxm,z:czm,w,d:dd,a,ex:w*c+dd*s,ez:w*s+dd*c})}}
+ // Start/finish: chequered line, grid boxes (rival on pole at -9 m on the left, player at -15 m on the right), gantry with the start lights.
+ const y0=Math.atan2(TRK.tx[0],TRK.tz[0]);for(let r=0;r<2;r++)for(let c=0;c<15;c++){const q=trkPose(r-.5,-hw+.5+c);sh('flat',1,1,(r+c)%2?'#1f2224':'#f5f5f0',q.x,.064,q.z,1,y0)}
+ for(const [s,dl] of [[-9,3.2],[-15,-3.2]]){let q=trkPose(s+1.3,dl);sh('flat',3,.28,'#f5f5f0',q.x,.063,q.z,1,q.yaw);for(const e of [-1.5,1.5]){q=trkPose(s+.3,dl+e);sh('flat',.22,2,'#f5f5f0',q.x,.063,q.z,1,q.yaw)}}
+ const ban=document.createElement('canvas');ban.width=1024;ban.height=128;{const x=ban.getContext('2d');x.fillStyle='#d33a2f';x.fillRect(0,0,1024,128);for(let k=0;k<64;k++)for(const [y,f] of [[0,k%2],[112,1-k%2]]){x.fillStyle=f?'#141414':'#fff';x.fillRect(k*16,y,16,16)}x.fillStyle='#fff';x.font='900 60px Segoe UI, Arial, sans-serif';x.textAlign='center';x.fillText('AUTÓDROMO COSTA DO SOL',512,86)}
+ const banTex=new T.CanvasTexture(ban);banTex.colorSpace=T.SRGBColorSpace;banTex.anisotropy=8;const banMat=new T.MeshStandardMaterial({map:banTex,roughness:.8}),banner=(x,y,z,ry,w,h)=>{for(const f of [0,Math.PI]){const m=new T.Mesh(new T.PlaneGeometry(w,h),banMat);m.position.set(x+Math.sin(ry+f)*.36,y,z+Math.cos(ry+f)*.36);m.rotation.y=ry+f;scene.add(m)}};
+ {const g=trkPose(0,0),gw=hw+1.6;for(const e of [-1,1]){const q=trkPose(0,e*gw);sg('wall',GB,'#39424a',q.x,3.7,q.z,.45,7.4,.45);physicalObstacles.push({x:q.x,z:q.z,w:.3,d:.3})}
+  sg('wall',GB,'#2b3238',g.x,6.9,g.z,2*gw+.5,.9,.6,0,g.yaw);banner(g.x,6.9,g.z,g.yaw,2*gw-.4,1.5);TRK.lights=[];
+  for(const e of [-2.4,-.8,.8,2.4]){const q=trkPose(-.5,e);sg('wall',GB,'#1c2024',q.x,5.85,q.z,1.1,1.1,.3,0,g.yaw);const m=new T.Mesh(new T.SphereGeometry(.34,14,10),new T.MeshBasicMaterial({color:'#3a0d0b',toneMapped:false}));m.position.set(q.x-TRK.tx[0]*.2,5.85,q.z-TRK.tz[0]*.2);scene.add(m);TRK.lights.push(m)}}
+ // Boundary wall with the gate on the avenue; access road down to the circuit; paddock apron, pit garages and grandstand along the main straight.
+ for(const [a,b] of [[-258,-9.5],[9.5,XMAX+2]])for(let x=a;x<b;x+=50){const e=Math.min(b,x+50),c=(x+e)/2,w=e-x;sb('wall',w,2.4,.6,'#e6dfcf',c,1.2,W);sb('wall',w+.02,.18,.8,'#c65a3c',c,2.45,W);physicalObstacles.push({x:c,z:W,w:w/2,d:.35})}
+ for(const e of [-10.5,10.5]){sb('wall',2,7.8,2,'#e9e4d8',e,3.9,W);physicalObstacles.push({x:e,z:W,w:1,d:1})}sb('wall',23,1.7,1.2,'#2f6f96',0,7.3,W);banner(0,7.3,W,0,19,2.4);
+ sb('flat',14,.26,96,'#596165',0,-.07,310,0,.8);for(let z=268;z<356;z+=12)sh('flat',.24,4.2,'#f0c03a',0,.075,z,.8);
+ sb('flat',170,.26,9,'#62686c',-91,-.07,346,0,.8);sb('wall',120,4.6,11,'#f2efe6',-115,2.3,335.5);sb('wall',121,.4,12,'#2f6f96',-115,4.8,335.5);for(let k=0;k<10;k++){sq('wall',9,3.3,'#3a4247',-169+k*12,1.65,341.03);sq('wall',9.6,.5,k%2?'#d33a2f':'#f4f1ea',-169+k*12,3.65,341.03)}physicalObstacles.push({x:-115,z:335.5,w:60,d:5.5});
+ {const pal=['#e0703e','#2f8f83','#d6453d','#3e7cc0','#e8b23a','#f4f1ea','#6aa84f','#e46f95','#8a5aa8'];for(let k=0;k<6;k++){const h=.7+k*.8,zc=347.3-.85-k*1.7;sb('wall',130,h,1.7,k%2?'#2f6f96':'#e9e4d8',90,h/2,zc);for(let x=26.5;x<154;x+=1.1+rnd()*2.2)sb('wall',.5,.85,.45,pal[Math.floor(rnd()*pal.length)],x,h+.42,zc+.2)}
+  sb('wall',130,8,.5,'#dcd6c8',90,4,336.85);sb('wall',134,.35,12.6,'#f4f1ea',90,8.25,341.6);for(let x=27;x<=153;x+=14)sg('wall',C8,'#8f989e',x,4.1,347.1,.14,8.2,.14);physicalObstacles.push({x:90,z:342,w:65,d:5.5})}
+ billboard(318,0,343,-Math.PI/2,14,4.5,0);billboard(-120,0,672,Math.PI/2,14,4.5,2);
+ roadSign(13.5,236,'AUTÓDROMO ↓','Corrida com aposta • siga a avenida',Math.PI);
+ // Floodlights just outside the barriers.
+ for(let i=10;i<n;i+=34)for(const side of [-1,1]){const o=side*(ob+1.8),x=X[i]+LX[i]*o,z=Z[i]+LZ[i]*o;if(z<W+4||z>WORLD_Z_MAX-3||x<-255||x>XMAX-3||x>-182&&x<160&&z<352)continue;lamp(x,z,Math.atan2(side*LZ[i],-side*LX[i]))}}
 
 // Traffic lights at every intersection (old grid + east district): 4 poles per crossing, each head facing one approach.
 // Bulbs are a single instanced mesh recoloured by updateSignals; sigState drives both the lamps and the traffic AI.
@@ -760,29 +827,91 @@ function pmesh(key,parts,parent,x=0,y=0,z=0){const m=new T.Mesh(PG[key]??=(()=>{
 // City life, deliveries and escalating police response. All state is local.
 const originalCar=car,keys={},people=[],police=[],stolenCars=new Set();
 let impactActorCache=[];function impactActors(){if(impactActorCache.length!==people.length+police.length)impactActorCache=[...people,...police];return impactActorCache}
-// Street race with a bet: stop on the orange ring in the car and press E. The rival laps the block loop; pass the checkpoints in order.
-const RACE_PTS=[[0,10],[0,-72],[72,-72],[72,72],[0,72],[0,10]].map(([x,z])=>new T.Vector3(x,0,z)),RACE_CUM=[0];for(let i=1;i<RACE_PTS.length;i++)RACE_CUM.push(RACE_CUM[i-1]+RACE_PTS[i].distanceTo(RACE_PTS[i-1]));const RACE_LEN=RACE_CUM[RACE_CUM.length-1];
-const race={on:false,t:0,cp:1,bet:0,prize:0,s:0,v:0,shown:0},rival=beetle('#d6453d'),raceTmp={x:0,z:0,yaw:0,left:0};rival.visible=false;scene.add(rival);
-const raceRing=new T.Mesh(new T.TorusGeometry(4.5,.22,8,40),new T.MeshBasicMaterial({color:'#ff8a3d'}));raceRing.rotation.x=Math.PI/2;raceRing.position.set(0,.3,10);scene.add(raceRing);const raceLabel=label('CORRIDA • PARE AQUI E APERTE E',0,4.6,10,'#ffb36b');
-function racePoint(s){for(let i=1;i<RACE_PTS.length;i++){const a=RACE_PTS[i-1],b=RACE_PTS[i],l=RACE_CUM[i]-RACE_CUM[i-1],k=s-RACE_CUM[i-1];if(k<=l||i===RACE_PTS.length-1){const dx=(b.x-a.x)/l,dz=(b.z-a.z)/l,q=Math.min(k,l);raceTmp.x=a.x+dx*q-dz*1.7;raceTmp.z=a.z+dz*q+dx*1.7;raceTmp.yaw=Math.atan2(dx,dz);raceTmp.left=i===RACE_PTS.length-1?1e3:l-q;return raceTmp}}}
-function raceNear(){return inCar&&!race.on&&car.position.distanceTo(RACE_PTS[0])<7}
-function raceTry(){if(!raceNear())return false;if(Math.abs(velocity)>2){toast('Pare na largada para apostar.');return true}if(wanted){toast('Com a polícia na cola não tem corrida.');return true}
- race.bet=Math.min(100,cash);race.prize=race.bet?race.bet*2:40;cash-=race.bet;Object.assign(race,{on:true,t:-3,cp:1,s:0,v:0,shown:0});vehicleCache=[];
- car.position.set(-2,0,10);angle=Math.PI;car.rotation.y=angle;velocity=0;steer=0;racePoint(0);rival.position.set(raceTmp.x,0,raceTmp.z);rival.rotation.y=raceTmp.yaw;rival.visible=true;
- toast(race.bet?'Aposta R$ '+race.bet+' • vencendo leva R$ '+race.prize:'Corrida de estreia: vencendo leva R$ 40');return true}
-function endRace(win,msg){race.on=false;rival.visible=false;vehicleCache=[];if(win){cash+=race.prize;toast('Você venceu a corrida! +R$ '+race.prize)}else toast(msg)}
-function raceProgress(){const next=RACE_PTS[race.cp];return RACE_CUM[race.cp]-Math.min(RACE_CUM[race.cp]-RACE_CUM[race.cp-1],car.position.distanceTo(next))}
-function raceText(){return race.t<0?'Corrida: prepare-se… prêmio R$ '+race.prize:'Corrida • checkpoint '+race.cp+'/'+(RACE_PTS.length-1)+' • '+(raceProgress()>=race.s?'1º':'2º')+' lugar • prêmio R$ '+race.prize}
-function updateRace(dt){raceLabel.visible=!race.on&&actorPos().distanceTo(RACE_PTS[0])>14;raceRing.position.copy(race.on?RACE_PTS[race.cp]:RACE_PTS[0]);raceRing.position.y=.3;if(!race.on)return;
+// ===== Corrida no Autódromo Costa do Sol =====
+// Stop on the orange ring in the paddock (end of the x=0 avenue, past the gate) and press E: both Fuscas go to the grid, the gantry lights
+// count down and the race runs TRK.laps laps. Progress = metres along the centreline including laps, followed in a window around the last
+// index, so leaving through the paddock gap or driving backwards never counts.
+// The rival is a dynamic body (aiDriver → kind 3 in collisions: it pushes and gets pushed). Its pilot follows the racing line by pure
+// pursuit on the velocity heading, limited by lateral grip, with a braking look-ahead over the corner speeds. In the corners it holds a
+// drift angle (body yawed into the turn, front wheels counter-steering) that scrubs some speed and leaves smoke and tyre marks. It goes
+// round the player when blocked, takes turbo on the long straights, makes the odd mistake and rubber-bands gently on the gap.
+// After a hit it loses authority for a moment and slides on its own body friction.
+const RACE_RING=new T.Vector3(0,0,338),RIVAL={alat:19,brake:18,vtop:56,engine:22,drag:.2,beta:.5,turbo:64},LIGHT_C={off:new T.Color('#3a0d0b'),red:new T.Color('#ff2a1f'),green:new T.Color('#2bff6a')};
+const race={on:false,t:0,bet:0,prize:0,shown:0,lap:1,time:0,wrong:0,away:0,after:0,go:0,me:{i:-1,p:0},rv:null},rival=beetle('#d6453d');rival.visible=false;scene.add(rival);
+const raceRing=new T.Mesh(new T.TorusGeometry(4.5,.22,8,40),new T.MeshBasicMaterial({color:'#ff8a3d'}));raceRing.rotation.x=Math.PI/2;raceRing.position.set(RACE_RING.x,.3,RACE_RING.z);scene.add(raceRing);const raceLabel=label('CORRIDA • PARE AQUI E APERTE E',RACE_RING.x,4.6,RACE_RING.z,'#ffb36b');
+function raceNear(){return inCar&&!race.on&&!rival.visible&&car.position.distanceTo(RACE_RING)<7}
+function raceClock(t){const m=Math.floor(t/60),s=t-m*60;return m+':'+(s<10?'0':'')+s.toFixed(1)}
+function setLights(k){for(let i=0;i<TRK.lights.length;i++)TRK.lights[i].material.color.copy(k==='go'?LIGHT_C.green:i<k?LIGHT_C.red:LIGHT_C.off)}
+// Player on the second grid box (right side, 15 m behind the line), frozen there until the green.
+function raceGridCar(){const g=trkPose(-15,-3.2),u=car.userData;clearFlight(car);car.position.set(g.x,0,g.z);angle=g.yaw;car.rotation.y=angle;velocity=0;steer=0;u.vel={x:0,z:0};u.yawRate=0;u.slip=0}
+function raceTry(){if(!raceNear())return false;if(Math.abs(velocity)>2){toast('Pare no anel para apostar.');return true}if(wanted){toast('Com a polícia na cola não tem corrida.');return true}
+ race.bet=Math.min(100,cash);race.prize=race.bet?race.bet*2:40;cash-=race.bet;Object.assign(race,{on:true,t:-4,shown:0,lap:1,time:0,wrong:0,away:0,after:0,go:0});
+ raceGridCar();race.me={i:trkNear(car.position.x,car.position.z),p:-15};
+ const g=trkPose(-9,3.2),u=rival.userData;rival.position.set(g.x,0,g.z);rival.rotation.set(0,g.yaw,0);delete u.npcRoll;Object.assign(u,{aiDriver:true,vel:{x:0,z:0},spin:0,impactUntil:0,patrol:{carRepath:0,think:0},loose:false});
+ race.rv={i:g.i,p:-9,off:0,pass:0,steer:0,trail:[null,null],smoke:0,stuck:0,nitro:100,turbo:false,mis:0,misAt:simTime+20+Math.random()*25,seed:Math.random()*9,style:.9+Math.random()*.25,done:false,long:0};
+ rival.visible=true;vehicleCache=[];groundVehicle(rival,0);setLights(0);
+ toast(race.bet?'Aposta R$ '+race.bet+' • vencendo leva R$ '+race.prize+' • '+TRK.laps+' voltas':'Corrida de estreia: vencendo leva R$ 40 • '+TRK.laps+' voltas');return true}
+function endRace(win,msg){race.on=false;race.after=7;if(race.rv)race.rv.done=true;setLights(0);if(win){cash+=race.prize;toast('Você venceu a corrida! +R$ '+race.prize+' • '+raceClock(race.time))}else toast(msg)}
+function hideRival(){rival.visible=false;delete rival.userData.aiDriver;race.rv=null;vehicleCache=[]}
+// Advance a progress record {i,p} from a position; returns the signed lateral offset. Far off the circuit or a jump > 60 m does not count.
+function raceTrack(o,x,z,win=12){const i=trkNear(x,z,o.i,win);if(i<0)return Infinity;const dx=x-TRK.x[i],dz=z-TRK.z[i],lat=dx*TRK.lx[i]+dz*TRK.lz[i];if(Math.abs(lat)>TRK.hw+TRK.run+3)return lat;
+ const s=i*TRK.ds+dx*TRK.tx[i]+dz*TRK.tz[i];let d=s-(o.p%TRK.L+TRK.L)%TRK.L;d-=Math.round(d/TRK.L)*TRK.L;if(Math.abs(d)>60)return lat;o.i=i;o.p+=d;return lat}
+function raceText(){if(race.t<0)return 'Corrida: prepare-se… prêmio R$ '+race.prize;const me=race.me.p,rv=race.rv.p,first=me>=rv;
+ return 'Volta '+Math.min(TRK.laps,Math.max(1,Math.floor(me/TRK.L)+1))+'/'+TRK.laps+' • '+(first?'1º':'2º')+' lugar ('+(first?'+':'−')+Math.round(Math.abs(me-rv))+' m) • '+raceClock(race.time)+' • prêmio R$ '+race.prize+(race.wrong>1?' • CONTRAMÃO!':'')}
+function updateRace(dt){const pos=actorPos();raceLabel.visible=!race.on&&!rival.visible&&pos.distanceTo(RACE_RING)>14;raceRing.visible=!race.on&&!rival.visible;
+ if(race.go>0&&(race.go-=dt)<=0)setLights(0);
+ if(rival.visible)rivalDrive(dt);
+ if(!race.on){if(rival.visible&&(race.after-=dt)<=0&&(rival.position.distanceTo(cam.position)>70||race.after<-12))hideRival();return}
  if(!inCar){endRace(false,'Você saiu do carro. Aposta perdida.');return}
- race.t+=dt;if(race.t<0){car.position.set(-2,0,10);velocity=0;const n=Math.ceil(-race.t);if(n!==race.shown){race.shown=n;toast(n+'…')}return}
- if(race.shown){race.shown=0;toast('VAI!')}
- // Rival: brakes for each corner (decel 16 m/s²) and flat out on the straights.
- let p=racePoint(race.s);const vT=Math.min(36,Math.sqrt(121+32*p.left));race.v+=T.MathUtils.clamp(vT-race.v,-22*dt,10*dt);race.s+=race.v*dt;p=racePoint(race.s);
- const e=1-Math.exp(-dt*8);rival.position.x+=(p.x-rival.position.x)*e;rival.position.z+=(p.z-rival.position.z)*e;rival.rotation.y+=wrapAngle(p.yaw-rival.rotation.y)*e;for(const w of rival.userData.wheels)w.w.rotation.x+=race.v*dt*2;
- if(car.position.distanceTo(RACE_PTS[race.cp])<11){race.cp++;if(race.cp>=RACE_PTS.length){endRace(true);return}toast('Checkpoint '+(race.cp-1)+'/'+(RACE_PTS.length-1))}
- if(race.s>=RACE_LEN)endRace(false,'O rival cruzou primeiro. Aposta de R$ '+race.bet+' perdida.')}
-function raceMap(){dot(race.on?RACE_PTS[race.cp]:RACE_PTS[0],'#ff8a3d',race.on?6:5,true);if(race.on)dot(rival.position,'#d6453d',3)}
+ if(wanted){endRace(false,'Com a polícia na cola a corrida acabou. Aposta perdida.');return}
+ race.t+=dt;
+ if(race.t<0){raceGridCar();setLights(Math.floor(race.t+4)+1);const n=Math.ceil(-race.t);if(n!==race.shown&&n<=3){race.shown=n;toast(n+'…')}return}
+ if(race.shown){race.shown=0;race.go=2.5;setLights('go');toast('VAI!')}
+ race.time+=dt;
+ const lat=raceTrack(race.me,car.position.x,car.position.z);race.away=Math.abs(lat)>TRK.hw+TRK.run+30?race.away+dt:0;if(race.away>8){endRace(false,'Você abandonou a corrida. Aposta perdida.');return}
+ const i=race.me.i,V=car.userData.vel,along=V?V.x*TRK.tx[i]+V.z*TRK.tz[i]:0;race.wrong=along<-4?race.wrong+dt:Math.max(0,race.wrong-dt*2);
+ const lap=Math.floor(race.me.p/TRK.L)+1;if(lap>race.lap&&lap<=TRK.laps){race.lap=lap;toast(lap===TRK.laps?'Última volta!':'Volta '+lap+'/'+TRK.laps)}
+ if(race.me.p>=TRK.laps*TRK.L){endRace(true);return}
+ if(race.rv.p>=TRK.laps*TRK.L)endRace(false,race.bet?'O rival cruzou primeiro. Aposta de R$ '+race.bet+' perdida.':'O rival cruzou primeiro. Tente de novo!')}
+function rivalDrive(dt){const v=rival,u=v.userData,V=u.vel,R=race.rv,Mt=T.MathUtils,n=TRK.n,p=v.position;if(!R)return;
+ if(race.on&&race.t<0){V.x=V.z=0;u.spin=0;groundVehicle(v,dt);return}
+ raceTrack(R,p.x,p.z,8);
+ const racing=race.on&&!R.done,sp0=Math.hypot(V.x,V.z),pace=racing?Mt.clamp(1+(race.me.p-R.p)/320,.93,1.07):1,al=RIVAL.alat*pace*pace;
+ // Blocked by the player close ahead on its line: pass on the roomier side and keep that side until clear.
+ let want=0;if(racing){const rel=race.me.p-R.p;if(rel>-5&&rel<24){const mi=race.me.i,dp=(car.position.x-TRK.x[mi])*TRK.lx[mi]+(car.position.z-TRK.z[mi])*TRK.lz[mi],lim=TRK.hw-1.3;if(!R.pass&&rel>0&&Math.abs(dp-RL.d[R.i]-R.off)<2.8)R.pass=lim-dp>dp+lim?1:-1;if(R.pass)want=Mt.clamp(dp+R.pass*3.6,-lim,lim)-RL.d[R.i]}else R.pass=0}
+ R.off+=Mt.clamp(want-R.off,-3*dt,3*dt);
+ // Turbo (the player's budget: 23/s drain, 11/s refill) when ~150 m of nearly straight line lie ahead.
+ let straight=true;for(let k=0;k<75;k+=5)if(Math.abs(RL.k[(R.i+k)%n])>1/220){straight=false;break}
+ R.turbo=racing&&straight&&sp0>22&&pace>.97&&R.nitro>(R.turbo?3:40);R.nitro=R.turbo?Math.max(0,R.nitro-dt*23):Math.min(100,R.nitro+dt*11);
+ // Target speed: the lowest corner speed ahead that the braking budget can still reach.
+ let vt=racing?(R.turbo?RIVAL.turbo:RIVAL.vtop*pace):0;if(racing)for(let k=1;k<95;k++){const vc=RL.vc[(R.i+k)%n]*Math.sqrt(al),lim=Math.sqrt(vc*vc+2*RIVAL.brake*k*TRK.ds);if(lim<vt)vt=lim}
+ if(racing&&simTime>R.misAt&&Math.abs(RL.k[R.i])>1/45&&sp0>12){R.mis=.8;R.misAt=simTime+25+Math.random()*30}R.mis=Math.max(0,R.mis-dt);
+ // Drift angle wanted for the curvature just ahead (sign = into the turn); a mistake over-rotates it.
+ const ka=RL.k[(R.i+Math.round((3+.3*sp0)/TRK.ds))%n],kn=RL.k[R.i],kd=Math.abs(ka)>Math.abs(kn)?ka:kn,drift=Mt.smoothstep(Math.abs(kd),1/110,1/30)*Mt.smoothstep(sp0,9,17)*(racing?1:0);
+ const bt=Math.sign(kd)*drift*(RIVAL.beta*R.style*(1+R.mis*1.2)+.05*Math.sin(simTime*2.6+R.seed));
+ const slices=Math.max(1,Math.ceil(dt*120)),h=dt/slices;let long=0,lat=0,beta=0,kc=0,acc=0;
+ for(let st=0;st<slices;st++){const sp=Math.hypot(V.x,V.z),psi=v.rotation.y,th=sp>.8?Math.atan2(V.x,V.z):psi,stun=simTime<u.impactUntil,ctrl=stun?.15:1;beta=wrapAngle(psi-th);
+  const j=(R.i+Math.round((6+.4*sp)/TRK.ds))%n,dT=Mt.clamp(RL.d[j]+R.off,1-TRK.hw,TRK.hw-1),ax=TRK.x[j]+TRK.lx[j]*dT-p.x,az=TRK.z[j]+TRK.lz[j]*dT-p.z;
+  kc=2*Math.sin(wrapAngle(Math.atan2(ax,az)-th))/Math.max(4,Math.hypot(ax,az));const sv=Math.max(sp,3),amax=al*1.35,thd=Mt.clamp(sv*kc,-amax/sv,amax/sv)*ctrl;
+  acc=sp<vt?Math.max(0,(R.turbo?RIVAL.engine+10:RIVAL.engine)-RIVAL.drag*sp)*Math.min(1,.35+(vt-sp)/2):-Math.min(RIVAL.brake,(sp-vt)*5+1.5);
+  acc-=.16*Math.abs(Math.sin(beta))*Math.min(sp,30);if(stun)acc=Math.min(acc,-1);
+  // Yaw: follow the course change plus a pull toward the drift angle (this is the counter-steer when it overshoots).
+  const rcmd=thd+Mt.clamp(4.5*(bt-beta),-2.6,2.6)*ctrl*(sp>5?1:0);u.spin+=(rcmd-u.spin)*(1-Math.exp(-h*(stun?1.5:10)));u.spin=Mt.clamp(u.spin,-5,5);
+  const nsp=Math.max(0,sp+acc*h),nth=th+thd*h;V.x=Math.sin(nth)*nsp;V.z=Math.cos(nth)*nsp;
+  if(stun){const sa=Math.sin(psi),ca=Math.cos(psi),lo=V.x*sa+V.z*ca;let la=V.x*ca-V.z*sa;la-=Mt.clamp(la*2.7,-12,12)*h;V.x=lo*sa+la*ca;V.z=lo*ca-la*sa}
+  const moves=Math.max(1,Math.ceil(nsp*h/.2)),mh=h/moves;
+  for(let m=0;m<moves;m++){const ox=p.x,oz=p.z,oa=v.rotation.y;v.rotation.y+=u.spin*mh;p.x+=V.x*mh;p.z+=V.z*mh;
+   let hits=carContacts(v);for(let q=0;q<4&&hits.length;q++){for(const hit of hits)collidePair(v,hit,false);hits=carContacts(v)}if(hits.some(hit=>hit.depth>.04)){p.x=ox;p.z=oz;v.rotation.y=oa;V.x*=.92;V.z*=.92}
+   p.x=Mt.clamp(p.x,-259.7,XMAX-2.3);p.z=Mt.clamp(p.z,WORLD_Z_MIN+2.3,WORLD_Z_MAX-2.3);p.y=surfaceY(p.x,p.z);hitPedestrians(v,Math.hypot(V.x,V.z),mh)}
+  R.i=trkNear(p.x,p.z,R.i,4);const sa=Math.sin(v.rotation.y),ca=Math.cos(v.rotation.y);long=V.x*sa+V.z*ca;lat=V.x*ca-V.z*sa}
+ // Wedged (against a barrier or the player) for a while: the marshals put it back on the line.
+ R.stuck=racing&&race.t>2&&Math.hypot(V.x,V.z)<2?R.stuck+dt:Math.max(0,R.stuck-dt);if(R.stuck>2.5){R.stuck=0;const g=trkPose(R.i*TRK.ds,RL.d[R.i]);p.set(g.x,0,g.z);v.rotation.set(0,g.yaw,0);V.x=V.z=0;u.spin=0;u.impactUntil=0}
+ groundVehicle(v,dt);const e=1-Math.exp(-dt*7);u.body.rotation.z+=(Mt.clamp(lat*.012+u.spin*long*.0016,-.1,.1)-u.body.rotation.z)*e;u.body.rotation.x+=(Mt.clamp(-(long-R.long)/Math.max(.001,dt)*.002,-.06,.065)-u.body.rotation.x)*e;R.long=long;
+ R.steer+=(Mt.clamp(Math.atan(2.4*kc)-beta*.9,-.6,.6)-R.steer)*(1-Math.exp(-dt*12));for(const w of u.wheels){if(w.front)w.pivot.rotation.y=R.steer;w.w.rotation.x+=long*dt/.47}
+ const sp=Math.hypot(V.x,V.z),sa=Math.sin(v.rotation.y),ca=Math.cos(v.rotation.y),skid=sp>6&&(Math.abs(beta)>.1||acc<-12),half=u.size?.w||1.02,rear=-(u.size?.d||2.1)*.57;
+ for(let k=0;k<2;k++){const side=(k?1:-1)*half,x=p.x+side*ca+rear*sa,z=p.z-side*sa+rear*ca,tr=R.trail[k];if(skid&&tr){const d=Math.hypot(x-tr.x,z-tr.z);if(d>.4&&d<3){addMark(tr.x,tr.z,x,z,Math.min(.8,.25+Math.abs(beta)*1.2));R.trail[k]={x,z}}else if(d>=3)R.trail[k]={x,z}}else R.trail[k]={x,z}}
+ R.smoke-=dt;if(sp>8&&Math.abs(beta)>.2&&R.smoke<=0){R.smoke=.07;puff(p.x+rear*sa,p.z+rear*ca,V.x,V.z,Math.min(.9,Math.abs(beta)*1.4));smokeLive=1}flushMarks()}
+function raceMap(){if(!race.on&&!rival.visible)dot(RACE_RING,'#ff8a3d',5,true);if(race.on)dot(trkPose(0,0),'#ffffff',3);if(rival.visible)dot(rival.position,'#d6453d',3.5,race.on)}
 // Ferris wheel in the east district park: rotating rim and spokes, cabins stay upright.
 const wheel=new T.Group(),wheelRim=new T.Group(),cabins=[];wheel.position.copy(WHEEL).setY(24);scene.add(wheel);wheel.add(wheelRim);
 {const R=19,rimM=new T.MeshStandardMaterial({color:'#f7f4ec',roughness:.5,metalness:.3});for(const zz of [-1.2,1.2]){const t=new T.Mesh(new T.TorusGeometry(R,.32,8,48),rimM);t.position.z=zz;wheelRim.add(t)}for(let k=0;k<16;k++){const a=k/16*Math.PI*2,sp=new T.Mesh(new T.BoxGeometry(.14,R,.14),rimM);sp.position.set(Math.cos(a)*R/2,Math.sin(a)*R/2,0);sp.rotation.z=a-Math.PI/2;wheelRim.add(sp)}
@@ -1204,7 +1333,7 @@ function navEdge(a,b){const key=physicalObstacles.length+':'+Math.min(a,b)+':'+M
 function pathTo(from,to){const a=navNode(from),b=navNode(to),parent=new Int32Array(navFree.length).fill(-1),q=[a];parent[a]=a;for(let k=0;k<q.length&&parent[b]<0;k++){let n=q[k],x=n%navW,z=Math.floor(n/navW);for(const [dx,dz]of [[1,0],[-1,0],[0,1],[0,-1]]){let xx=x+dx,zz=z+dz,j=zz*navW+xx;if(xx<0||xx>=navW||zz<0||zz>=navSize||!navFree[j]||parent[j]>=0||!navEdge(n,j))continue;parent[j]=n;q.push(j)}}if(parent[b]<0)return[];let result=[],n=b;while(n!==a){result.push(new T.Vector3(navMin+(n%navW)*6,0,navZMin+Math.floor(n/navW)*6));n=parent[n]}return result.reverse()}
 function clearLine(a,b,pad=.08){
  const dx=b.x-a.x,dz=b.z-a.z;
- for(const r of physicalObstacles){let lo=0,hi=1;for(const [origin,delta,min,max] of [[a.x,dx,r.x-r.w-pad,r.x+r.w+pad],[a.z,dz,r.z-r.d-pad,r.z+r.d+pad]]){if(Math.abs(delta)<1e-8){if(origin<min||origin>max){lo=2;break}}else{let t1=(min-origin)/delta,t2=(max-origin)/delta;if(t1>t2)[t1,t2]=[t2,t1];lo=Math.max(lo,t1);hi=Math.min(hi,t2)}}if(lo<=hi&&hi>=0&&lo<=1)return false}return true;
+ for(const r of physicalObstacles){let lo=0,hi=1;const rw=r.ex??r.w,rd=r.ez??r.d;for(const [origin,delta,min,max] of [[a.x,dx,r.x-rw-pad,r.x+rw+pad],[a.z,dz,r.z-rd-pad,r.z+rd+pad]]){if(Math.abs(delta)<1e-8){if(origin<min||origin>max){lo=2;break}}else{let t1=(min-origin)/delta,t2=(max-origin)/delta;if(t1>t2)[t1,t2]=[t2,t1];lo=Math.max(lo,t1);hi=Math.min(hi,t2)}}if(lo<=hi&&hi>=0&&lo<=1)return false}return true;
 }
 // Police kit: livery painted by the paint shader (navy side band, gold pinstripes, "POLÍCIA" projected on both flanks in body space,
 // so it follows curved panels), plus a rounded light bar, push bar and antenna merged once per model. red/blue are the lit lenses + halos.
@@ -1304,11 +1433,12 @@ function updateHitReaction(p,dt){const u=p.g.userData;if(u.recoil<=0)return fals
 
 // Busted / killed screen: freezes the game over the reset scene until CONTINUAR (or Enter/Esc).
 let bustedOpen=false;function showBusted(dead,fine){bustedOpen=true;paused=true;keysClear();hideCalm();const b=$('busted');b.classList.toggle('dead',dead);$('bustedEyebrow').textContent=dead?'FIM DA LINHA':'MÃOS NA CABEÇA';$('bustedTitle').innerHTML=dead?'VOCÊ FOI<br><em>MORTO.</em>':'VOCÊ FOI<br><em>PRESO.</em>';$('bustedInfo').textContent=(dead?'Você foi socorrido e acordou no hospital. Conta do hospital: R$ ':'A polícia te pegou. Multa: R$ ')+fine+'. Encomendas devolvidas ao balcão.';b.hidden=true;void b.offsetWidth;b.hidden=false}
-function closeBusted(){if(!bustedOpen)return;bustedOpen=false;$('busted').hidden=true;paused=false;keysClear();calmFrom=simTime}
-// A long stretch on the right side of the law earns a quiet line on screen; any new infraction restarts the count.
-const CALM_AFTER=180;let calmFrom=0,calmUntil=0;function hideCalm(){calmUntil=0;$('calm').classList.remove('on')}
-function updateCalm(){if(calmUntil){if(simTime>calmUntil||wanted||simTime-lastCrime<1)hideCalm();return}if(!wanted&&simTime-Math.max(lastCrime,calmFrom)>CALM_AFTER){calmFrom=simTime;calmUntil=simTime+9;$('calm').classList.add('on')}}
-function arrested(reason='Você foi detido.',dead=false){resetLivingState();const fine=Math.min(cash,100);cash-=fine;heat=0;wanted=0;health=100;stolenGoods=0;cargo=false;dropped=null;heldBox.visible=false;looseBox.visible=false;clearPolice(true);clearFlight(car);car=originalCar;clearFlight(car);car.position.set(-4,0,30);angle=Math.PI;velocity=0;player.position.set(-7,0,30);inCar=false;heading=Math.PI;player.visible=true;keysClear();showBusted(dead,fine);}
+function closeBusted(){if(!bustedOpen)return;bustedOpen=false;$('busted').hidden=true;paused=false;keysClear();calmT=0}
+// A minute behind the wheel on the right side of the law earns a quiet line on screen; any infraction, a pursuit or getting out
+// of the car restarts the count.
+const CALM_AFTER=60;let calmT=0,calmUntil=0;function hideCalm(){calmUntil=0;$('calm').classList.remove('on')}
+function updateCalm(dt){const crime=wanted||simTime-lastCrime<1;if(calmUntil){if(simTime>calmUntil||crime)hideCalm();return}calmT=inCar&&!crime?calmT+dt:0;if(calmT>CALM_AFTER){calmT=0;calmUntil=simTime+9;$('calm').classList.add('on')}}
+function arrested(reason='Você foi detido.',dead=false){resetLivingState();const fine=Math.min(cash,100);cash-=fine;heat=0;wanted=0;health=100;stolenGoods=0;cargo=false;dropped=null;heldBox.visible=false;looseBox.visible=false;clearPolice(true);clearFlight(car);car=originalCar;clearFlight(car);car.position.set(4,0,30);angle=Math.PI;velocity=0;player.position.set(7,0,30);inCar=false;heading=Math.PI;player.visible=true;keysClear();showBusted(dead,fine);}
 function updatePolice(dt){if(wanted)ensurePolice();if(!wanted){if(simTime-lastCrime>18)heat=Math.max(0,heat-dt*.8);if(!police.length)return}let near=Infinity,arrestNear=Infinity;const squad=police.slice();
  for(const p of squad){if(!police.includes(p))continue;if(p.ambient&&(!p.suspect||simTime>p.caseUntil)){removePolice(p);continue}const pos=patrolTarget(p);if(!p.dead&&p.v)drivePatrol(p,dt);if(!police.includes(p))return;if(p.v){if(!p.ambient)near=Math.min(near,Math.hypot(p.v.position.x-pos.x,p.v.position.z-pos.z));p.red.visible=Math.sin(simTime*12+p.temper)>0;p.blue.visible=!p.red.visible}
   if(updateFall(p.g,dt))continue;if(grab?.p===p)continue;if(updateHitReaction(p,dt))continue;p.stun=0;if(simTime-p.lastImpact>5)p.balance=Math.min(p.balanceMax,p.balance+dt*8);
@@ -1320,9 +1450,9 @@ function updatePolice(dt){if(wanted)ensurePolice();if(!wanted){if(simTime-lastCr
  if(near>65&&simTime-lastCrime>10){escapedFor+=dt;if(escapedFor>7){heat=Math.max(0,heat-dt*6);if(heat<25){wanted=0;clearPolice(true);toast('Você despistou a polícia. Fique longe de confusão.')}}}else escapedFor=0;
 }
 
-function reset(){if(surf.active&&started&&!paused){surfToPeak();return}if(recoverRolledCar())return;if(player.userData.rag){toast('Espere o personagem se levantar.');return}if(wanted){toast('Não dá para reposicionar durante uma perseguição.');return}stopSurf(false);clearFlight(car);car.position.set(-4,0,30);angle=Math.PI;velocity=0;steer=0;car.userData.slip=0;if(!inCar)player.position.set(-7,0,30);toast('De volta à avenida.');}
+function reset(){if(surf.active&&started&&!paused){surfToPeak();return}if(recoverRolledCar())return;if(player.userData.rag){toast('Espere o personagem se levantar.');return}if(wanted){toast('Não dá para reposicionar durante uma perseguição.');return}stopSurf(false);clearFlight(car);car.position.set(4,0,30);angle=Math.PI;velocity=0;steer=0;car.userData.slip=0;if(!inCar)player.position.set(7,0,30);toast('De volta à avenida.');}
 function landscape(){const d=document.documentElement,fs=!document.fullscreenElement&&d.requestFullscreen?d.requestFullscreen({navigationUI:'hide'}).catch(()=>{}):Promise.resolve();fs.then(()=>screen.orientation?.lock?.('landscape')).catch(()=>{})}
-function start(){if(TOUCH)landscape();started=true;calmFrom=simTime;document.body.classList.add('driving');paused=false;$('intro').hidden=true;$('paused').hidden=true;toast('Praia e surf: siga a oeste até a orla ← • Prancha azul no mapa • E entra/sai.');audioStart();}
+function start(){if(TOUCH)landscape();started=true;calmT=0;document.body.classList.add('driving');paused=false;$('intro').hidden=true;$('paused').hidden=true;toast('Praia e surf: siga a oeste até a orla ← • Prancha azul no mapa • E entra/sai.');audioStart();}
 function keysClear(){for(const k in keys)keys[k]=false}function pause(){if(!started)return;if(bustedOpen){closeBusted();return}paused=!paused;$('paused').hidden=!paused;$('pause').textContent=paused?'▶':'Ⅱ';keysClear()}function camera(){cameraMode=1-cameraMode}
 const actions={e:interact,q:punch,f:steal,g:dropCargo,r:reset,c:camera};
 $('start').onclick=start;$('bustedOk').onclick=closeBusted;$('resume').onclick=pause;$('pause').onclick=pause;$('reset').onclick=reset;$('camera').onclick=camera;
@@ -1373,7 +1503,8 @@ function person(color='#398b9b',uniform=false){
 
 function vehicleList(){let pc=0;for(const p of police)if(p.v)pc++;if(vehicleCache.length!==1+traffic.length+pc+(race.on?1:0))vehicleCache=[originalCar,...traffic.map(t=>t.g),...police.filter(p=>p.v).map(p=>p.v),...(race.on?[rival]:[])];return vehicleCache}
 function localStatics(pos,r=1){
- if(gridCount!==physicalObstacles.length){collisionGrid.clear();for(const b of physicalObstacles){for(let x=Math.floor((b.x-b.w)/16);x<=Math.floor((b.x+b.w)/16);x++)for(let z=Math.floor((b.z-b.d)/16);z<=Math.floor((b.z+b.d)/16);z++){const key=x+','+z;if(!collisionGrid.has(key))collisionGrid.set(key,[]);collisionGrid.get(key).push(b)}}gridCount=physicalObstacles.length}
+ // Rotated boxes (a) carry their axis-aligned half extents in ex/ez; the broad phase and prefilters use those.
+ if(gridCount!==physicalObstacles.length){collisionGrid.clear();for(const b of physicalObstacles){const bw=b.ex??b.w,bd=b.ez??b.d;for(let x=Math.floor((b.x-bw)/16);x<=Math.floor((b.x+bw)/16);x++)for(let z=Math.floor((b.z-bd)/16);z<=Math.floor((b.z+bd)/16);z++){const key=x+','+z;if(!collisionGrid.has(key))collisionGrid.set(key,[]);collisionGrid.get(key).push(b)}}gridCount=physicalObstacles.length}
  const x0=Math.floor((pos.x-r)/16),x1=Math.floor((pos.x+r)/16),z0=Math.floor((pos.z-r)/16),z1=Math.floor((pos.z+r)/16);if(x0===x1&&z0===z1)return collisionGrid.get(x0+','+z0)||[];const found=new Set();for(let x=x0;x<=x1;x++)for(let z=z0;z<=z1;z++)for(const b of collisionGrid.get(x+','+z)||[])found.add(b);return found;
 }
 function rectFor(v){const sz=v.userData.size;return{x:v.position.x,z:v.position.z,w:sz?sz.w:1.12,d:sz?sz.d:2.1,a:v.rotation.y}}
@@ -1385,7 +1516,7 @@ function contactCircle(pos,r,b){
 }
 function staticRects(){return physicalObstacles}
 function correctWorld(pos,r=.36,includeCars=false,ignore=null,west=null){
- let hit=false;for(let k=0;k<3;k++){for(const b of localStatics(pos,r)){if(Math.abs(pos.x-b.x)>b.w+r||Math.abs(pos.z-b.z)>b.d+r)continue;const h=contactCircle(pos,r,b);if(h){pos.x+=h.x*h.depth;pos.z+=h.z*h.depth;hit=true}}
+ let hit=false;for(let k=0;k<3;k++){for(const b of localStatics(pos,r)){if(Math.abs(pos.x-b.x)>(b.ex??b.w)+r||Math.abs(pos.z-b.z)>(b.ez??b.d)+r)continue;const h=contactCircle(pos,r,b);if(h){pos.x+=h.x*h.depth;pos.z+=h.z*h.depth;hit=true}}
  if(includeCars)for(const v of vehicleList()){if(v===ignore||Math.abs(v.position.x-pos.x)>4||Math.abs(v.position.z-pos.z)>4)continue;const h=contactCircle(pos,r,rectFor(v));if(h){pos.x+=h.x*h.depth;pos.z+=h.z*h.depth;hit=true}}}
  pos.x=T.MathUtils.clamp(pos.x,west??(pos===player.position?shore(pos.z)+SURF_CONFIG.walkShoreOffset:-262+r),XMAX-r);pos.z=T.MathUtils.clamp(pos.z,WORLD_Z_MIN+r,WORLD_Z_MAX-r);return hit;
 }
@@ -1654,7 +1785,7 @@ const CAR={m:820,I:1500,L:2.4,a:1.44,b:.96,cg:.24,h:.005,mu:2.5,off:.7,rear:1.06
 const tyreCurve=(al,B)=>Math.sin(CAR.shape*Math.atan(B*al));
 function driveStep(dt){
  const ck=car.userData.K,K=ck?(car.userData.KK??=Object.assign({},CAR,ck)):CAR,M=T.MathUtils,g=9.81,forward=keys.w||keys.ArrowUp,back=keys.s||keys.ArrowDown,hand=!!keys[' '],turbo=!!(keys.Shift&&forward&&nitro>1);
- const offroad=car.position.z<-270?!onMountainRoad(car.position.x,car.position.z):!roads.some(r=>Math.abs(car.position.x-r)<9||Math.abs(car.position.z-r)<9)&&!(car.position.x>370&&ROADX2.some(r=>Math.abs(car.position.x-r)<9));
+ const offroad=car.position.z<-270?!onMountainRoad(car.position.x,car.position.z):car.position.z>270?!circuitRoad(car.position.x,car.position.z,TRK.ph):!roads.some(r=>Math.abs(car.position.x-r)<9||Math.abs(car.position.z-r)<9)&&!(car.position.x>370&&ROADX2.some(r=>Math.abs(car.position.x-r)<9));
  const input=(keys.a||keys.ArrowLeft?1:0)-(keys.d||keys.ArrowRight?1:0);
  steer=M.lerp(steer,input,1-Math.exp(-dt*(input===0?18:13)));
  nitro=turbo?Math.max(0,nitro-dt*23):Math.min(100,nitro+dt*11);
@@ -1826,8 +1957,8 @@ function updateLooseVehicles(dt){
 }
 // After a crash a traffic car picks the closest lane/heading and eases back into it before driving again.
 function alignTraffic(t,dt){const g=t.g,p=g.position;
- if(t.align===1){let best=1e9;for(let axis=0;axis<2;axis++){const lat=axis?p.z:p.x,road=(axis?roads:[...roads,...ROADX2]).reduce((a,b)=>Math.abs(b-lat)<Math.abs(a-lat)?b:a);for(let dir=-1;dir<2;dir+=2){const lane=axis?road-dir*4:road+dir*4,cost=Math.abs(lat-lane)+4*Math.abs(wrapAngle((axis?dir*Math.PI/2:dir<0?Math.PI:0)-g.rotation.y));if(cost<best){best=cost;t.axis=axis;t.dir=dir;t.road=road}}}t.align=2;t.stuck=0}
- const ra=t.axis?t.dir*Math.PI/2:t.dir<0?Math.PI:0,lane=t.axis?t.road-t.dir*4:t.road+t.dir*4,el=lane-(t.axis?p.z:p.x),ea=wrapAngle(ra-g.rotation.y),ox=p.x,oz=p.z,oa=g.rotation.y;
+ if(t.align===1){let best=1e9;for(let axis=0;axis<2;axis++){const lat=axis?p.z:p.x,road=(axis?roads:[...roads,...ROADX2]).reduce((a,b)=>Math.abs(b-lat)<Math.abs(a-lat)?b:a);for(let dir=-1;dir<2;dir+=2){const lane=axis?road+dir*4:road-dir*4,cost=Math.abs(lat-lane)+4*Math.abs(wrapAngle((axis?dir*Math.PI/2:dir<0?Math.PI:0)-g.rotation.y));if(cost<best){best=cost;t.axis=axis;t.dir=dir;t.road=road}}}t.align=2;t.stuck=0}
+ const ra=t.axis?t.dir*Math.PI/2:t.dir<0?Math.PI:0,lane=t.axis?t.road+t.dir*4:t.road-t.dir*4,el=lane-(t.axis?p.z:p.x),ea=wrapAngle(ra-g.rotation.y),ox=p.x,oz=p.z,oa=g.rotation.y;
  // Close enough: snap. Off the road or blocked for a while: once the player is far away, drop it on a free spot of the lane.
  const far=(Math.abs(el)>8||t.stuck>3)&&p.distanceTo(actorPos())>130;
  if(Math.abs(el)<.03&&Math.abs(ea)<.01||far){let ok=false;for(let o=0;o<(far?5:1)&&!ok;o++){const s=(o+1>>1)*(o&1?6:-6);if(t.axis){p.z=lane;p.x=ox+s}else{p.x=lane;p.z=oz+s}g.rotation.y=ra;ok=!carContacts(g).length}
@@ -1852,7 +1983,7 @@ const MARKS=1600,MARK_FADE=240,markBase=new Float32Array(MARKS),markGeo=new T.Pl
 const marks=new T.InstancedMesh(markGeo,new T.MeshBasicMaterial({transparent:true,blending:T.MultiplyBlending,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-4,toneMapped:false,fog:false}),MARKS);
 let markHead=0,markUsed=0,markLo=MARKS,markHi=-1;marks.count=0;marks.frustumCulled=false;marks.renderOrder=1;for(let i=0;i<MARKS;i++)marks.setColorAt(i,fxC.setRGB(1,1,1));marks.instanceMatrix.setUsage(T.DynamicDrawUsage);marks.instanceColor.setUsage(T.DynamicDrawUsage);scene.add(marks);
 // Height of the walkable top at (x,z): asphalt, curbs, block pavement, park lawns and paths, calçadão, beach, grass.
-function groundTop(x,z){if(z<-258)return surfaceY(x,z)+(onMountainRoad(x,z)?.10:0);const bump=bumpHeight(x,z);if(bump>0)return bump+.09;const dk=deckY(x,z);if(dk>0)return dk+.08;if(x>374)return Math.abs(z)<9.5||ROADX2.some(r=>Math.abs(x-r)<9.5)||roads.some(r=>Math.abs(z-r)<9.5)?.08:.19;let road=false,curb=false;for(const r of roads){const dx=Math.abs(x-r),dz=Math.abs(z-r);if(dx<9.5||dz<9.5)road=true;else if(dx<10.3||dz<10.3)curb=true}if(road&&x>-225.5)return .08;if(curb&&x>-226.3)return .22;if(x<-226.3)return x<-249.5?.005:.19;
+function groundTop(x,z){if(z>270)return circuitRoad(x,z)?.08:.012;if(z<-258)return surfaceY(x,z)+(onMountainRoad(x,z)?.10:0);const bump=bumpHeight(x,z);if(bump>0)return bump+.09;const dk=deckY(x,z);if(dk>0)return dk+.08;if(x>374)return Math.abs(z)<9.5||ROADX2.some(r=>Math.abs(x-r)<9.5)||roads.some(r=>Math.abs(z-r)<9.5)?.08:.19;let road=false,curb=false;for(const r of roads){const dx=Math.abs(x-r),dz=Math.abs(z-r);if(dx<9.5||dz<9.5)road=true;else if(dx<10.3||dz<10.3)curb=true}if(road&&x>-225.5)return .08;if(curb&&x>-226.3)return .22;if(x<-226.3)return x<-249.5?.005:.19;
  const ix=Math.round((x+180)/72),iz=Math.round((z+180)/72);if(ix>=0&&ix<6&&iz>=0&&iz<6){const ox=Math.abs(x+180-ix*72),oz=Math.abs(z+180-iz*72);if(ox<25.7&&oz<25.7)return (ix+iz)%5===0&&ox<22&&oz<22?(ox<1.5||oz<1.5?.345:.325):.19}return -.135}
 function addMark(x0,z0,x1,z1,k){const dx=x1-x0,dz=z1-z0,len=Math.hypot(dx,dz),i=markHead;
  fxO.position.set((x0+x1)*.5,groundTop((x0+x1)*.5,(z0+z1)*.5),(z0+z1)*.5);const slope=surfaceGradient((x0+x1)*.5,(z0+z1)*.5),a=Math.atan2(dx,dz);fxO.rotation.order='YXZ';fxO.rotation.set(-Math.atan(slope.x*Math.sin(a)+slope.z*Math.cos(a)),a,Math.atan(slope.x*Math.cos(a)-slope.z*Math.sin(a)));fxO.scale.set(.27,1,len+.015);fxO.updateMatrix();marks.setMatrixAt(i,fxO.matrix);
@@ -1932,11 +2063,17 @@ function carAudio(dt){const hit=impactNow;impactNow=0;if(!aud)return;gain.gain.v
 // Serra traffic follows the mountain polylines in the right-hand lane, hops between routes at junctions and U-turns at dead ends.
 const SERRA_LINKS=new Map(),SERRA_LANE=2.6;{const near=(p,skip)=>{let best=null,bd=16;SERRA_ROUTES.forEach((q,r)=>{if(r!==skip)for(let i=0;i<q.length;i++){const d=(q[i].x-p.x)**2+(q[i].z-p.z)**2;if(d<bd){bd=d;best={r,i}}}});return best},link=(r,i,o)=>{const k=r+':'+i;if(!SERRA_LINKS.has(k))SERRA_LINKS.set(k,[]);SERRA_LINKS.get(k).push(o)};
  SERRA_ROUTES.forEach((pts,r)=>{for(const i of [0,pts.length-1]){const n=near(pts[i],r);if(n){link(r,i,n);link(n.r,n.i,{r,i})}}})}
-function serraPoint(t,idx,off){const P=t.path,i=T.MathUtils.clamp(Math.floor(idx),0,P.length-2),f=T.MathUtils.clamp(idx-i,0,1),a=P[i],b=P[i+1],dx=b.x-a.x,dz=b.z-a.z,l=Math.hypot(dx,dz)||1;return [a.x+dx*f+dz/l*off,a.z+dz*f-dx/l*off]}
+// Catmull-Rom through the route points with a continuous tangent, so the lane offset and heading flow through bends instead of
+// kinking at every polyline vertex.
+function serraPoint(t,idx,off){const P=t.path,n=P.length-1,i=T.MathUtils.clamp(Math.floor(idx),0,n-1),f=T.MathUtils.clamp(idx-i,0,1),p0=P[Math.max(0,i-1)],p1=P[i],p2=P[i+1],p3=P[Math.min(n,i+2)],f2=f*f,f3=f2*f,
+ cr=k=>.5*(2*p1[k]+(p2[k]-p0[k])*f+(2*p0[k]-5*p1[k]+4*p2[k]-p3[k])*f2+(3*p1[k]-p0[k]-3*p2[k]+p3[k])*f3),dr=k=>.5*((p2[k]-p0[k])+2*(2*p0[k]-5*p1[k]+4*p2[k]-p3[k])*f+3*(3*p1[k]-p0[k]-3*p2[k]+p3[k])*f2),dx=dr('x'),dz=dr('z'),l=Math.hypot(dx,dz)||1;return [cr('x')-dz/l*off,cr('z')+dx/l*off]}
+function serraHeading(t,idx){const [ax,az]=serraPoint(t,idx-.5,0),[bx,bz]=serraPoint(t,idx+.5,0);return Math.atan2(bx-ax,bz-az)}
+// Corner speed: heading change over the next ~10 m sets the curvature; trucks keep lateral grip low (~2.6 m/s²).
+function serraCornerSpeed(t){const span=8,turn=Math.abs(wrapAngle(serraHeading(t,t.idx+t.dir*span)-serraHeading(t,t.idx))),k=turn/(span*1.2);return k<1e-3?99:Math.max(3.2,Math.sqrt(2.6/k))}
 function serraEnter(t,r,i){t.route=r;t.path=SERRA_ROUTES[r];const n=t.path.length-1;t.dir=i<=0?1:i>=n?-1:rand()<.5?1:-1;t.idx=i;t.off=t.dir*SERRA_LANE}
 // Switching routes at a junction keeps the car where it is: nearest point on the new route, current lateral offset (it then eases into its lane).
 function serraHop(t,o){const p=t.g.position;serraEnter(t,o.r,o.i);t.hopT=3;const P=t.path,n=P.length-1;let bd=1e9;for(let i=Math.max(0,o.i-12);i<=Math.min(n,o.i+12);i++){const d=(P[i].x-p.x)**2+(P[i].z-p.z)**2;if(d<bd){bd=d;t.idx=i}}
- const i=Math.min(n-1,Math.floor(t.idx)),a=P[i],b=P[i+1],dx=b.x-a.x,dz=b.z-a.z,l=Math.hypot(dx,dz)||1;t.off=T.MathUtils.clamp(((p.x-a.x)*dz-(p.z-a.z)*dx)/l,-6,6)}
+ const i=Math.min(n-1,Math.floor(t.idx)),a=P[i],b=P[i+1],dx=b.x-a.x,dz=b.z-a.z,l=Math.hypot(dx,dz)||1;t.off=T.MathUtils.clamp(((p.z-a.z)*dx-(p.x-a.x)*dz)/l,-6,6)}
 function serraRelocate(t){const g=t.g,p=g.position,ox=p.x,oz=p.z,oa=g.rotation.y;serraEnter(t,t.route,2+Math.floor(rand()*(t.path.length-5)));const [x,z]=serraPoint(t,t.idx,t.off),[x2,z2]=serraPoint(t,t.idx+t.dir,t.off);p.set(x,surfaceY(x,z),z);g.rotation.y=Math.atan2(x2-x,z2-z);if(carContacts(g).length||p.distanceTo(actorPos())<160){p.x=ox;p.z=oz;g.rotation.y=oa;return false}t.align=0;t.wait=0;return true}
 function serraTraffic(t,dt){const g=t.g,u=g.userData,p=g.position,P=t.path,n=P.length-1;
  if(t.align){// After a crash: ease back into the lane, or (player far away) drop onto a free stretch of the route.
@@ -1949,18 +2086,20 @@ function serraTraffic(t,dt){const g=t.g,u=g.userData,p=g.position,P=t.path,n=P.l
  // Stuck for long out of the player's sight: quietly move to another stretch of road.
  if((t.wait||0)>8&&p.distanceTo(actorPos())>160&&serraRelocate(t))return;
  const caution=vehicleList().some(v=>v!==g&&v.position.distanceTo(ahead)<3.4)||people.some(q=>!q.driving&&!q.g.userData.rag&&q.g.position.distanceTo(ahead)<2)||(!inCar&&(player.position.distanceTo(ahead)<2||player.position.distanceTo(p)<4.5));
- const turning=Math.abs(t.off-t.dir*SERRA_LANE)>.4,tgt=caution||t.theftHold>simTime?0:turning?3:t.speed;t.actual=T.MathUtils.lerp(t.actual??t.speed,tgt,Math.min(1,dt*(tgt<(t.actual??t.speed)?6:2)));
+ const turning=Math.abs(t.off-t.dir*SERRA_LANE)>.4,tgt=caution||t.theftHold>simTime?0:turning?3:Math.min(t.speed,serraCornerSpeed(t));t.actual=T.MathUtils.lerp(t.actual??t.speed,tgt,Math.min(1,dt*(tgt<(t.actual??t.speed)?6:2)));
  const old={x:p.x,z:p.z,a:ra,idx:t.idx,off:t.off,route:t.route,path:t.path,dir:t.dir},step=t.actual*dt,from=Math.floor(t.idx);
  t.idx+=t.dir*step/1.2;t.off+=T.MathUtils.clamp(t.dir*SERRA_LANE-t.off,-step*.6,step*.6);
  // Branch onto a side road at a junction now and then.
  for(let k=from;k!==Math.floor(t.idx);k+=t.dir){const c=k+(t.dir>0?1:0);if(c<=0||c>=n)break;const links=SERRA_LINKS.get(t.route+':'+c);if(links&&!(t.hopT>0)&&rand()<.4){serraHop(t,links[Math.floor(rand()*links.length)]);break}}
  if(t.path===old.path&&(t.idx<=0||t.idx>=n)){const end=t.idx<=0?0:n,links=SERRA_LINKS.get(t.route+':'+end);if(links)serraHop(t,links[Math.floor(rand()*links.length)]);else{t.idx=end;t.dir=end?-1:1}}
  t.hopT=(t.hopT||0)-dt;const overlap=(t.wait||0)>3&&carContacts(g).length>0;
- const [x,z]=serraPoint(t,t.idx,t.off),mxv=x-old.x,mzv=z-old.z;p.x=x;p.z=z;if(Math.hypot(mxv,mzv)>.005)g.rotation.y=ra+T.MathUtils.clamp(wrapAngle(Math.atan2(mxv,mzv)-ra),-dt*2.4,dt*2.4);
+ const [x,z]=serraPoint(t,t.idx,t.off),mxv=x-old.x,mzv=z-old.z;p.x=x;p.z=z;if(Math.hypot(mxv,mzv)>.005)g.rotation.y=ra+T.MathUtils.clamp(wrapAngle(Math.atan2(mxv,mzv)-ra)*(1-Math.exp(-dt*9)),-dt*1.8,dt*1.8);
+ // Steering and body lean follow the yaw rate: front wheels point into the bend, the body rolls to the outside.
+ {const yaw=wrapAngle(g.rotation.y-ra)/Math.max(dt,1e-3),v=Math.max(t.actual,1),s=1-Math.exp(-dt*6),wb=2.4*(g.scale.x||1);u.serraSteer=(u.serraSteer||0)+(T.MathUtils.clamp(Math.atan(yaw*wb/v),-.5,.5)-(u.serraSteer||0))*s;u.serraLean=(u.serraLean||0)+(T.MathUtils.clamp(yaw*t.actual*.011,-.08,.08)-(u.serraLean||0))*s;for(const w of u.wheels)if(w.front)w.pivot.rotation.y=u.serraSteer;if(u.body)u.body.rotation.z=u.serraLean}
  // Already overlapping another car for a while (e.g. both met at a junction): drive on and let them separate.
  const hits=overlap?[]:carContacts(g);if(hits.length){p.x=old.x;p.z=old.z;g.rotation.y=old.a;Object.assign(t,{idx:old.idx,off:old.off,route:old.route,path:old.path,dir:old.dir});if(t.actual>2.5&&hits.some(h=>h.other)){const vel=u.vel||(u.vel={x:0,z:0});vel.x=hx*t.actual;vel.z=hz*t.actual;u.spin=0;u.loose=true;u.looseT=0;t.align=1}t.actual=0}else hitPedestrians(g,t.actual,dt);t.wait=t.actual<.3?(t.wait||0)+dt:0;
  for(const w of u.wheels)w.w.rotation.x+=t.actual*dt*2}
-function updateTraffic(dt){for(const t of traffic){const g=t.g,u=g.userData;u.traffic=t;if(u.siren){const on=g===car&&inCar,cruise=t.patrol&&!on&&!stolenCars.has(g),blink=Math.sin(simTime*12+g.id)>0;u.siren.red.visible=cruise?wanted>0&&blink:!on||blink;u.siren.blue.visible=cruise?wanted>0&&!blink:!on||!blink}if(g===car||stolenCars.has(g)||u.npcDriver)continue;if(u.loose){t.actual=0;t.align=1;continue}if(t.path){serraTraffic(t,dt);continue}if(t.align){alignTraffic(t,dt);continue}const ra=t.axis?t.dir*Math.PI/2:t.dir<0?Math.PI:0;g.rotation.y=ra;const dx=Math.sin(ra),dz=Math.cos(ra),ahead=TA.set(g.position.x+dx*5,0,g.position.z+dz*5);let caution=vehicleList().some(v=>v!==g&&v.position.distanceTo(ahead)<3.4)||people.some(p=>!p.driving&&!p.g.userData.rag&&p.g.position.distanceTo(ahead)<2)||(!inCar&&(player.position.distanceTo(ahead)<2||player.position.distanceTo(g.position)<4.5));const tgt=caution||t.theftHold>simTime?0:Math.min(t.speed,signalLimit(t));t.actual=T.MathUtils.lerp(t.actual??t.speed,tgt,Math.min(1,dt*(tgt<(t.actual??t.speed)?6:2)));const steps=Math.max(1,Math.ceil(t.actual*dt/.3));for(let i=0;i<steps;i++){const ox=g.position.x,oz=g.position.z;g.position.x+=dx*t.actual*dt/steps;g.position.z+=dz*t.actual*dt/steps;const hits=carContacts(g);if(hits.length){g.position.x=ox;g.position.z=oz;if(t.actual>2.5&&hits.some(h=>h.other)){const vel=u.vel||(u.vel={x:0,z:0});vel.x=dx*t.actual;vel.z=dz*t.actual;u.spin=0;u.loose=true;u.looseT=0;t.align=1}t.actual=0;break}hitPedestrians(g,t.actual,dt/steps)}t.pos=t.axis?g.position.x:g.position.z;if(t.pos>(t.hi??266)||t.pos<(t.lo??-266)){t.pos=t.pos>(t.hi??266)?(t.lo??-266)+1:(t.hi??266)-1;g.position.set(t.axis?t.pos:t.road+t.dir*4,0,t.axis?t.road-t.dir*4:t.pos)}for(const w of u.wheels)w.w.rotation.x+=t.actual*dt*2;}}
+function updateTraffic(dt){for(const t of traffic){const g=t.g,u=g.userData;u.traffic=t;if(u.siren){const on=g===car&&inCar,cruise=t.patrol&&!on&&!stolenCars.has(g),blink=Math.sin(simTime*12+g.id)>0;u.siren.red.visible=cruise?wanted>0&&blink:!on||blink;u.siren.blue.visible=cruise?wanted>0&&!blink:!on||!blink}if(g===car||stolenCars.has(g)||u.npcDriver)continue;if(u.loose){t.actual=0;t.align=1;continue}if(t.path){serraTraffic(t,dt);continue}if(t.align){alignTraffic(t,dt);continue}const ra=t.axis?t.dir*Math.PI/2:t.dir<0?Math.PI:0;g.rotation.y=ra;const dx=Math.sin(ra),dz=Math.cos(ra),ahead=TA.set(g.position.x+dx*5,0,g.position.z+dz*5);let caution=vehicleList().some(v=>v!==g&&v.position.distanceTo(ahead)<3.4)||people.some(p=>!p.driving&&!p.g.userData.rag&&p.g.position.distanceTo(ahead)<2)||(!inCar&&(player.position.distanceTo(ahead)<2||player.position.distanceTo(g.position)<4.5));const tgt=caution||t.theftHold>simTime?0:Math.min(t.speed,signalLimit(t));t.actual=T.MathUtils.lerp(t.actual??t.speed,tgt,Math.min(1,dt*(tgt<(t.actual??t.speed)?6:2)));const steps=Math.max(1,Math.ceil(t.actual*dt/.3));for(let i=0;i<steps;i++){const ox=g.position.x,oz=g.position.z;g.position.x+=dx*t.actual*dt/steps;g.position.z+=dz*t.actual*dt/steps;const hits=carContacts(g);if(hits.length){g.position.x=ox;g.position.z=oz;if(t.actual>2.5&&hits.some(h=>h.other)){const vel=u.vel||(u.vel={x:0,z:0});vel.x=dx*t.actual;vel.z=dz*t.actual;u.spin=0;u.loose=true;u.looseT=0;t.align=1}t.actual=0;break}hitPedestrians(g,t.actual,dt/steps)}t.pos=t.axis?g.position.x:g.position.z;if(t.pos>(t.hi??266)||t.pos<(t.lo??-266)){t.pos=t.pos>(t.hi??266)?(t.lo??-266)+1:(t.hi??266)-1;g.position.set(t.axis?t.pos:t.road-t.dir*4,0,t.axis?t.road+t.dir*4:t.pos)}for(const w of u.wheels)w.w.rotation.x+=t.actual*dt*2;}}
 function walk(dt){if(surf.active){updateSurf(dt);return}if(updateFall(player,dt))return;const turn=(keys.a||keys.ArrowLeft?1:0)-(keys.d||keys.ArrowRight?1:0);heading+=turn*dt*2.6;const dir=(keys.w||keys.ArrowUp?1:0)-(keys.s||keys.ArrowDown?1:0),speed=player.userData.stagger>0?0:dir*(keys[' ']?2:keys.Shift&&!cargo?10:5)*(player.userData.attack?.6:1)*(grab?.72:1);const pu=player.userData,hv=pu.hitVelocity;moveActor(player,Math.sin(heading)*speed*dt+hv.x*dt,Math.cos(heading)*speed*dt+hv.z*dt);hv.multiplyScalar(Math.exp(-dt*8));player.rotation.y=heading;animatePerson(player,speed,simTime);if(keys[' ']&&!pu.attack){for(let i=0;i<2;i++){pu.arms[i].rotation.x=-1.15;pu.arms[i].rotation.y=(i?-1:1)*.35;pu.elbows[i].rotation.x=-1.8}}updateGrab(dt);grabPose();if(pu.hitAt!=null&&simTime-pu.hitAt<.45)hitPose(pu,simTime-pu.hitAt,pu.hitDirection||{forward:-1,side:0},pu.hitPower||1,.45);distance+=Math.abs(speed)*dt;heldBox.visible=cargo;cam.fov=T.MathUtils.lerp(cam.fov,58,dt*3);cam.updateProjectionMatrix();}
 function resetLivingState(){releaseGrab();stopSurf(false);if(player.userData.rag){player.userData.rag.visual.group.visible=false;player.userData.rag=null;player.userData.rig.visible=true;animatePerson(player,0,simTime)}player.userData.attack=null;player.userData.stagger=0;for(const p of people){cancelTheft(p);releaseStolenCar(p);p.fightTarget=null;p.calmAfterFall=true;p.fear=0;p.moodUntil=0;p.g.userData.attack=null;if(!p.g.userData.rag){p.mode='rest';p.taskUntil=simTime+3}}}
 // Existing world assets become collidable at their actual footprints.
@@ -1970,9 +2109,9 @@ people.forEach(resident);
 // Patrol cars cruise with ordinary traffic (lights off; they flash while the player is wanted). Fixed spots keep rand() untouched.
 for(let i=0;i<(LOW?3:5);i++){const model=['opala','fusca','kombi'][i%3],g=model==='fusca'?beetle('#f0eee3'):classic(model==='opala'?'opalaPolicia':model,'#f0eee3'),s=dressPolice(g,model);s.red.visible=s.blue.visible=false;g.userData.siren=s;g.userData.patrolCar=true;scene.add(g);traffic.push({g,road:roads[(i*3+2)%7],axis:i%2,dir:i%2?1:-1,pos:-200+i*97,speed:9+i%3,patrol:true})}
 // Spread the starting cars so none spawns overlapping another car, a crossing or the player's Fusca (an overlapping car never moves).
-{const at=t=>t.axis?[t.pos,t.road-t.dir*4]:[t.road+t.dir*4,t.pos],seen=[];for(const t of traffic){const lo=(t.lo??-266)+2,hi=(t.hi??266)-2,cross=t.axis&&t.lo!==undefined?ROADX2:roads;
- for(let k=0;k<60;k++){const [x,z]=at(t);if(!seen.some(o=>{const [ox,oz]=at(o);return Math.hypot(ox-x,oz-z)<12})&&!cross.some(c=>Math.abs(c-t.pos)<14)&&Math.hypot(x+4,z-30)>12)break;t.pos+=9;if(t.pos>hi)t.pos=lo}seen.push(t)}}
-for(const t of traffic){t.g.position.set(t.axis?t.pos:t.road+t.dir*4,0,t.axis?t.road-t.dir*4:t.pos);t.g.rotation.y=t.axis?t.dir*Math.PI/2:t.dir<0?Math.PI:0}
+{const at=t=>t.axis?[t.pos,t.road+t.dir*4]:[t.road-t.dir*4,t.pos],seen=[];for(const t of traffic){const lo=(t.lo??-266)+2,hi=(t.hi??266)-2,cross=t.axis&&t.lo!==undefined?ROADX2:roads;
+ for(let k=0;k<60;k++){const [x,z]=at(t);if(!seen.some(o=>{const [ox,oz]=at(o);return Math.hypot(ox-x,oz-z)<12})&&!cross.some(c=>Math.abs(c-t.pos)<14)&&Math.hypot(x-4,z-30)>12)break;t.pos+=9;if(t.pos>hi)t.pos=lo}seen.push(t)}}
+for(const t of traffic){t.g.position.set(t.axis?t.pos:t.road-t.dir*4,0,t.axis?t.road+t.dir*4:t.pos);t.g.rotation.y=t.axis?t.dir*Math.PI/2:t.dir<0?Math.PI:0}
 // Serra traffic: mostly trucks plus a few classics, spread over the mountain roads away from the tunnels.
 {const SC=['#d23b2f','#2f6fae','#f0c23a','#3e8a57','#e07a2e','#f2ece0'],total=SERRA_ROUTES.reduce((a,r)=>a+r.length,0),spots=[];
  for(let i=0;i<(LOW?10:14);i++){const g=i%2===0||i===3?classic('caminhao',SC[i%6]):i%3?classic(['kombi','opala','mustang'][i%3],SC[(i+2)%6]):beetle(SC[(i+3)%6]);if(!g.userData.model)g.scale.setScalar(.94);
@@ -1987,7 +2126,7 @@ function update(dt){
  if(!paused){elapsed+=dt;simTime+=dt;oceanStep(dt);sprayStep(dt);
   for(const c of clouds){c.position.x+=dt*.6;if(c.position.x>600)c.position.x=-600}
   updateTraffic(dt);updateLooseVehicles(dt);updateFallers(dt);updatePeople(dt);for(const v of vehicleList())if(!v.userData.police&&!v.userData.aiDriver&&(v!==car||!inCar))groundVehicle(v,dt);updateDistrict(dt);cullFar(dt);shopGoods.visible=simTime>=shopRestock;
-  if(started){updateCombat(dt);updateCalm();if(inCar)drive(dt);else walk(dt);updatePolice(dt);updateRace(dt);if(race.on)groundVehicle(rival,0);
+  if(started){updateCombat(dt);updateCalm(dt);if(inCar)drive(dt);else walk(dt);updatePolice(dt);updateRace(dt);if(race.on)groundVehicle(rival,0);
    const pos=actorPos(),a=inCar?carCam(dt):(camYaw=surf.active?surfCam(dt):heading),behind=inCar?(cameraMode?7.5:12)+camRig.pull:surf.active?surf.camBack:(cameraMode?5:7),lead=inCar?camRig.look:0;
    target.set(pos.x-Math.sin(a)*behind+(inCar?camRig.x:surf.active?surf.camOX:0),pos.y+(inCar?5.5+camRig.pull*.3:surf.active?surf.camUp:4.4),pos.z-Math.cos(a)*behind+(inCar?camRig.z:surf.active?surf.camOZ:0));if(surf.active)target.copy(SC_T);else target.y=Math.max(target.y,surfaceY(target.x,target.z)+2.4);const bore=tunnelAt(pos.x,pos.z,1);if(bore){target.x=T.MathUtils.clamp(target.x,bore.x-4,bore.x+4);target.y=Math.min(target.y,tunnelFloor(bore,T.MathUtils.clamp(target.z,bore.z0,bore.z1))+5.8)}cam.position.lerp(target,1-Math.exp(-dt*(inCar?8:surf.active?9:5)));if(surf.active){surfCamClear(cam.position);cam.position.y=Math.max(cam.position.y,SEA_Y+oceanHeight(cam.position.x,cam.position.z)+1.1,surfaceY(cam.position.x,cam.position.z)+1.2)}else cam.position.y=Math.max(cam.position.y,surfaceY(cam.position.x,cam.position.z)+1.8);if(bore){cam.position.x=T.MathUtils.clamp(cam.position.x,bore.x-4,bore.x+4);cam.position.y=Math.min(cam.position.y,tunnelFloor(bore,T.MathUtils.clamp(cam.position.z,bore.z0,bore.z1))+5.8)}
    look.set(pos.x+Math.sin(a+lead)*(inCar?6:surf.active?surf.camAhead:2),pos.y+(surf.active?.9:1.4),pos.z+Math.cos(a+lead)*(inCar?6:surf.active?surf.camAhead:2));if(surf.active)look.copy(SC_L);cam.lookAt(look);
@@ -2008,6 +2147,6 @@ function fit(){cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();re
 const context=document.modelContext;if(context?.registerTool){for(const tool of [{name:'start_driving',description:'Iniciar o jogo local.',execute:()=>{start();return{started,paused}}},{name:'reset_car',description:'Reposicionar fora de perseguições.',execute:()=>{reset();return{x:car.position.x,z:car.position.z,wanted}}}]){try{Promise.resolve(context.registerTool({...tool,inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:false},execute:input=>{if(input&&Object.keys(input).length)throw new Error('Nenhum argumento é aceito.');return tool.execute()}})).catch(()=>{})}catch{}}}
 
 // Test hook (only with ?debug=1): lets automated checks step the simulation and read state.
-if(DEBUG)window.__g={surfToPeak,T,scene,cam,renderer,surf,player,keys,DEBUG,SURF_CONFIG,surfStep,surfSample,updateSurf,waveAt,WS,OI,OC,spawnWave,oceanStep,oceanInfo,oceanHeight,seaU,start,startSurf,stopSurf,update,keysClear,shore,sandY,get heading(){return heading},set heading(v){heading=v},get simTime(){return simTime},get cash(){return cash},get inCar(){return inCar},set inCar(v){inCar=v;player.visible=!v?true:false},people,get grab(){return grab},arrested,crime,set simTime(v){simTime=v},get lastCrime(){return lastCrime},render(){renderer.render(scene,cam)},step(n=1,dt=1/60){for(let i=0;i<n;i++)update(dt);renderer.render(scene,cam)}};
+if(DEBUG)window.__g={surfToPeak,T,scene,cam,renderer,surf,player,keys,DEBUG,SURF_CONFIG,surfStep,surfSample,updateSurf,waveAt,WS,OI,OC,spawnWave,oceanStep,oceanInfo,oceanHeight,seaU,start,startSurf,stopSurf,update,keysClear,shore,sandY,get heading(){return heading},set heading(v){heading=v},get simTime(){return simTime},get cash(){return cash},get inCar(){return inCar},set inCar(v){inCar=v;player.visible=!v?true:false},people,traffic,get grab(){return grab},arrested,crime,set simTime(v){simTime=v},get lastCrime(){return lastCrime},render(){renderer.render(scene,cam)},step(n=1,dt=1/60){for(let i=0;i<n;i++)update(dt);renderer.render(scene,cam)}};
 
 </script></body></html>
