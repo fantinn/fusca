@@ -193,8 +193,9 @@ function oceanStep(dt){
   if(!w){A.w=0;continue}
   A.set(w.xc,w.zc,w.H,w.c);B.set(w.s0,w.peelN,w.peelS,w.hollow);C.set(w.lenN,w.lenS,w.alive,w.Lb0);D.set(w.LfD,w.LfB,0,0);
  }
- seaU.uWT.value=OC.t;seaU.uOffZ.value=Math.round(cam.position.z/GRID_DZ)*GRID_DZ;
+ seaU.uWT.value=OC.t;seaU.uOffZ.value=Math.round(cam.position.z/seaDz)*seaDz;
 }
+var seaDz=GRID_DZ*3;
 const seaU={cA:{value:new T.Color('#8cc5c1')},cB:{value:new T.Color('#4b9ca8')},cC:{value:new T.Color('#286681')},
  wA:{value:Array.from({length:NW},()=>new T.Vector4())},wB:{value:Array.from({length:NW},()=>new T.Vector4())},wC:{value:Array.from({length:NW},()=>new T.Vector4())},wD:{value:Array.from({length:NW},()=>new T.Vector4())},uWT:{value:0},uCurl:{value:1},uOffZ:{value:0}};
 const WAVE_GLSL=`#define NW ${NW}
@@ -304,8 +305,8 @@ const seaMat=waterMaterial();
 
 // One dense grid of vertices over the surf zone (the lip needs sub-metre spacing), stretching out to the horizon. It is built around z=0
 // and the vertex shader slides it along the beach with the camera (uOffZ, snapped to the row spacing so the surface never swims).
-function seaGeometry(){
- const dx=LOW?1:.65,dz=GRID_DZ,xr=[],zz=[];
+function seaGeometry(k=1){
+ const dx=(LOW?1:.65)*k,dz=GRID_DZ*k,xr=[],zz=[];
  for(let v=-30;v<-6;v+=1.5)xr.push(v);for(let v=-6;v<300;v+=dx)xr.push(v);for(let v=300;v<430;v+=dx*2)xr.push(v);
  for(let v=430,d=dx*5;v<1750;v+=d,d=Math.min(d*1.14,400))xr.push(v);
  const zw=LOW?170:210;for(let v=-zw;v<=zw;v+=dz)zz.push(v);
@@ -315,7 +316,10 @@ function seaGeometry(){
  let n=0;for(let i=0;i<nx-1;i++)for(let j=0;j<nz-1;j++){const a=i*nz+j,b=a+1,c=a+nz,d=c+1;I[n++]=a;I[n++]=b;I[n++]=c;I[n++]=b;I[n++]=d;I[n++]=c}
  const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(P,3));g.setIndex(new T.BufferAttribute(I,1));g.computeBoundingSphere();return g;
 }
-const sea=new T.Mesh(seaGeometry(),seaMat);sea.frustumCulled=false;sea.receiveShadow=true;scene.add(sea);
+// Sea LOD: a coarse (decorative) grid while walking/driving; the detailed grid only exists while surfing.
+const SEA_COARSE=3,seaGeo={coarse:seaGeometry(SEA_COARSE),fine:null};
+function setSeaDetail(fine){const g=fine?(seaGeo.fine??=seaGeometry(1)):seaGeo.coarse;if(sea.geometry!==g){sea.geometry=g;seaDz=fine?GRID_DZ:GRID_DZ*SEA_COARSE;seaU.uOffZ.value=Math.round(cam.position.z/seaDz)*seaDz}}
+const sea=new T.Mesh(seaGeo.coarse,seaMat);sea.frustumCulled=false;sea.receiveShadow=true;scene.add(sea);
 const canalMat=waterMaterial(true);
 for(let i=0;i<160;i++)oceanStep(.25);
 const roads=[-216,-144,-72,0,72,144,216],obstacles=[],RE=[-270,...roads,270];for(const r of roads){for(let j=0;j<8;j++){const z0=RE[j],z1=RE[j+1],x0=RE[j]+(j?9.5:0),x1=RE[j+1]-(j<7?9.5:0),y0=RE[j]+(j?9.5:0),y1=RE[j+1]-(j<7?9.5:0),q0=RE[j]+(j?10.3:0),q1=RE[j+1]-(j<7?10.3:0);sb('flat',19,.26,z1-z0,'#596165',r,-.07,(z0+z1)/2,0,.8);if(j)sb('flat',x1-x0,.26,19,'#596165',(x0+x1)/2,-.07,r,0,.8);for(const sg2 of [-1,1]){if(r>-216||sg2>0)sb('flat',.8,.35,y1-y0,'#dcd6c8',r+sg2*9.9,.025,(y0+y1)/2,0,.6);if(j)sb('flat',q1-q0,.35,.8,'#dcd6c8',(q0+q1)/2,.025,r+sg2*9.9,0,.6)}}if(r===-216)sb('flat',.8,.35,540,'#dcd6c8',-225.9,.025,0,0,.6);
@@ -350,17 +354,117 @@ for(let i=0;i<24;i++){const b=mb(),S=geos.cs,n=4+Math.floor(r2()*4);if(++lowClou
  for(let v=0;v<b.p.length/3;v++){if(b.p[v*3+1]<-1.5)b.p[v*3+1]=-1.5;const l=Math.min(1,.62+.26*b.n[v*3+1]+.2*Math.max(0,b.n[v*3]*SUND.x+b.n[v*3+1]*SUND.y+b.n[v*3+2]*SUND.z));_C.set('#aec6dd').lerp(_C2.set('#ffffff'),l);b.c[v*4]=_C.r;b.c[v*4+1]=_C.g;b.c[v*4+2]=_C.b}const m=new T.Mesh(mgeo(b),CLM);m.position.set(px,py,pz);scene.add(m);clouds.push(m)}
 // Fusca: body parts merged per material (paint/glass/chrome/trim/lamps), geometry shared by every car.
 let CARG=null;const PAINT={},CM={glass:new T.MeshStandardMaterial({color:'#1b2f38',roughness:.04,metalness:.4,envMap:ENV}),chrome:new T.MeshStandardMaterial({color:'#f4f5f4',metalness:1,roughness:.18,envMap:ENV}),trim:new T.MeshStandardMaterial({vertexColors:true,roughness:.7}),lamp:new T.MeshBasicMaterial({vertexColors:true,toneMapped:false})};
-function carGeo(){if(CARG)return CARG;const B={paint:mb(),glass:mb(),chrome:mb(),trim:mb(),lamp:mb()},S=new T.SphereGeometry(1,20,14),s=geos.s??=new T.SphereGeometry(1,16,10),W=new T.SphereGeometry(1,20,6,0,Math.PI*2,.74,.86),e=(k,g,c,x,y,z,sx,sy,sz,rx=0,ry=0,rz=0)=>madd(B[k],g,c,mx(x,y,z,sx,sy,sz,rx,ry,rz));
- e('paint',S,'#fff',0,.9,0,.86,.62,1.92);e('paint',S,'#fff',0,1.2,-.06,.9,.26,1.3);e('paint',S,'#fff',0,1.0,1.24,.72,.44,.92,.14);e('paint',S,'#fff',0,1.03,-1.3,.8,.5,.8,-.2);e('paint',S,'#fff',0,1.5,-.12,.8,.7,1.06);e('glass',W,'#fff',0,1.5,-.12,.815,.7,1.075);e('paint',S,'#fff',0,1.5,-.2,.83,.705,.07);for(const x of [-.94,.94])for(const z of [-1.2,1.2])e('paint',S,'#fff',x,.74,z,.34,.42,.74,z>0?.1:-.1);
- for(const z of [2.03,-2])e('chrome',C12,'#fff',0,.56,z,.075,2.02,.075,0,0,Math.PI/2);for(const x of [-.45,.45])for(const z of [2.07,-2.04])e('chrome',GB,'#fff',x,.62,z,.08,.3,.1);
- for(const x of [-.93,.93]){e('chrome',C12,'#fff',x,1.0,1.72,.19,.12,.19,Math.PI/2-.3);e('lamp',s,'#fff6d2',x,1.0,1.78,.155,.155,.05,-.3);e('lamp',s,'#d8392c',x,.96,-1.83,.09,.16,.05,.2);e('lamp',s,'#ffab3d',x*.93,1.18,1.42,.06,.04,.09);e('chrome',s,'#fff',x*1.02,1.5,.62,.1,.08,.12);e('chrome',GB,'#fff',x*.93,1.44,.62,.12,.04,.04);e('chrome',GB,'#fff',x*.96,1.27,-.25,.03,.04,.18);e('chrome',C8,'#fff',x*.4,.5,-1.98,.05,.3,.05,Math.PI/2)}
- e('chrome',C12,'#fff',0,1.2,2.03,.09,.03,.09,Math.PI/2-.7);e('chrome',GB,'#fff',0,1.4,1.4,.05,.025,.8,.3);e('trim',GB,'#1d2224',0,.42,0,1.6,.2,3.4);for(const x of [-.98,.98])e('trim',GB,'#2b3033',x,.58,0,.34,.08,1.5);e('trim',GB,'#f0eee4',0,.74,-2.0,.5,.17,.04);for(let k=0;k<4;k++)e('trim',GB,'#3a3f41',0,1.2+k*.06,-1.93+k*.05,.46,.025,.05);
- CARG={};for(const k in B)CARG[k]=mgeo(B[k]);const t=mb();madd(t,new T.CylinderGeometry(.47,.47,.29,20),'#24292b',mx());for(const sd of [-1,1]){madd(t,new T.RingGeometry(.31,.41,20),'#ecebe3',mx(0,sd*.15,0,1,1,1,-sd*Math.PI/2));madd(t,new T.RingGeometry(.25,.31,20),'#c8c3b6',mx(0,sd*.151,0,1,1,1,-sd*Math.PI/2))}CARG.tire=mgeo(t);CARG.hub=new T.CylinderGeometry(.26,.26,.31,16);return CARG}
-function beetle(color){let g=new T.Group();const body=new T.Group(),G=carGeo();g.add(body);for(const k of ['paint','glass','chrome','trim','lamp']){const m=new T.Mesh(G[k],k==='paint'?PAINT[color]??=new T.MeshPhysicalMaterial({color,roughness:.42,metalness:0,clearcoat:.6,clearcoatRoughness:.1,envMap:ENV,envMapIntensity:.6}):CM[k]);m.castShadow=k!=='lamp';m.receiveShadow=k==='paint';body.add(m)}const wheels=[];for(let x of [-1.02,1.02])for(let z of [-1.2,1.2]){let pivot=new T.Group();pivot.position.set(x,.49,z);g.add(pivot);let w=new T.Mesh(G.tire,CM.trim);w.rotation.z=Math.PI/2;w.castShadow=true;pivot.add(w);let hub=new T.Mesh(G.hub,CM.chrome);hub.rotation.z=Math.PI/2;pivot.add(hub);wheels.push({pivot,w,hub,front:z>0})}g.userData={body,wheels};return g}
+function carGeo(){
+ if(CARG)return CARG;
+ const B={paint:mb(),glass:mb(),chrome:mb(),trim:mb(),lamp:mb()},S=new T.SphereGeometry(1,20,12),small=new T.SphereGeometry(1,LOW?8:10,LOW?5:6);
+ geos.s??=new T.SphereGeometry(1,16,10); // also used by the shared classic-car catalogue
+ const e=(k,g,c,x=0,y=0,z=0,sx=1,sy=1,sz=1,rx=0,ry=0,rz=0)=>madd(B[k],g,c,mx(x,y,z,sx,sy,sz,rx,ry,rz));
+ const mesh=(v,ix)=>{const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(v,3));g.setIndex(ix);g.computeVertexNormals();return g};
+ const line=(k,pts,r=.012,closed=false,c='#fff',steps=24)=>e(k,new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(...p)),closed),Math.min(steps,LOW?18:24),r,4,closed),c);
+ // Narrow central shell: a long sloping luggage hood and a rounded rear engine lid.
+ const profile=[[-2.02,.10,.77],[-1.85,.46,1.02],[-1.5,.68,1.26],[-1.05,.78,1.36],[-.5,.81,1.39],[.4,.81,1.38],[.85,.76,1.36],[1.25,.65,1.28],[1.65,.43,1.07],[1.94,.20,.82],[2.02,.05,.69]];
+ const sample=z=>{let i=0;while(i<profile.length-2&&z>profile[i+1][0])i++;const a=profile[i],b=profile[i+1],q=(z-a[0])/(b[0]-a[0]),t=q*q*(3-2*q);return[a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]};
+ {const v=[],ix=[],rows=LOW?32:40,n=LOW?16:20;
+  for(let j=0;j<=rows;j++){const z=-2.02+4.04*j/rows,[w,top]=sample(z);for(let i=0;i<=n;i++){const a=i/n*Math.PI*2;v.push(w*Math.cos(a),.35+(top-.35)*(Math.sin(a)+1)*.5,z)}}
+  for(let j=0;j<rows;j++)for(let i=0;i<n;i++){const a=j*(n+1)+i,b=a+n+1;ix.push(a,a+1,b,b,a+1,b+1)}
+  e('paint',mesh(v,ix),'#fff');
+ }
+ // Continuous painted roof, with individual curved panes rather than a glass belt.
+ const CAB={x:.79,y:.82,z:1.12,cy:1.27,cz:-.12};
+ const cabinPoint=(u,v,pad=0)=>{const c=Math.cos(v);return[(CAB.x+pad)*c*Math.sin(u),CAB.cy+(CAB.y+pad)*Math.sin(v),CAB.cz+(CAB.z+pad)*c*Math.cos(u)]};
+ e('paint',S,'#fff',0,CAB.cy,CAB.cz,CAB.x,CAB.y,CAB.z);
+ const shellTop=(x,z)=>{const [w,top]=sample(z);return .35+(top-.35)*(1+Math.sqrt(Math.max(0,1-(x/w)**2)))*.5};
+ const onHood=points=>points.map(([x,y,z])=>[x,shellTop(x,z)+.009,z]);
+ const sidePoint=(side,y,z)=>{const [w,top]=sample(z),h=2*(y-.35)/(top-.35)-1,bx=w*Math.sqrt(Math.max(0,1-h*h)),cx=CAB.x*Math.sqrt(Math.max(0,1-((y-CAB.cy)/CAB.y)**2-((z-CAB.cz)/CAB.z)**2));return[side*(Math.max(bx,cx)+.008),y,z]};
+ function pane(u0,u1,v0,v1){
+  const p=[],ix=[],nx=LOW?6:8,ny=LOW?4:6,rx=Math.min(.075,(u1-u0)*.2),ry=.045;
+  for(let j=0;j<=ny;j++){const v=v0+(v1-v0)*j/ny,d=Math.min(v-v0,v1-v),inset=d<ry?rx*(1-Math.sqrt(Math.max(0,1-(1-d/ry)**2))):0;
+   for(let i=0;i<=nx;i++)p.push(...cabinPoint(u0+inset+(u1-u0-2*inset)*i/nx,v,.009));}
+  for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const a=j*(nx+1)+i,b=a+nx+1;ix.push(a,a+1,b,b,a+1,b+1)}
+  e('glass',mesh(p,ix),'#fff');
+  const sh=new T.Shape();sh.moveTo(u0+rx,v0);sh.lineTo(u1-rx,v0);sh.quadraticCurveTo(u1,v0,u1,v0+ry);sh.lineTo(u1,v1-ry);sh.quadraticCurveTo(u1,v1,u1-rx,v1);sh.lineTo(u0+rx,v1);sh.quadraticCurveTo(u0,v1,u0,v1-ry);sh.lineTo(u0,v0+ry);sh.quadraticCurveTo(u0,v0,u0+rx,v0);
+  const edge=sh.getPoints(4).slice(0,-1);line('trim',edge.map(p=>cabinPoint(p.x,p.y,.010)),.016,true,'#252b2c',36);line('chrome',edge.map(p=>cabinPoint(p.x,p.y,.022)),.007,true,'#fff',36);
+ }
+ pane(-.73,.73,.22,.69); // one-piece windscreen, surrounded by painted A pillars
+ pane(Math.PI-.62,Math.PI+.62,.25,.64); // smaller rear window
+ for(const side of [-1,1]){
+  const window=(a,b,v0,v1)=>pane(side>0?a:-b,side>0?b:-a,v0,v1);
+  window(.88,1.13,.20,.64); // triangular quarter-light / vent window
+  window(1.19,1.79,.18,.66); // door glass
+  window(1.94,2.53,.20,.62); // rear quarter glass, broad painted rear pillar
+ }
+ // Separate domed wings with open wheel arches; tyre tops sit inside the wings.
+ for(const side of [-1,1])for(const axle of [-1.2,1.2]){
+  const v=[],ix=[],nz=LOW?18:24,nx=LOW?4:6;
+  for(let j=0;j<=nz;j++){const dz=-.72+1.44*j/nz,top=.47+.59*Math.sqrt(Math.max(0,1-(dz/.73)**2));for(let i=0;i<=nx;i++){const q=i/nx;v.push(side*(.69+.47*q),top+.115*Math.sin(q*Math.PI),axle+dz)}}
+  for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const a=j*(nx+1)+i,b=a+nx+1;if(side>0)ix.push(a,b,a+1,b,b+1,a+1);else ix.push(a,a+1,b,b,a+1,b+1)}
+  const off=v.length/3;
+  for(let j=0;j<=nz;j++){const dz=-.72+1.44*j/nz,top=.47+.59*Math.sqrt(Math.max(0,1-(dz/.73)**2)),opening=Math.abs(dz)<.505?.49+Math.sqrt(.505**2-dz*dz):.29;v.push(side*1.16,top,axle+dz,side*1.145,Math.min(top-.015,opening),axle+dz)}
+  for(let j=0;j<nz;j++){const a=off+j*2;if(side>0)ix.push(a,a+1,a+2,a+2,a+1,a+3);else ix.push(a,a+2,a+1,a+2,a+3,a+1)}
+  e('paint',mesh(v,ix),'#fff');
+  const seam=[];for(let j=0;j<=18;j++){const dz=-.69+1.38*j/18;seam.push([side*.70,.47+.59*Math.sqrt(Math.max(0,1-(dz/.73)**2))+.014,axle+dz])}line('trim',seam,.009,false,'#343738',24);
+ }
+ for(const side of [-1,1]){
+  // Black running boards, sill trim and a visible door outline below the glazing.
+  e('trim',GB,'#292c2d',side*.98,.43,0,.34,.075,1.38);
+  line('chrome',[[side*1.15,.46,-.66],[side*1.15,.46,.66]],.014,false,'#fff',8);
+  const door=[];for(const [u,v]of [[.89,.17],[1.14,.10],[1.5,.095],[1.84,.14]])door.push(cabinPoint(side*u,v,.009));
+  door.push(sidePoint(side,.76,-.39),sidePoint(side,.53,-.32),sidePoint(side,.53,.53),sidePoint(side,.76,.63),cabinPoint(side*.89,.17,.009));line('trim',door,.007,false,'#4b4841',32);
+  const belt=[];for(let i=0;i<=20;i++)belt.push(cabinPoint(side*(.82+1.83*i/20),.135,.020));line('chrome',belt,.011,false,'#fff',28);
+  e('chrome',small,'#fff',side*.805,1.31,-.23,.025,.027,.095);
+  line('chrome',[[side*.75,1.46,.60],[side*.95,1.59,.61]],.018,false,'#fff',8);
+  e('chrome',small,'#fff',side*.98,1.61,.61,.09,.063,.038);e('glass',small,'#fff',side*.98,1.61,.579,.075,.049,.013);
+  // Round headlamps sunk into the forward wings, with thin chrome bezels.
+  e('paint',small,'#fff',side*.92,.93,1.66,.22,.24,.24,-.17);
+  e('chrome',new T.TorusGeometry(.173,.022,6,20),'#fff',side*.92,.97,1.858,1,1,1,-.17);
+  e('lamp',small,'#eee6cc',side*.92,.97,1.858,.153,.153,.040,-.17);
+  for(const x of [-.06,0,.06])line('lamp',[[side*.92+x,.865,1.898],[side*.92+x,1.075,1.862]],.004,false,'#faf3db',4);
+  e('chrome',small,'#fff',side*.91,1.105,1.31,.081,.043,.142);e('lamp',small,'#f4ad3c',side*.91,1.12,1.335,.064,.028,.114);
+  // Small early-style rear lamps, twin exhaust tips and bumper overriders.
+  e('chrome',small,'#fff',side*.98,.84,-1.842,.108,.153,.042,.20);
+  e('lamp',small,'#bd352a',side*.98,.86,-1.875,.086,.116,.026,.20);
+  e('lamp',small,'#e78830',side*.98,.935,-1.862,.074,.035,.027,.20);
+  e('chrome',C12,'#fff',side*.37,.34,-2.01,.039,.25,.039,Math.PI/2);
+  e('trim',C8,'#252a2b',side*.37,.34,-2.14,.026,.009,.026,Math.PI/2);
+ }
+ // Curved blade bumpers, rather than a straight cylindrical bar.
+ for(const front of [-1,1]){
+  const pts=[[-1.09,.54,front*1.87],[-.89,.54,front*2.02],[-.48,.54,front*2.105],[0,.54,front*2.13],[.48,.54,front*2.105],[.89,.54,front*2.02],[1.09,.54,front*1.87]];
+  const g=new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(...p))),32,1,6,false),P=g.attributes.position;
+  // Squash the tube into a polished vertical blade around its own centreline.
+  const curve=new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(...p)));
+  for(let i=0;i<P.count;i++){const c=curve.getPoint(Math.floor(i/7)/32);P.setXYZ(i,c.x+(P.getX(i)-c.x)*.035,c.y+(P.getY(i)-c.y)*.068,c.z+(P.getZ(i)-c.z)*.035)}g.computeVertexNormals();e('chrome',g,'#fff');
+  for(const x of [-.50,.50]){e('chrome',small,'#fff',x,.61,front*2.11,.044,.17,.06);e('trim',GB,'#293034',x,.61,front*2.165,.025,.15,.012)}
+  e('trim',GB,'#242c30',0,.64,front*2.033,.43,.135,.027);e('trim',GB,'#f2ecda',0,.64,front*2.052,.39,.103,.014);
+  for(let i=0;i<6;i++)e('trim',GB,'#39404a',-.125+i*.05,.64,front*2.062,.020,.047,.006);
+ }
+ // Luggage hood seam and its central chrome spear; rear engine ventilation slots.
+ line('trim',onHood([[-.59,1.24,.94],[-.51,1.21,1.28],[-.34,1.04,1.64],[-.13,.86,1.88],[0,.82,1.92],[.13,.86,1.88],[.34,1.04,1.64],[.51,1.21,1.28],[.59,1.24,.94]]),.005,false,'#4b4841',40);
+ line('chrome',onHood([[0,1.37,.94],[0,1.30,1.25],[0,1.10,1.61],[0,.94,1.81]]),.010,false,'#fff',24);
+ e('chrome',small,'#fff',0,.925,1.85,.034,.06,.026,-.40);
+ for(const x of [-.13,.13])line('trim',[[x,1.45,.963],[x+.19,1.56,.911]],.009,false,'#262d30',6);
+ line('trim',onHood([[-.57,1.26,-1.30],[-.48,1.14,-1.64],[-.26,.96,-1.88],[0,.88,-1.98],[.26,.96,-1.88],[.48,1.14,-1.64],[.57,1.26,-1.30]]),.006,false,'#414748',32);
+ for(const x of [-.34,-.24,-.14,.14,.24,.34])line('trim',onHood([[x,1.307,-1.31],[x,1.25,-1.44]]),.012,false,'#2c3336',6);
+ e('chrome',small,'#fff',0,1.02,-1.91,.085,.022,.027);
+ e('trim',GB,'#22272a',0,.33,0,1.45,.14,3.5);
+ CARG={};for(const k in B)CARG[k]=mgeo(B[k]);
+ // Slim whitewalls, steel rims and domed chrome hubcaps, shared by all four wheels.
+ const tire=mb(),hub=mb();madd(tire,new T.CylinderGeometry(.47,.47,.26,24),'#25292b',mx());
+ for(const side of [1]){
+  madd(tire,new T.TorusGeometry(.382,.073,5,20),'#25292b',mx(0,side*.092,0,1,1,1,Math.PI/2));
+  madd(tire,new T.RingGeometry(.326,.357,20),'#e9e4d6',mx(0,side*.147,0,1,1,1,-side*Math.PI/2));
+  madd(tire,new T.RingGeometry(.23,.312,20),'#bcb4a1',mx(0,side*.149,0,1,1,1,-side*Math.PI/2));
+  madd(hub,new T.TorusGeometry(.298,.014,5,20),'#fff',mx(0,side*.154,0,1,1,1,Math.PI/2));
+  madd(hub,small,'#fff',mx(0,side*.14,0,.237,.068,.237));
+  for(let i=0;i<5;i++){const a=i/5*Math.PI*2;madd(tire,new T.CircleGeometry(1,10),'#33383a',mx(Math.cos(a)*.274,side*.155,Math.sin(a)*.274,.023,.034,1,-side*Math.PI/2,0,a))}
+ }
+ CARG.tire=mgeo(tire);CARG.hub=mgeo(hub);return CARG;
+}
+function beetle(color){let g=new T.Group();const body=new T.Group(),G=carGeo();g.add(body);for(const k of ['paint','glass','chrome','trim','lamp']){const m=new T.Mesh(G[k],k==='paint'?PAINT[color]??=new T.MeshPhysicalMaterial({color,roughness:.42,metalness:0,clearcoat:.6,clearcoatRoughness:.1,envMap:ENV,envMapIntensity:.6}):CM[k]);m.castShadow=k!=='lamp';m.receiveShadow=k==='paint';body.add(m)}const wheels=[];for(let x of [-1.02,1.02])for(let z of [-1.2,1.2]){let pivot=new T.Group();pivot.position.set(x,.49,z);g.add(pivot);let w=new T.Mesh(G.tire,CM.trim);w.rotation.z=-Math.sign(x)*Math.PI/2;w.castShadow=true;pivot.add(w);let hub=new T.Mesh(G.hub,CM.chrome);hub.rotation.z=-Math.sign(x)*Math.PI/2;pivot.add(hub);wheels.push({pivot,w,hub,front:z>0})}g.userData={body,wheels};return g}
 let car=beetle('#ffc94d');scene.add(car);car.position.set(4,0,30);let angle=Math.PI,velocity=0,steer=0,distance=0,nitro=100,started=false,paused=false,cameraMode=0;
 // Classic car catalogue: each model is merged per material once (paint/glass/chrome/trim/lamp) and shared by every copy.
 // spec: wheels {x,z,r}, collision half-size, mass, display name and handling overrides (K) read by driveStep.
-// Coachwork helpers are used only by the non-Beetle catalogue; geometry remains shared per model.
+// Coachwork helpers for the classic catalogue; geometry remains shared per model.
 function coachLoft(rows){const v=[],idx=[];for(const [z,w,lo,hi]of rows)for(const [x,y]of [[-w*.88,lo],[-w,lo+.035],[-w,hi-.045],[-w*.88,hi],[w*.88,hi],[w,hi-.045],[w,lo+.035],[w*.88,lo]])v.push(x,y,z);for(let r=0;r<rows.length-1;r++)for(let j=0;j<8;j++){const a=r*8+j,b=r*8+(j+1)%8,c=b+8,d=a+8;idx.push(a,c,b,a,d,c)}for(let j=1;j<7;j++){idx.push(0,j,j+1);const a=(rows.length-1)*8;idx.push(a,a+j+1,a+j)}const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(v,3));g.setIndex(idx);g.computeVertexNormals();return g}
 function coachLine(e,k,c,a,b,r=.014){const av=new T.Vector3(...a),bv=new T.Vector3(...b),d=bv.clone().sub(av),g=new T.CylinderGeometry(r,r,d.length(),6);g.applyQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),d.normalize()));g.translate(...av.add(bv).multiplyScalar(.5).toArray());e(k,g,c,0,0,0,1,1,1)}
 function coachBody(e,{w,d,top,axles,r,cy},s){
@@ -1034,7 +1138,7 @@ function surfReset(){
 function startSurf(){
  if(cargo){toast('Solte a encomenda com G antes de surfar.');return}
  if(race.on){toast('Termine a corrida antes de surfar.');return}
- surfReset();surf.active=true;heading=-Math.PI/2;
+ surfReset();surf.active=true;setSeaDetail(true);heading=-Math.PI/2;
  player.userData.attack=null;player.userData.stagger=0;keysClear();
  const z=surfLaunch.z,c=SURF_CONFIG;player.position.set(shore(z)-c.startDepth,SEA_Y,z);surf.y=SEA_Y;
  if(OC.mode==='auto'){OC.setAt=Math.min(OC.setAt,OC.t+8);OC.fillAt=Math.min(OC.fillAt,OC.t+1)}
@@ -1044,7 +1148,7 @@ function startSurf(){
 function stopSurf(returnToBeach=true){
  if(!surf.active)return;
  if(surf.mode==='ride'||surf.mode==='air')surfBank(false);
- surf.active=false;surf.speed=0;surfReset();OC.lineup.on=false;document.body.classList.remove('surfing');$('surfhud').hidden=true;$('surfpop').className='';
+ surf.active=false;setSeaDetail(false);surf.speed=0;surfReset();OC.lineup.on=false;document.body.classList.remove('surfing');$('surfhud').hidden=true;$('surfpop').className='';
  if(returnToBeach){const z=surfClamp(player.position.z,SURF_CONFIG.zMin,SURF_CONFIG.zMax);player.position.set(shore(z)+SURF_CONFIG.launchOffset,0,z);correctWorld(player.position,.36,true);player.position.y=surfaceY(player.position.x,player.position.z);heading=Math.PI/2;toast('De volta à areia. A prancha está no ponto azul do mapa.')}
  player.rotation.order='XYZ';player.rotation.set(0,heading,0);animatePerson(player,0,simTime);player.userData.rig.position.set(0,0,0);player.userData.rig.rotation.set(0,0,0);keysClear();surfSign.visible=true;parkSurfBoard();
 }
