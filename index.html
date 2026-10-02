@@ -1695,7 +1695,8 @@ function bodyLoad(B,v){const u=v.userData,m=massOf(v);B.v=v;B.x=v.position.x;B.z
 let rollGuard=1;
 function startNpcRoll(v,dvx,dvz){const u=v.userData;if(u.npcRoll||!u.wheels||v===originalCar||stolenCars.has(v))return;const s=v.scale.x,W=(u.size?.w||1.12)*s,H=(u.roof||1.8)*.5*s,yaw=v.rotation.y,lat=dvx*Math.cos(yaw)-dvz*Math.sin(yaw),lon=dvx*Math.sin(yaw)+dvz*Math.cos(yaw),thr=T.MathUtils.clamp(8*W/H,8,13)*Math.sqrt(Math.max(1,massOf(v)/1500))*rollGuard;
  let dir=-Math.sign(lat),k=Math.abs(lat)/thr;if(k<1){const tot=Math.hypot(lat,lon)/(thr*2.2);if(tot<1)return;k=tot;dir=Math.random()<.5?-1:1}
- const dv=Math.hypot(dvx,dvz);u.npcRoll={th:0,w:dir*T.MathUtils.clamp(2.6+k*1.6,3,9),pitch:0,wp:T.MathUtils.clamp(lon*.06,-.6,.6),y:v.position.y+H+.05,vy:T.MathUtils.clamp(1.2+dv*.18,1.5,5),W,H,sx:0,sz:0,rest:0,done:false};
+ // No jump: the car pivots on its lower edge. wTip is just enough spin to lift the centre over that edge; harder hits carry it on to the roof.
+ const kk=9.81*1.5/(W*W+H*H),wTip=Math.sqrt(2*kk*(Math.hypot(W,H)-H));u.npcRoll={th:0,w:dir*wTip*T.MathUtils.clamp(1.15+(k-1)*.45,1.15,1.9),pitch:0,wp:T.MathUtils.clamp(lon*.02,-.15,.15),y:v.position.y+H,vy:0,W,H,sx:0,sz:0,rest:0,done:false,lastSide:1};
  for(const w of u.wheels)w.pivot.position.y=w.baseY??w.pivot.position.y;if(u.body)u.body.position.y=0}
 function updateNpcRoll(v,dt){const u=v.userData,r=u.npcRoll,p=v.position;if(!dt)return;const ca=Math.cos(v.rotation.y),sa=Math.sin(v.rotation.y);p.x-=r.sx;p.z-=r.sz;
  const steps=Math.max(1,Math.ceil(dt/.008)),h=dt/steps,g=surfaceY(p.x,p.z),k=9.81*1.5/(r.W*r.W+r.H*r.H);
@@ -1703,10 +1704,12 @@ function updateNpcRoll(v,dt){const u=v.userData,r=u.npcRoll,p=v.position;if(!dt)
   const sn=Math.sin(r.th),cs=Math.cos(r.th),need=g+Math.abs(r.W*sn)+Math.abs(r.H*cs);
   if(r.y<=need){r.y=need;if(r.vy<0)r.vy=r.vy<-2?-r.vy*.25:0;
    // Gravity tips the box over its lowest edge toward the nearest flat face; ground friction bleeds the spin.
-   const dc=r.W*cs*Math.sign(sn)-r.H*sn*Math.sign(cs);r.w-=k*dc*h;r.w*=Math.exp(-h*1.6);r.pitch*=Math.exp(-h*4);
+   const dc=r.W*cs*Math.sign(sn)-r.H*sn*Math.sign(cs),side=Math.sign(dc*r.w)||1;if(r.lastSide<0&&side>0)r.w*=.35;r.lastSide=side; // slams onto a side/roof face: most of the spin is lost
+   r.w-=k*dc*h;r.w*=Math.exp(-h*.5);r.pitch*=Math.exp(-h*4);
    if(Math.abs(r.w)<.5&&Math.abs(wrapAngle(r.th*4))<.25){r.th=Math.round(r.th/(Math.PI/2))*(Math.PI/2);r.w=0;r.pitch=0;r.y=g+Math.abs(r.W*Math.sin(r.th))+Math.abs(r.H*Math.cos(r.th));r.done=true}}}
  if(r.done)r.rest+=dt;const sn=Math.sin(r.th);r.sx=r.H*sn*ca;r.sz=-r.H*sn*sa;
- v.rotation.order='YXZ';v.rotation.z=r.th;v.rotation.x=r.pitch;p.x+=r.sx;p.z+=r.sz;p.y=r.y-r.H*Math.cos(r.th)}
+ v.rotation.order='YXZ';v.rotation.z=r.th;v.rotation.x=r.pitch;p.x+=r.sx;p.z+=r.sz;p.y=r.y-r.H*Math.cos(r.th);
+ if(r.done&&Math.abs(wrapAngle(r.th))<.1)endNpcRoll(v)} // fell back onto its wheels: just a scare
 function endNpcRoll(v){const u=v.userData,r=u.npcRoll;v.position.x-=r.sx;v.position.z-=r.sz;delete u.npcRoll;v.rotation.x=v.rotation.z=0;u.groundX=undefined}
 function bodyStore(B){if(!B.hit||!B.kind)return;const u=B.v.userData;if(!(Math.abs(B.vx)+Math.abs(B.vz)+Math.abs(B.w)<1e4))B.vx=B.vz=B.w=0;
  if(B.kind===1){u.vel.x=B.vx;u.vel.z=B.vz;u.yawRate=B.w;return} // driveStep re-reads vel/yawRate and derives `velocity`
