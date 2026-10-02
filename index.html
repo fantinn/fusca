@@ -366,7 +366,11 @@ function carGeo(){
  geos.s??=new T.SphereGeometry(1,16,10); // also used by the shared classic-car catalogue
  const e=(k,g,c,x=0,y=0,z=0,sx=1,sy=1,sz=1,rx=0,ry=0,rz=0)=>madd(B[k],g,c,mx(x,y,z,sx,sy,sz,rx,ry,rz));
  const mesh=(v,ix)=>{const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(v,3));g.setIndex(ix);g.computeVertexNormals();return g};
- const line=(k,pts,r=.012,closed=false,c='#fff',steps=24)=>e(k,new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(...p)),closed),Math.min(steps,LOW?18:24),r,4,closed),c);
+ let bodySurface;const surfaceRay=new T.Raycaster();
+ const projectSurface=(p,axis,pad=.004)=>{const origin=p.clone(),dir=new T.Vector3();if(axis==='top'){origin.y=3;dir.y=-1}else{origin.x=axis*3;dir.x=-axis}surfaceRay.set(origin,dir);const hit=surfaceRay.intersectObject(bodySurface,false)[0];if(hit){p.copy(hit.point);if(axis==='top')p.y+=pad;else p.x+=axis*pad}return p};
+ const line=(k,pts,r=.012,closed=false,c='#fff',steps=24)=>{const base=new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(...p)),closed);let curve=base;if(pts.surface){curve=new T.Curve();curve.getPoint=(t,target=new T.Vector3())=>projectSurface(base.getPoint(t,target),pts.surface,r*.45)}e(k,new T.TubeGeometry(curve,Math.min(steps,LOW?24:40),r,4,closed),c)};
+ const surfacePath=(pts,axis)=>{pts.surface=axis;return pts};
+
  // Narrow central shell: a long sloping luggage hood and a rounded rear engine lid.
  const profile=[[-2.02,.10,.77],[-1.85,.46,1.02],[-1.5,.68,1.26],[-1.05,.78,1.36],[-.5,.81,1.39],[.4,.81,1.38],[.85,.80,1.39],[1.25,.77,1.34],[1.65,.60,1.16],[1.94,.40,.90],[2.02,.27,.75]];
  const profileAt=(keys,z)=>{let i=0;while(i<keys.length-2&&z>keys[i+1][0])i++;const a=keys[i],b=keys[i+1],prev=keys[Math.max(0,i-1)],next=keys[Math.min(keys.length-1,i+2)],d=b[0]-a[0],t=T.MathUtils.clamp((z-a[0])/d,0,1);return[1,2].map(k=>{const m0=(b[k]-prev[k])/(b[0]-prev[0]),m1=(next[k]-a[k])/(next[0]-a[0]);return(2*t*t*t-3*t*t+1)*a[k]+(t*t*t-2*t*t+t)*d*m0+(-2*t*t*t+3*t*t)*b[k]+(t*t*t-t*t)*d*m1})};
@@ -377,27 +381,25 @@ function carGeo(){
  const roofY=(x,z)=>{const r=roofSection(z);return .91+(r.top-.91)*Math.pow(Math.max(0,1-Math.pow(Math.abs(x)/r.w,r.n)),1/r.n)};
  const flankX=(y,z)=>{const r=roofSection(z);return r.w*Math.pow(Math.max(0,1-Math.pow(T.MathUtils.clamp((y-.91)/(r.top-.91),0,1),r.n)),1/r.n)};
  const shellTop=(x,z)=>{const [w,top]=sample(z);return .35+(top-.35)*(1+Math.sqrt(Math.max(0,1-(x/w)**2)))*.5};
- const onHood=points=>{const c=new T.CatmullRomCurve3(points.map(([x,y,z])=>new T.Vector3(x,0,z)));return c.getPoints(LOW?24:40).map(p=>[p.x,(p.z<-.94?Math.max(shellTop(p.x,p.z),p.z>=-1.5?roofY(p.x,p.z):0):shellTop(p.x,p.z))+.010,p.z])};
- const sidePoint=(side,y,z)=>{const [w,top]=sample(z),h=2*(y-.35)/(top-.35)-1,bx=w*Math.sqrt(Math.max(0,1-h*h)),cx=z>=-1.50&&z<=.94?flankX(y,z):0;return[side*(Math.max(bx,cx)+.012),y,z]};
+ const onHood=points=>{const c=new T.CatmullRomCurve3(points.map(([x,y,z])=>new T.Vector3(x,0,z)));return surfacePath(c.getPoints(LOW?24:40).map(p=>projectSurface(p,'top',.004).toArray()),'top')};
+ const sidePoint=(side,y,z)=>projectSurface(new T.Vector3(side,y,z),side,.004).toArray();
  // Curved tinted panes sit on the continuous shell, matching the classic catalogue finish.
 
- const roundUV=(u,v)=>{const r=.16,d=Math.min(v,1-v),inset=d<r?r*(1-Math.sqrt(Math.max(0,1-(1-d/r)**2))):0;return[inset+(1-2*inset)*u,v]};
- function windowPanel(map,project=p=>[p[0],p[2]],accept=p=>p[1]>1.2){const v=[],ix=[],nx=LOW?6:10,ny=LOW?4:6;
-  for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++)v.push(...map(...roundUV(i/nx,j/ny),.016));
-  for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const a=j*(nx+1)+i,b=a+nx+1;ix.push(a,a+1,b,b,a+1,b+1)}
-  e('glass',mesh(v,ix),'#fff');
-  const sh=new T.Shape(),r=.16;sh.moveTo(r,0);sh.lineTo(1-r,0);sh.quadraticCurveTo(1,0,1,r);sh.lineTo(1,1-r);sh.quadraticCurveTo(1,1,1-r,1);sh.lineTo(r,1);sh.quadraticCurveTo(0,1,0,1-r);sh.lineTo(0,r);sh.quadraticCurveTo(0,0,r,0);
-  const edge=sh.getPoints(4).slice(0,-1);line('trim',edge.map(p=>map(p.x,p.y,.020)),.009,true,'#283233',36);line('chrome',edge.map(p=>map(p.x,p.y,.026)),.0035,true,'#fff',36);
+ function windowPanel(map){
+  // The glass grid and its flat rubber border use exactly the same perimeter samples.
+  const nx=LOW?8:12,ny=LOW?6:8,r=.14,uv=(u,v)=>{const d=Math.min(v,1-v),inset=d<r?r*(1-Math.sqrt(Math.max(0,1-(1-d/r)**2))):0;return[inset+(1-2*inset)*u,v]},v=[],ix=[],edge=[];
+  for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++)v.push(...map(...uv(i/nx,j/ny),.019));
+  for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const a=j*(nx+1)+i,b=a+nx+1;ix.push(a,a+1,b,b,a+1,b+1)}e('glass',mesh(v,ix),'#fff');
+  for(let i=0;i<nx;i++)edge.push(uv(i/nx,0));for(let j=0;j<ny;j++)edge.push(uv(1,j/ny));for(let i=nx;i>0;i--)edge.push(uv(i/nx,1));for(let j=ny;j>0;j--)edge.push(uv(0,j/ny));
+  const rv=[],ri=[],N=edge.length;for(const p of edge)for(const f of [1,1.025])rv.push(...map(.5+(p[0]-.5)*f,.5+(p[1]-.5)*f,.019));
+  for(let i=0;i<N;i++){const a=i*2,b=((i+1)%N)*2;ri.push(a,b,a+1,b,b+1,a+1)}
+  const center=map(.5,.5),A=new T.Vector3(...rv.slice(0,3)),normal=new T.Vector3(...rv.slice(6,9)).sub(A).cross(new T.Vector3(...rv.slice(3,6)).sub(A));if(normal.dot(new T.Vector3(center[0],center[1]-.91,0))<0)for(let i=0;i<ri.length;i+=3)[ri[i+1],ri[i+2]]=[ri[i+2],ri[i+1]];
+  e('trim',mesh(rv,ri),'#283233');
  }
+
  function roofWindow(zBottom,zTop,half){
   const map=(u,v,pad=0)=>{const z=zBottom+(zTop-zBottom)*v,x=(u*2-1)*roofSection(z).w*half;return[x,roofY(x,z)+pad,z]};
   windowPanel(map);
- }
- roofWindow(.885,.445,.77);roofWindow(-1.25,-.91,.71);
- const sideWindows=[{fb:.805,ft:.475,rb:.34,rt:.245,yb:1.335,yf:1.83,yr:1.83},{fb:.285,ft:.19,rb:-.48,rt:-.495,yb:1.335,yf:1.855,yr:1.875},{fb:-.575,ft:-.61,rb:-1.165,rt:-.985,yb:1.355,yf:1.86,yr:1.70}];
- for(const side of [-1,1])for(const W of sideWindows){
-  const map=(u,v,pad=0)=>{const front=W.fb+(W.ft-W.fb)*v,rear=W.rb+(W.rt-W.rb)*v,z=front+(rear-front)*u,y=W.yb+((W.yf+(W.yr-W.yf)*u)-W.yb)*v;return[side*(flankX(y,z)+pad),y,z]};
-  windowPanel(map,p=>[p[2],p[1]],p=>Math.sign(p[0])===side&&Math.abs(p[0])>.52);
  }
  // One continuous central shell: smoothly unite the luggage compartment, door skin and roof.
  // The same surface supplies the glazing, panel seams and surface normals.
@@ -415,13 +417,19 @@ function carGeo(){
    normals.push(...da.cross(dz).normalize().toArray());
   }}
   for(let j=0;j<rows;j++)for(let i=0;i<n;i++){const a=j*(n+1)+i,b=a+n+1;ix.push(a,a+1,b,b,a+1,b+1)}
-  const g=mesh(v,ix);g.setAttribute('normal',new T.Float32BufferAttribute(normals,3));e('paint',g,'#fff');
+  const g=mesh(v,ix);g.setAttribute('normal',new T.Float32BufferAttribute(normals,3));e('paint',g,'#fff');bodySurface=new T.Mesh(g,new T.MeshBasicMaterial({side:T.DoubleSide}));bodySurface.updateMatrixWorld(true);
   for(const end of [-1,1]){const z=end*2.02,[w,top]=sample(z),cv=[0,(top+.35)*.5,z],ci=[];for(let i=0;i<=n;i++){const a=i/n*Math.PI*2;cv.push(w*Math.cos(a),.35+(top-.35)*(Math.sin(a)+1)*.5,z);if(i<n)ci.push(0,end>0?i+1:i+2,end>0?i+2:i+1)}e('paint',mesh(cv,ci),'#fff')}
+ }
+ roofWindow(.83,.445,.68);roofWindow(-1.25,-.91,.66);
+ const sideWindows=[{fb:.805,ft:.475,rb:.34,rt:.245,yb:1.335,yf:1.83,yr:1.83},{fb:.285,ft:.19,rb:-.48,rt:-.495,yb:1.335,yf:1.855,yr:1.875},{fb:-.575,ft:-.61,rb:-1.165,rt:-.985,yb:1.355,yf:1.86,yr:1.70}];
+ for(const side of [-1,1])for(const W of sideWindows){
+  const map=(u,v,pad=0)=>{const front=W.fb+(W.ft-W.fb)*v,rear=W.rb+(W.rt-W.rb)*v,z=front+(rear-front)*u,y=W.yb+((W.yf+(W.yr-W.yf)*u)-W.yb)*v;return[side*(flankX(y,z)+pad),y,z]};
+  windowPanel(map,p=>[p[2],p[1]],p=>Math.sign(p[0])===side&&Math.abs(p[0])>.52);
  }
  // Opaque glazing hides the cabin: omit invisible seats, dashboard and steering geometry.
  // Rounded pontoon wings: a single curved skin from the body joint to the wheel opening.
- const wingSurface=(side,axle,dz,q)=>{const z=axle+dz,[w]=sample(z),inner=Math.min(.65,w*.96),bulge=Math.sqrt(Math.max(0,1-(dz/.78)**2)),outer=inner+.53*bulge**.7,top=.45+.64*bulge;
-   const arch=Math.abs(dz)<.505?.49+Math.sqrt(.505**2-dz*dz):.34+.10*(1-bulge),start=shellTop(inner,z),t=1-q;
+ const wingSurface=(side,axle,dz,q)=>{const z=axle+dz,[w]=sample(z),inner=Math.min(.65,w*.96),bulge=Math.sqrt(Math.max(0,1-(dz/.78)**2)),outer=inner+.53*bulge**1.6,top=.45+.64*bulge;
+   const start=shellTop(inner,z),arch=Math.abs(dz)<.505?.49+Math.sqrt(.505**2-dz*dz):T.MathUtils.lerp(.49,start,T.MathUtils.smoothstep(Math.abs(dz),.505,.78)),t=1-q;
    const x=t*t*t*inner+3*t*t*q*(inner+.16*bulge)+3*t*q*q*outer+q*q*q*outer;
    const fade=T.MathUtils.smoothstep(bulge,0,.4),p1=start+(Math.max(start,top)+.14*bulge-start)*fade,p2=start+(top+.10*bulge-start)*fade,p3=start+(Math.min(top,arch)-start)*fade;
    const y=t*t*t*start+3*t*t*q*p1+3*t*q*q*p2+q*q*q*p3;
@@ -435,7 +443,7 @@ function carGeo(){
   }}
   for(let j=0;j<nz;j++)for(let i=0;i<nx;i++){const a=j*(nx+1)+i,b=a+nx+1;if(side>0)ix.push(a,b,a+1,b,b+1,a+1);else ix.push(a,a+1,b,b,a+1,b+1)}
   const g=mesh(v,ix);g.setAttribute('normal',new T.Float32BufferAttribute(normals,3));e('paint',g,'#fff');
-  const seam=[];for(let j=0;j<=24;j++){const p=wing(-.76+1.52*j/24,0);p.y+=.006;seam.push(p.toArray())}line('trim',seam,.005,false,'#414847',24);
+
  }
  // Rounded lower closures bridge the narrow hood and the four wings.
  for(const end of [-1,1])e('paint',geos.s,'#fff',0,.59,end*1.77,.91,.29,.28);
@@ -448,10 +456,10 @@ function carGeo(){
 
  for(const side of [-1,1]){
   // Black running boards, sill trim and a visible door outline below the glazing.
-  e('trim',GB,'#292c2d',side*.98,.43,0,.34,.075,1.38);
-  line('chrome',[[side*1.15,.46,-.66],[side*1.15,.46,.66]],.014,false,'#fff',8);
-  const door=[sidePoint(side,1.335,.805),sidePoint(side,1.335,-.48),sidePoint(side,.78,-.50),sidePoint(side,.53,-.41),sidePoint(side,.53,.61),sidePoint(side,.76,.78),sidePoint(side,1.335,.805)];line('trim',door,.007,false,'#4a4841',32);
-  const belt=[];for(let i=0;i<=24;i++){const z=.84-2.02*i/24;belt.push(sidePoint(side,1.28,z))}line('chrome',belt,.011,false,'#fff',28);
+  e('trim',geos.s,'#292c2d',side*.96,.43,0,.18,.030,.73);
+  line('chrome',[[side*1.10,.442,-.58],[side*1.135,.442,0],[side*1.10,.442,.58]],.009,false,'#fff',8);
+  const door=[sidePoint(side,1.335,.805),sidePoint(side,1.335,-.48),sidePoint(side,.78,-.50),sidePoint(side,.53,-.41),sidePoint(side,.53,.61),sidePoint(side,.76,.78),sidePoint(side,1.335,.805)];line('trim',surfacePath(door,side),.004,false,'#4a4841',40);
+  const belt=[];for(let i=0;i<=24;i++){const z=.84-2.02*i/24;belt.push(sidePoint(side,1.28,z))}line('chrome',surfacePath(belt,side),.007,false,'#fff',36);
   const handle=sidePoint(side,1.23,-.37);e('chrome',small,'#fff',handle[0],handle[1],handle[2],.024,.024,.095);
   if(side<0){const base=sidePoint(side,1.42,.63);line('chrome',[base,[side*.965,1.55,.63]],.014,false,'#fff',8);e('chrome',small,'#fff',side*.99,1.57,.63,.10,.067,.030);e('glass',small,'#fff',side*.99,1.57,.604,.082,.053,.008);}
   // Round headlamps sunk into the forward wings, with thin chrome bezels.
@@ -485,13 +493,13 @@ function carGeo(){
  e('chrome',small,'#fff',0,shellTop(0,1.86)+.025,1.86,.034,.055,.025,-.40);
  for(const x of [-.28,.28]){const z=.86;line('trim',[[x,roofY(x,z)+.025,z],[x+.20,roofY(x+.20,.77)+.025,.77]],.008,false,'#262d30',6)}
  line('trim',onHood([[-.57,1.26,-1.30],[-.48,1.14,-1.64],[-.26,.96,-1.88],[0,.88,-1.98],[.26,.96,-1.88],[.48,1.14,-1.64],[.57,1.26,-1.30]]),.006,false,'#414748',32);
- for(let i=0;i<16;i++){const x=-.45+i*.06,points=[];for(let j=0;j<=4;j++){const z=-1.28-.14*j/4;points.push([x,Math.max(roofY(x,z),shellTop(x,z))+.018,z])}line('trim',points,.008,false,'#293335',6)}
+ for(let i=0;i<16;i++){const x=-.45+i*.06,points=[];for(let j=0;j<=4;j++){const z=-1.28-.14*j/4;points.push([x,Math.max(roofY(x,z),shellTop(x,z))+.018,z])}line('trim',surfacePath(points,'top'),.005,false,'#293335',12)}
  // Raised VW medallion follows the bonnet surface, with a dark backing for legibility.
  const badgeDisc=new T.CircleGeometry(.087,24),bp=badgeDisc.attributes.position;for(let i=0;i<bp.count;i++){const x=bp.getX(i),z=1.18+bp.getY(i);bp.setXYZ(i,x,shellTop(x,z)+.022,z)}const bi=badgeDisc.index;for(let i=0;i<bi.count;i+=3){const b=bi.getX(i+1);bi.setX(i+1,bi.getX(i+2));bi.setX(i+2,b)}badgeDisc.computeVertexNormals();e('trim',badgeDisc,'#243137');
  const badge=[];for(let i=0;i<24;i++){const a=i/24*Math.PI*2;badge.push([.087*Math.cos(a),shellTop(.087*Math.cos(a),1.18+.087*Math.sin(a))+.031,1.18+.087*Math.sin(a)])}line('chrome',badge,.007,true,'#fff',24);
  for(const points of [[[-.040,0,1.232],[0,0,1.184],[.040,0,1.232]],[[-.061,0,1.188],[-.035,0,1.132],[0,0,1.174],[.035,0,1.132],[.061,0,1.188]]])line('chrome',onHood(points).map(p=>[p[0],p[1]+.019,p[2]]),.008,false,'#fff',12);
  e('chrome',small,'#fff',0,shellTop(0,-1.91)+.014,-1.91,.070,.018,.024);
- e('trim',GB,'#22272a',0,.33,0,1.45,.14,3.5);
+ e('trim',GB,'#22272a',0,.33,0,1.10,.10,2.9);
  CARG={};for(const k in B)CARG[k]=mgeo(B[k]).scale(.67,.725,.938).translate(0,-.055,0).scale(FUSCA_SCALE,FUSCA_SCALE,FUSCA_SCALE);
  // Slim whitewalls, steel rims and domed chrome hubcaps, shared by all four wheels.
  const tire=mb(),hub=mb();madd(tire,new T.CylinderGeometry(.47,.47,.26,24),'#25292b',mx());
