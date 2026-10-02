@@ -1498,7 +1498,7 @@ function tryGrab(){if(grab||simTime<grabCooldown||inCar||surf.active||cargo||pla
 }
 function releaseGrab(throwIt=false){const g=grab;if(!g)return;grab=null;grabCooldown=simTime+.35;const p=g.p,u=p.g.userData,fwd=new T.Vector3(Math.sin(heading),0,Math.cos(heading));if(u.rag){u.rag.grab=null;u.rag.hold=Math.max(u.rag.hold,u.rag.age+1.2)}
  if(throwIt){if(!u.rag){beginFall(p.g,fwd,5,p,{rear:true});p.stun=5}p.mode='fallen';const r=u.rag;if(r){r.hold=Math.max(r.hold,r.age+2.4);const k=(keys.Shift?9.5:7.5)/120;for(const v of r.points){v.old.copy(v.p);v.old.x-=fwd.x*k;v.old.z-=fwd.z*k;v.old.y-=4.2/120}r.vmax=Math.max(r.vmax,16)}
-  shake=.14;reactToFight(p,player.position);reportViolence(p,14,p.isPolice?22:12,p.isPolice?'Policial arremessado':'Arremesso denunciado');if(p.dead&&u.rag)u.rag.hold=60;player.userData.attack={t:.1,done:true,hand:punchHand++%2};actionCooldown=simTime+.5;return}
+  if(r)thrown.push({p,until:simTime+1.6});shake=.14;reactToFight(p,player.position);reportViolence(p,14,p.isPolice?22:12,p.isPolice?'Policial arremessado':'Arremesso denunciado');if(p.dead&&u.rag)u.rag.hold=60;player.userData.attack={t:.1,done:true,hand:punchHand++%2};actionCooldown=simTime+.5;return}
  if(!u.rag){p.mode=p.bravery>.45?'angry':'flee';p.moodUntil=simTime+14;p.path=[];u.recoil=.35;u.hitVelocity.copy(fwd).multiplyScalar(1.4);u.hitDirection={forward:-1,side:0,twist:0}}
 }
 function updateGrab(dt){if(!keys.x){if(grab)releaseGrab();return}if(!grab){tryGrab();if(!grab)return}
@@ -1516,8 +1516,18 @@ function updateGrab(dt){if(!keys.x){if(grab)releaseGrab();return}if(!grab){tryGr
  if(p.balance<=0){const side=new T.Vector3(fwd.z,0,-fwd.x).multiplyScalar(Math.random()<.5?1:-1);beginFall(p.g,side.addScaledVector(fwd,.6),2.2,p,{});p.mode='fallen';p.stun=5;const h=grabRagPoint(u.rag,hand);g.i=h.i;u.rag.grab=g;return}
  if(g.struggle<=0){releaseGrab();const pu=player.userData;pu.hitVelocity.copy(fwd).multiplyScalar(-2.4);pu.hitAt=simTime;pu.hitPower=.5;pu.hitDirection={forward:-1,side:0,twist:0};player.userData.stagger=.25;shake=.08;toast((p.name||'O policial')+' se soltou!')}
 }
+// Thrown bodies are projectiles for a moment: whoever they hit at speed is knocked down too and keeps a share of the momentum,
+// so a throw into a group can topple several people in a row (bowling). Credit goes to the player who threw.
+var thrown=[];const THROW_HIT=[0,1,2,5,8,11,14],THROW_V=new T.Vector3();
+function updateThrown(){for(let k=thrown.length-1;k>=0;k--){const t=thrown[k],r=t.p.g.userData.rag;if(!r||r.recovering||r.grab||simTime>t.until){thrown.splice(k,1);continue}
+  const hip=r.points[0];THROW_V.subVectors(hip.p,hip.old).multiplyScalar(120).setY(0);const speed=THROW_V.length();if(speed<3)continue;
+  for(const q of impactActors()){if(q===t.p||q.driving||q.g.userData.rag||q===grab?.p)continue;const qp=q.g.position;if(Math.abs(qp.x-hip.p.x)>2.5||Math.abs(qp.z-hip.p.z)>2.5)continue;
+   if(!THROW_HIT.some(i=>{const v=r.points[i].p;return Math.hypot(v.x-qp.x,v.z-qp.z)<.5+r.points[i].r&&v.y>qp.y-.1&&v.y<qp.y+1.9}))continue;
+   const dir=THROW_V.clone().normalize();beginFall(q.g,dir,T.MathUtils.clamp(speed*.55,2.6,6.5),q,{});q.mode='fallen';q.stun=5;q.fightTarget=null;q.lastImpact=simTime;
+   const qr=q.g.userData.rag;if(qr&&speed>5){for(const v of qr.points)v.old.addScaledVector(dir,-speed*.35/120);thrown.push({p:q,until:simTime+1})}
+   for(const v of r.points){v.old.lerp(v.p,.4)}shake=Math.max(shake,.12);reactToFight(q,qp);reportViolence(q,10,q.isPolice?22:10,q.isPolice?'Policial derrubado':'Pedestre derrubado');if(q.dead&&qr)qr.hold=60;break}}}
 function grabPose(){if(!grab)return;const pu=player.userData,low=!!grab.p.g.userData.rag;for(let i=0;i<2;i++){pu.arms[i].rotation.set(low?-1.2:-1.42,(i?-1:1)*.12,0);pu.elbows[i].rotation.x=-.25}pu.rig.rotation.x-=.1;pu.rig.position.y-=.03}
-function updateCombat(dt){if(grab&&(inCar||surf.active||player.userData.rag||cargo||!keys.x))releaseGrab();player.userData.stagger=Math.max(0,player.userData.stagger-dt);const a=player.userData.attack;if(a){a.t+=dt;if(a.t>=.16&&!a.done){a.done=true;resolvePlayerPunch()}if(a.t>.52)player.userData.attack=null}shake=Math.max(0,shake-dt);}
+function updateCombat(dt){if(grab&&(inCar||surf.active||player.userData.rag||cargo||!keys.x))releaseGrab();if(thrown.length)updateThrown();player.userData.stagger=Math.max(0,player.userData.stagger-dt);const a=player.userData.attack;if(a){a.t+=dt;if(a.t>=.16&&!a.done){a.done=true;resolvePlayerPunch()}if(a.t>.52)player.userData.attack=null}shake=Math.max(0,shake-dt);}
 // Ambient incidents have their own suspects, cooldowns and targets; they never add player heat.
 let nextCityEvent=12,nextTaunt=15,cityEventKind=0;
 function routineAvailable(p){return !p.driving&&!p.g.userData.rag&&!p.g.userData.recoil&&p.fear<=0&&['wander','jog','home','rest','phone','stretch','shop','buy','chat','meet','pickup','deliver'].includes(p.mode)}
