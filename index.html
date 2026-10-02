@@ -356,7 +356,7 @@ const CLM=new T.MeshBasicMaterial({vertexColors:true,toneMapped:false,fog:false}
 for(let i=0;i<24;i++){const b=mb(),S=geos.cs,n=4+Math.floor(r2()*4);if(++lowClouds>(LOW?40:90)){for(let k=0;k<6*n+3;k++)r2();continue}for(let k=0;k<n;k++)madd(b,S,'#fff',mx(k*11+r2()*6,r2()*4,(r2()-.5)*8,9+r2()*9,5+r2()*5,6+r2()*6));for(let v=0;v<b.p.length/3;v++){if(b.p[v*3+1]<-1.5)b.p[v*3+1]=-1.5;const l=Math.min(1,.62+.26*b.n[v*3+1]+.2*Math.max(0,b.n[v*3]*SUND.x+b.n[v*3+1]*SUND.y+b.n[v*3+2]*SUND.z));_C.set('#aec6dd').lerp(_C2.set('#ffffff'),l);b.c[v*4]=_C.r;b.c[v*4+1]=_C.g;b.c[v*4+2]=_C.b}const m=new T.Mesh(mgeo(b),CLM);m.position.set(-500+r2()*1100,90+r2()*45,-480+r2()*960);scene.add(m);clouds.push(m)}
  for(let v=0;v<b.p.length/3;v++){if(b.p[v*3+1]<-1.5)b.p[v*3+1]=-1.5;const l=Math.min(1,.62+.26*b.n[v*3+1]+.2*Math.max(0,b.n[v*3]*SUND.x+b.n[v*3+1]*SUND.y+b.n[v*3+2]*SUND.z));_C.set('#aec6dd').lerp(_C2.set('#ffffff'),l);b.c[v*4]=_C.r;b.c[v*4+1]=_C.g;b.c[v*4+2]=_C.b}const m=new T.Mesh(mgeo(b),CLM);m.position.set(px,py,pz);scene.add(m);clouds.push(m)}
 // Fusca: body parts merged per material (paint/glass/chrome/trim/lamps), geometry shared by every car.
-const FUSCA_SCALE=1.20;
+const FUSCA_SCALE=1.00; // World units follow the classic Beetle's approximately 4.07 m length.
 let CARG=null;const PAINT={},CM={glass:new T.MeshStandardMaterial({color:'#1b2f38',roughness:.04,metalness:.4,envMap:ENV}),chrome:new T.MeshStandardMaterial({color:'#f4f5f4',metalness:1,roughness:.18,envMap:ENV}),trim:new T.MeshStandardMaterial({vertexColors:true,roughness:.7}),lamp:new T.MeshBasicMaterial({vertexColors:true,toneMapped:false})};
 const FUSCA_LENS=new T.MeshStandardMaterial({color:'#d5ded8',roughness:.19,metalness:.12,envMap:ENV,envMapIntensity:.40});
 const FUSCA_GLASS=new T.MeshStandardMaterial({color:'#29444c',roughness:.22,metalness:.08,envMap:ENV,envMapIntensity:.22,side:T.DoubleSide});
@@ -377,7 +377,7 @@ function carGeo(){
  const roofY=(x,z)=>{const r=roofSection(z);return .91+(r.top-.91)*Math.pow(Math.max(0,1-Math.pow(Math.abs(x)/r.w,r.n)),1/r.n)};
  const flankX=(y,z)=>{const r=roofSection(z);return r.w*Math.pow(Math.max(0,1-Math.pow(T.MathUtils.clamp((y-.91)/(r.top-.91),0,1),r.n)),1/r.n)};
  const shellTop=(x,z)=>{const [w,top]=sample(z);return .35+(top-.35)*(1+Math.sqrt(Math.max(0,1-(x/w)**2)))*.5};
- const onHood=points=>{const c=new T.CatmullRomCurve3(points.map(([x,y,z])=>new T.Vector3(x,0,z)));return c.getPoints(LOW?24:40).map(p=>[p.x,shellTop(p.x,p.z)+.016,p.z])};
+ const onHood=points=>{const c=new T.CatmullRomCurve3(points.map(([x,y,z])=>new T.Vector3(x,0,z)));return c.getPoints(LOW?24:40).map(p=>[p.x,(p.z<-.94?Math.max(shellTop(p.x,p.z),p.z>=-1.5?roofY(p.x,p.z):0):shellTop(p.x,p.z))+.010,p.z])};
  const sidePoint=(side,y,z)=>{const [w,top]=sample(z),h=2*(y-.35)/(top-.35)-1,bx=w*Math.sqrt(Math.max(0,1-h*h)),cx=z>=-1.50&&z<=.94?flankX(y,z):0;return[side*(Math.max(bx,cx)+.012),y,z]};
  // Curved tinted panes sit on the continuous shell, matching the classic catalogue finish.
 
@@ -401,7 +401,7 @@ function carGeo(){
  }
  // One continuous central shell: smoothly unite the luggage compartment, door skin and roof.
  // The same surface supplies the glazing, panel seams and surface normals.
- {const v=[],ix=[],rows=LOW?64:80,n=LOW?32:44;
+ {const v=[],ix=[],rows=LOW?48:64,n=LOW?28:36;
   const bodyPoint=(z,a)=>{const [w,top]=sample(z),cabin=z>=-1.50&&z<=.94,r=cabin?roofSection(z):null,hi=r?Math.max(top,r.top):top;
    const y=.35+(hi-.35)*(Math.sin(a)+1)*.5,h=2*(y-.35)/(top-.35)-1;
    let x=w*Math.sqrt(Math.max(0,1-h*h));
@@ -418,16 +418,11 @@ function carGeo(){
   const g=mesh(v,ix);g.setAttribute('normal',new T.Float32BufferAttribute(normals,3));e('paint',g,'#fff');
   for(const end of [-1,1]){const z=end*2.02,[w,top]=sample(z),cv=[0,(top+.35)*.5,z],ci=[];for(let i=0;i<=n;i++){const a=i/n*Math.PI*2;cv.push(w*Math.cos(a),.35+(top-.35)*(Math.sin(a)+1)*.5,z);if(i<n)ci.push(0,end>0?i+1:i+2,end>0?i+2:i+1)}e('paint',mesh(cv,ci),'#fff')}
  }
- // Simple ivory upholstery and dashboard use the existing trim batch, adding no extra objects.
- e('trim',GB,'#303638',0,.82,-.08,1.38,.16,1.85);e('trim',GB,'#d8d0b9',0,1.235,.53,1.34,.13,.26);e('trim',GB,'#4c595e',0,1.315,.53,1.32,.025,.25);
- for(const x of [-.38,.38]){e('trim',small,'#c7b99a',x,1.11,-.10,.29,.12,.30);e('trim',small,'#ddd4bd',x,1.38,-.32,.30,.36,.115,-.12)}
- e('trim',small,'#d6c9ab',0,1.1,-.86,.62,.10,.26);e('trim',small,'#d6c9ab',0,1.39,-1.02,.62,.26,.09,-.22);
- e('trim',new T.TorusGeometry(.155,.014,5,20),'#e6dfce',-.40,1.44,.29,1,1,1,-.38);e('trim',small,'#e6dfce',-.40,1.44,.29,.048,.048,.035);
- for(const a of [0,Math.PI*2/3,Math.PI*4/3])line('trim',[[-.40,1.44,.29],[-.40+.15*Math.cos(a),1.44+.14*Math.sin(a),.29-.056*Math.sin(a)]],.009,false,'#dcd4c3',6);
+ // Opaque glazing hides the cabin: omit invisible seats, dashboard and steering geometry.
  // Rounded pontoon wings: a single curved skin from the body joint to the wheel opening.
  const wingSurface=(side,axle,dz,q)=>{const z=axle+dz,[w]=sample(z),inner=Math.min(.65,w*.96),bulge=Math.sqrt(Math.max(0,1-(dz/.78)**2)),outer=inner+.53*bulge**.7,top=.45+.64*bulge;
    const arch=Math.abs(dz)<.505?.49+Math.sqrt(.505**2-dz*dz):.34+.10*(1-bulge),start=shellTop(inner,z),t=1-q;
-   const x=t*t*t*inner+3*t*t*q*(inner+.16)+3*t*q*q*outer+q*q*q*outer;
+   const x=t*t*t*inner+3*t*t*q*(inner+.16*bulge)+3*t*q*q*outer+q*q*q*outer;
    const fade=T.MathUtils.smoothstep(bulge,0,.4),p1=start+(Math.max(start,top)+.14*bulge-start)*fade,p2=start+(top+.10*bulge-start)*fade,p3=start+(Math.min(top,arch)-start)*fade;
    const y=t*t*t*start+3*t*t*q*p1+3*t*q*q*p2+q*q*q*p3;
    return new T.Vector3(side*x,y,z)};
@@ -442,7 +437,15 @@ function carGeo(){
   const g=mesh(v,ix);g.setAttribute('normal',new T.Float32BufferAttribute(normals,3));e('paint',g,'#fff');
   const seam=[];for(let j=0;j<=24;j++){const p=wing(-.76+1.52*j/24,0);p.y+=.006;seam.push(p.toArray())}line('trim',seam,.005,false,'#414847',24);
  }
- for(const front of [-1,1]){const v=[],ix=[],nx=LOW?16:24,ny=4;for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++){const x=-.93+1.86*i/nx,t=j/ny,top=.81+.04*T.MathUtils.smoothstep(Math.abs(x),.3,.85),bottom=.37+.22*(Math.abs(x)/.93)**4;v.push(x,bottom+(top-bottom)*t,front*(2.008-.10*(x/.93)**2-.025*Math.sin(t*Math.PI)))}for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const a=j*(nx+1)+i,b=a+nx+1;if(front>0)ix.push(a,a+1,b,b,a+1,b+1);else ix.push(a,b,a+1,b,b+1,a+1)}e('paint',mesh(v,ix),'#fff')}
+ // Rounded lower closures bridge the narrow hood and the four wings.
+ for(const end of [-1,1])e('paint',geos.s,'#fff',0,.59,end*1.77,.91,.29,.28);
+ // Close each valance onto the actual hood/wing surface; no freestanding upper edge.
+ for(const front of [-1,1]){const v=[],ix=[],nx=LOW?16:24,ny=4;for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++){
+  const x=-.93+1.86*i/nx,t=j/ny,z=front*(2.008-.90*(x/.93)**2),w=sample(z)[0];let top=shellTop(x,z);
+  if(Math.abs(x)>Math.min(.65,w*.96)){let lo=0,hi=1;for(let n=0;n<12;n++){const q=(lo+hi)/2;if(Math.abs(wingSurface(1,front*1.2,z-front*1.2,q).x)<Math.abs(x))lo=q;else hi=q}top=wingSurface(1,front*1.2,z-front*1.2,(lo+hi)/2).y;}
+  const bottom=.37+.12*(Math.abs(x)/.93)**4;v.push(x,bottom+(top-.015-bottom)*t,z);
+ }for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const a=j*(nx+1)+i,b=a+nx+1;if(front>0)ix.push(a,a+1,b,b,a+1,b+1);else ix.push(a,b,a+1,b,b+1,a+1)}e('paint',mesh(v,ix),'#fff')}
+
  for(const side of [-1,1]){
   // Black running boards, sill trim and a visible door outline below the glazing.
   e('trim',GB,'#292c2d',side*.98,.43,0,.34,.075,1.38);
@@ -455,12 +458,13 @@ function carGeo(){
   e('paint',geos.s,'#fff',side*.925,.90,1.59,.215,.235,.255,-.43);
   e('chrome',new T.TorusGeometry(.173,.014,8,28),'#fff',side*.925,.947,1.837,1,1,1,-.43);
   e('chrome',geos.s,'#fff',side*.925,.947,1.837,.145,.145,.020,-.43);e('lens',geos.s,'#fff',side*.925,.950,1.844,.148,.148,.022,-.43);
-  for(const x of [-.075,-.0375,0,.0375,.075])line('trim',[[side*.925+x,.844,1.902],[side*.925+x,1.058,1.804]],.003,false,'#e0e4d7',4);
+
   const turn=wingSurface(side,1.2,.11,.45);e('chrome',small,'#fff',turn.x,turn.y+.015,turn.z,.078,.024,.122);e('lamp',small,'#f4ad3c',turn.x,turn.y+.033,turn.z+.008,.063,.014,.100);
   // Small early-style rear lamps, twin exhaust tips and bumper overriders.
-  e('chrome',small,'#fff',side*.98,.84,-1.842,.108,.153,.042,.20);
-  e('lamp',small,'#bd352a',side*.98,.86,-1.875,.086,.116,.026,.20);
-  e('lamp',small,'#e78830',side*.98,.935,-1.862,.074,.035,.027,.20);
+  const tail=wingSurface(side,-1.2,-.60,.72),dq=wingSurface(side,-1.2,-.60,.73).sub(wingSurface(side,-1.2,-.60,.71)),dd=wingSurface(side,-1.2,-.59,.72).sub(wingSurface(side,-1.2,-.61,.72));
+  const normal=dd.cross(dq).normalize().multiplyScalar(side),rot=new T.Euler().setFromQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,0,1),normal));
+  const tailPart=(k,c,depth,sx,sy,sz)=>{const p=tail.clone().addScaledVector(normal,depth);e(k,small,c,p.x,p.y,p.z,sx,sy,sz,rot.x,rot.y,rot.z)};
+  tailPart('chrome','#fff',.007,.108,.145,.045);tailPart('lamp','#b92e25',.036,.087,.120,.022);
   e('chrome',C12,'#fff',side*.37,.34,-2.01,.039,.25,.039,Math.PI/2);
   e('trim',C8,'#252a2b',side*.37,.34,-2.14,.026,.009,.026,Math.PI/2);
  }
@@ -486,7 +490,7 @@ function carGeo(){
  const badgeDisc=new T.CircleGeometry(.087,24),bp=badgeDisc.attributes.position;for(let i=0;i<bp.count;i++){const x=bp.getX(i),z=1.18+bp.getY(i);bp.setXYZ(i,x,shellTop(x,z)+.022,z)}const bi=badgeDisc.index;for(let i=0;i<bi.count;i+=3){const b=bi.getX(i+1);bi.setX(i+1,bi.getX(i+2));bi.setX(i+2,b)}badgeDisc.computeVertexNormals();e('trim',badgeDisc,'#243137');
  const badge=[];for(let i=0;i<24;i++){const a=i/24*Math.PI*2;badge.push([.087*Math.cos(a),shellTop(.087*Math.cos(a),1.18+.087*Math.sin(a))+.031,1.18+.087*Math.sin(a)])}line('chrome',badge,.007,true,'#fff',24);
  for(const points of [[[-.040,0,1.232],[0,0,1.184],[.040,0,1.232]],[[-.061,0,1.188],[-.035,0,1.132],[0,0,1.174],[.035,0,1.132],[.061,0,1.188]]])line('chrome',onHood(points).map(p=>[p[0],p[1]+.019,p[2]]),.008,false,'#fff',12);
- e('chrome',small,'#fff',0,1.02,-1.91,.085,.022,.027);
+ e('chrome',small,'#fff',0,shellTop(0,-1.91)+.014,-1.91,.070,.018,.024);
  e('trim',GB,'#22272a',0,.33,0,1.45,.14,3.5);
  CARG={};for(const k in B)CARG[k]=mgeo(B[k]).scale(.67,.725,.938).translate(0,-.055,0).scale(FUSCA_SCALE,FUSCA_SCALE,FUSCA_SCALE);
  // Slim whitewalls, steel rims and domed chrome hubcaps, shared by all four wheels.
@@ -2437,7 +2441,17 @@ function serraTraffic(t,dt){const g=t.g,u=g.userData,p=g.position,P=t.path,n=P.l
  // Already overlapping another car for a while (e.g. both met at a junction): drive on and let them separate.
  const hits=overlap?[]:carContacts(g);if(hits.length){p.x=old.x;p.z=old.z;g.rotation.y=old.a;Object.assign(t,{idx:old.idx,off:old.off,route:old.route,path:old.path,dir:old.dir});if(t.actual>2.5&&hits.some(h=>h.other)){const vel=u.vel||(u.vel={x:0,z:0});vel.x=hx*t.actual;vel.z=hz*t.actual;u.spin=0;u.loose=true;u.looseT=0;t.align=1}t.actual=0}else hitPedestrians(g,t.actual,dt);t.wait=t.actual<.3?(t.wait||0)+dt:0;
  for(const w of u.wheels)w.w.rotation.x+=t.actual*dt/(u.wheelRadius||.5)}
-function updateTraffic(dt){for(const t of traffic){const g=t.g,u=g.userData;u.traffic=t;if(u.siren){const on=g===car&&inCar,cruise=t.patrol&&!on&&!stolenCars.has(g),blink=Math.sin(simTime*12+g.id)>0;u.siren.red.visible=cruise?wanted>0&&blink:!on||blink;u.siren.blue.visible=cruise?wanted>0&&!blink:!on||!blink}if(g===car||stolenCars.has(g)||u.npcDriver)continue;if(u.loose){t.actual=0;t.align=1;continue}if(t.path){serraTraffic(t,dt);continue}if(t.align){alignTraffic(t,dt);continue}const ra=t.axis?t.dir*Math.PI/2:t.dir<0?Math.PI:0;g.rotation.y=ra;const dx=Math.sin(ra),dz=Math.cos(ra),ahead=TA.set(g.position.x+dx*5,0,g.position.z+dz*5);let caution=vehicleList().some(v=>v!==g&&v.position.distanceTo(ahead)<3.4)||people.some(p=>!p.driving&&!p.g.userData.rag&&p.g.position.distanceTo(ahead)<2)||(!inCar&&(player.position.distanceTo(ahead)<2||player.position.distanceTo(g.position)<4.5));const tgt=caution||t.theftHold>simTime?0:Math.min(t.speed,signalLimit(t));t.actual=T.MathUtils.lerp(t.actual??t.speed,tgt,Math.min(1,dt*(tgt<(t.actual??t.speed)?6:2)));const steps=Math.max(1,Math.ceil(t.actual*dt/.3));for(let i=0;i<steps;i++){const ox=g.position.x,oz=g.position.z;g.position.x+=dx*t.actual*dt/steps;g.position.z+=dz*t.actual*dt/steps;const hits=carContacts(g);if(hits.length){g.position.x=ox;g.position.z=oz;if(t.actual>2.5&&hits.some(h=>h.other)){const vel=u.vel||(u.vel={x:0,z:0});vel.x=dx*t.actual;vel.z=dz*t.actual;u.spin=0;u.loose=true;u.looseT=0;t.align=1}t.actual=0;break}hitPedestrians(g,t.actual,dt/steps)}t.pos=t.axis?g.position.x:g.position.z;if(t.pos>(t.hi??266)||t.pos<(t.lo??-266)){t.pos=t.pos>(t.hi??266)?(t.lo??-266)+1:(t.hi??266)-1;g.position.set(t.axis?t.pos:t.road-t.dir*4,0,t.axis?t.road+t.dir*4:t.pos)}for(const w of u.wheels)w.w.rotation.x+=t.actual*dt/(u.wheelRadius||.5);}}
+// Spatial hash for the "anything just ahead?" check: vehicles and pedestrians are binned in 8 m cells once per frame and each car
+// only scans the 3×3 cells around its look-ahead point (radius ≤ 3.4 m plus well under 1 m of motion this frame, inside 8 m).
+const TG_CELL=8,tgV=new Map(),tgP=new Map(),tgKey=(cx,cz)=>(cx+4096)*8192+cz+4096;
+function tgAdd(m,o,p){const k=tgKey(Math.floor(p.x/TG_CELL),Math.floor(p.z/TG_CELL));let b=m.get(k);if(!b)m.set(k,b=[]);b.push(o)}
+function trafficGridBuild(){for(const b of tgV.values())b.length=0;for(const b of tgP.values())b.length=0;for(const v of vehicleList())tgAdd(tgV,v,v.position);for(const p of people)tgAdd(tgP,p,p.g.position)}
+function trafficNear(a,g){const cx=Math.floor(a.x/TG_CELL),cz=Math.floor(a.z/TG_CELL);
+ for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++){const k=tgKey(cx+i,cz+j),vs=tgV.get(k),ps=tgP.get(k);
+  if(vs)for(const v of vs)if(v!==g&&v.position.distanceTo(a)<3.4)return true;
+  if(ps)for(const p of ps)if(!p.driving&&!p.g.userData.rag&&p.g.position.distanceTo(a)<2)return true}
+ return false}
+function updateTraffic(dt){trafficGridBuild();for(const t of traffic){const g=t.g,u=g.userData;u.traffic=t;if(u.siren){const on=g===car&&inCar,cruise=t.patrol&&!on&&!stolenCars.has(g),blink=Math.sin(simTime*12+g.id)>0;u.siren.red.visible=cruise?wanted>0&&blink:!on||blink;u.siren.blue.visible=cruise?wanted>0&&!blink:!on||!blink}if(g===car||stolenCars.has(g)||u.npcDriver)continue;if(u.loose){t.actual=0;t.align=1;continue}if(t.path){serraTraffic(t,dt);continue}if(t.align){alignTraffic(t,dt);continue}const ra=t.axis?t.dir*Math.PI/2:t.dir<0?Math.PI:0;g.rotation.y=ra;const dx=Math.sin(ra),dz=Math.cos(ra),ahead=TA.set(g.position.x+dx*5,0,g.position.z+dz*5);let caution=trafficNear(ahead,g)||(!inCar&&(player.position.distanceTo(ahead)<2||player.position.distanceTo(g.position)<4.5));const tgt=caution||t.theftHold>simTime?0:Math.min(t.speed,signalLimit(t));t.actual=T.MathUtils.lerp(t.actual??t.speed,tgt,Math.min(1,dt*(tgt<(t.actual??t.speed)?6:2)));const steps=Math.max(1,Math.ceil(t.actual*dt/.3));for(let i=0;i<steps;i++){const ox=g.position.x,oz=g.position.z;g.position.x+=dx*t.actual*dt/steps;g.position.z+=dz*t.actual*dt/steps;const hits=carContacts(g);if(hits.length){g.position.x=ox;g.position.z=oz;if(t.actual>2.5&&hits.some(h=>h.other)){const vel=u.vel||(u.vel={x:0,z:0});vel.x=dx*t.actual;vel.z=dz*t.actual;u.spin=0;u.loose=true;u.looseT=0;t.align=1}t.actual=0;break}hitPedestrians(g,t.actual,dt/steps)}t.pos=t.axis?g.position.x:g.position.z;if(t.pos>(t.hi??266)||t.pos<(t.lo??-266)){t.pos=t.pos>(t.hi??266)?(t.lo??-266)+1:(t.hi??266)-1;g.position.set(t.axis?t.pos:t.road-t.dir*4,0,t.axis?t.road+t.dir*4:t.pos);tgAdd(tgV,g,g.position)}for(const w of u.wheels)w.w.rotation.x+=t.actual*dt/(u.wheelRadius||.5);}}
 function walk(dt){if(surf.active){updateSurf(dt);return}if(updateFall(player,dt))return;const turn=(keys.a||keys.ArrowLeft?1:0)-(keys.d||keys.ArrowRight?1:0);heading+=turn*dt*2.6;const dir=(keys.w||keys.ArrowUp?1:0)-(keys.s||keys.ArrowDown?1:0),speed=player.userData.stagger>0?0:dir*(keys[' ']?2:keys.Shift&&!cargo?10:5)*(player.userData.attack?.6:1)*(grab?.72:1);const pu=player.userData,hv=pu.hitVelocity;moveActor(player,Math.sin(heading)*speed*dt+hv.x*dt,Math.cos(heading)*speed*dt+hv.z*dt);hv.multiplyScalar(Math.exp(-dt*8));player.rotation.y=heading;animatePerson(player,speed,simTime);if(keys[' ']&&!pu.attack){for(let i=0;i<2;i++){pu.arms[i].rotation.x=-1.15;pu.arms[i].rotation.y=(i?-1:1)*.35;pu.elbows[i].rotation.x=-1.8}}updateGrab(dt);grabPose();if(pu.hitAt!=null&&simTime-pu.hitAt<.45)hitPose(pu,simTime-pu.hitAt,pu.hitDirection||{forward:-1,side:0},pu.hitPower||1,.45);distance+=Math.abs(speed)*dt;heldBox.visible=cargo;cam.fov=T.MathUtils.lerp(cam.fov,58,dt*3);cam.updateProjectionMatrix();}
 function resetLivingState(){releaseGrab();stopSurf(false);if(player.userData.rag){player.userData.rag.visual.group.visible=false;player.userData.rag=null;player.userData.rig.visible=true;animatePerson(player,0,simTime)}player.userData.attack=null;player.userData.stagger=0;for(const p of people){cancelTheft(p);releaseStolenCar(p);p.fightTarget=null;p.calmAfterFall=true;p.fear=0;p.moodUntil=0;p.g.userData.attack=null;if(!p.g.userData.rag){p.mode='rest';p.taskUntil=simTime+3}}}
 // Existing world assets become collidable at their actual footprints.
