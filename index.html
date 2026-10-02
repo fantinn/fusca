@@ -2179,13 +2179,17 @@ function update(dt){
    if(shake>0){cam.position.x+=Math.sin(simTime*91)*shake*.17;cam.position.y+=Math.cos(simTime*79)*shake*.12}
    carAudio(dt);sirenAudio(dt);
   }else{target.set(car.position.x+10+Math.sin(elapsed*.1)*2,5.5,car.position.z-11);cam.position.lerp(target,dt*2);cam.lookAt(car.position.x-2,1.3,car.position.z+1)}
-  const pos=actorPos();sun.position.set(pos.x-60,100,pos.z+40);sun.target.position.copy(pos);updateWorld(dt);
+  const pos=actorPos();sun.position.set(pos.x-60,100,pos.z+40);sun.target.position.copy(pos);updateWorld(dt);shadowLod(dt,pos);
  }else{if(gain)gain.gain.value=0;if(siren)siren.g.gain.value=0}
  destinationRing.visible=destinationLabel.visible=cargo;destinationRing.position.copy(destination());destinationRing.position.y=.3;destinationLabel.position.copy(destination());destinationLabel.position.y=4+Math.sin(elapsed*2)*.2;
  hudTimer+=dt;if(hudTimer>.12){hudTimer=0;updateHUD()}
 }
 // Adaptive resolution: every 1.5 s the average frame time nudges the pixel ratio within PR (down fast when slow, up slowly when smooth).
 // While paused the last frame stays on screen instead of re-rendering the city every frame.
+// Shadow LOD: heavy meshes (cars, 14-28k tris) only cast shadows near the player, cutting the shadow pass.
+var lodScanT=0,lodNearT=0,lodHeavy=[],LOD_SHADOW_DIST=62;
+function shadowLod(dt,pos){lodScanT-=dt;if(lodScanT<=0){lodScanT=3;lodHeavy=[];scene.traverse(o=>{if(!o.isMesh||o.isInstancedMesh||o.isSkinnedMesh||!(o.castShadow||o.userData.lodHeavy))return;const g=o.geometry,n=g.index?g.index.count:g.attributes.position.count;if(n>24000){o.userData.lodHeavy=true;lodHeavy.push(o)}})}
+lodNearT-=dt;if(lodNearT>0)return;lodNearT=.2;const e=LOD_SHADOW_DIST*LOD_SHADOW_DIST;for(const o of lodHeavy){const m=o.matrixWorld.elements,dx=m[12]-pos.x,dz=m[14]-pos.z;o.castShadow=dx*dx+dz*dz<e}}
 let perfT=0,perfN=0,pausedDrawn=false;function adapt(dt){if(paused||dt>.25)return;perfT+=dt;perfN++;if(perfT<1.5)return;const avg=perfT/perfN;perfT=perfN=0;const p=avg>1/42?Math.max(PR.min,PR.cur-.1):avg<1/56?Math.min(PR.max,PR.cur+.05):PR.cur;if(Math.abs(p-PR.cur)>.01){PR.cur=p;renderer.setPixelRatio(p)}}
 const DEBUG=/[?&]debug=1/.test(location.search)?{freeze:false}:null;
 function tick(){requestAnimationFrame(tick);const dt=clock.getDelta();if(DEBUG?.freeze)return;adapt(dt);update(Math.min(dt,.045));if(paused){if(pausedDrawn)return;pausedDrawn=true}else pausedDrawn=false;renderer.render(scene,cam)}tick();
