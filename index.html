@@ -1059,28 +1059,133 @@ let impactActorCache=[];function impactActors(){if(impactActorCache.length!==peo
 // from the mode: trucks have less grip, brakes and top speed and barely drift; motos brake and accelerate hard and lean instead of drift.
 const RACE_RING=new T.Vector3(0,0,338),LIGHT_C={off:new T.Color('#3a0d0b'),red:new T.Color('#ff2a1f'),green:new T.Color('#2bff6a')};
 const RIVAL_COL=[['#d6453d','vermelho','vermelha'],['#3f86c6','azul','azul'],['#35b8cc','turquesa','turquesa'],['#3e8a57','verde','verde'],['#f2ead2','creme','creme'],['#e07a2e','laranja','laranja'],['#7a4fa0','roxo','roxa']],RACE_PAY=[3,1.5,1],RACE_MINE='#f2c230';
-// Moto: light sport bike with its rider. Four ghost wheel pivots (x=±.3) feed the shared ground/steer/collision code; the visible wheels,
-// fork and rider live in the body so they lean with it (motoPose). K follows the Fusca's model scaled to 300 kg (esc/hbTorque ∝ I).
-const MOTO_K={m:300,I:300,L:1.5,a:.78,b:.72,cg:.12,mu:2.4,acc:25,turbo:40,vmax:56,vmaxTurbo:80,brake:44,esc:3200,hbTorque:400,lock:.5},motos=[];
-function moto(color){const g=new T.Group(),body=new T.Group(),P=mat(color),D=mat('#24292d'),C=CM.chrome,S=mat('#2e3438'),add=(par,geo,m,x,y,z,sx=1,sy=1,sz=1,rx=0,ry=0,rz=0)=>{const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.rotation.set(rx,ry,rz);o.castShadow=true;par.add(o);return o};
- g.add(body);const tyre=new T.TorusGeometry(.25,.075,8,22),rim=new T.CylinderGeometry(.19,.19,.07,14),real=[];
- const wheel=(par,z)=>{const w=new T.Group();w.position.set(0,.32,z);par.add(w);add(w,tyre,D,0,0,0,1,1,1,0,Math.PI/2,0);add(w,rim,C,0,0,0,1,1,1,0,0,Math.PI/2);for(let k=0;k<3;k++)add(w,GB,S,0,0,0,.03,.36,.05,k*Math.PI/3,0,0);real.push(w);return w};
- wheel(body,-.72);const fork=new T.Group();fork.position.set(0,0,.72);body.add(fork);wheel(fork,0);add(fork,C8,C,-.09,.62,-.08,.035,.62,.035,-.3);add(fork,C8,C,.09,.62,-.08,.035,.62,.035,-.3);add(fork,GB,P,0,.7,.02,.2,.05,.5,-.25);
- add(fork,C8,C,0,1.0,-.24,.03,.62,.03,0,0,Math.PI/2);add(fork,GB,D,-.3,1.0,-.24,.06,.06,.12);add(fork,GB,D,.3,1.0,-.24,.06,.06,.12);
- add(body,geos.s,P,0,.86,.18,.24,.17,.4);add(body,GB,P,0,.78,.5,.36,.4,.34,-.5);add(body,geos.s,mat('#fff6d2'),0,.83,.7,.11,.09,.05);add(body,GB,mat('#7fb7c9'),0,1.02,.56,.3,.18,.04,-.9);
- add(body,GB,D,0,.88,-.22,.26,.1,.46);add(body,GB,P,0,.86,-.58,.2,.16,.32,.25);add(body,GB,mat('#ff3b2f'),0,.86,-.75,.14,.06,.03);
- add(body,GB,S,0,.5,0,.3,.34,.56);add(body,C8,C,-.2,.42,-.42,.07,.6,.07,Math.PI/2+.25);add(body,C8,C,.2,.42,-.42,.07,.6,.07,Math.PI/2+.25);add(body,GB,S,0,.42,-.42,.04,.04,.6,.5);
- // Rider: race suit in the bike's colour, crouched over the tank, hands on the bars, feet on the pegs.
- const rider=new T.Group();body.add(rider);const suit=mat('#1d2226'),limb=(a,b,r,m)=>{const A=new T.Vector3(...a),B=new T.Vector3(...b),o=new T.Mesh(C8,m);o.position.copy(A).add(B).multiplyScalar(.5);o.scale.set(r,A.distanceTo(B),r);o.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),B.sub(A).normalize());o.castShadow=true;rider.add(o)};
- add(rider,GB,suit,0,1.22,0,.36,.5,.24,.95);add(rider,GB,P,0,1.24,.02,.37,.18,.25,.95);add(rider,geos.s,P,0,1.42,.34,.16,.16,.18);add(rider,GB,mat('#14181b'),0,1.43,.48,.17,.08,.04,-.2);
- for(const s of [-1,1]){limb([s*.17,1.32,.18],[s*.27,1.14,.38],.07,suit);limb([s*.27,1.14,.38],[s*.3,1.0,.5],.06,suit);limb([s*.13,.98,-.18],[s*.24,.86,.2],.09,suit);limb([s*.24,.86,.2],[s*.2,.46,-.06],.08,suit);add(rider,GB,D,s*.2,.42,.0,.09,.08,.22)}
- const wheels=[];for(const x of [-.3,.3])for(const z of [-.72,.72]){const pivot=new T.Group();pivot.position.set(x,.16,z);pivot.visible=false;g.add(pivot);const w=new T.Object3D();pivot.add(w);wheels.push({pivot,w,front:z>0})}
- g.userData={body,wheels,size:{w:.5,d:1.15},mass:300,model:'Moto',K:MOTO_K,roof:1.6,wheelRadius:.32,camScale:.75,moto:{real,fork,rider,lean:0,spin:0}};motos.push(g);return g}
-// Lean into the turn by the lateral acceleration (atan(yaw rate × speed / g)), spin the real wheels, turn the fork with the front ghost
-// pivot, and show the rider only while someone rides it.
-function motoPose(v,dt){const u=v.userData,M=u.moto,V=u.vel||{x:0,z:0},mine=v===car&&inCar,r=(mine?u.yawRate:u.spin)||0,fwd=V.x*Math.sin(v.rotation.y)+V.z*Math.cos(v.rotation.y),Mt=T.MathUtils;
+// Motorcycles: three models (esportiva da corrida, custom estilo Harley, trilha/enduro) built by one shared assembler. Each model is merged
+// once per part (body, fork, front wheel, rear wheel, rider) and per material (paint, trim, chrome, glass, lamp) and shared by every copy,
+// so a bike costs ~15 draw calls. Four ghost wheel pivots (x=±.3, z at the real axles) feed the shared ground/steer/collision code; the
+// visible wheels, fork and rider live in the body so they lean with it (motoPose). K follows the Fusca's model scaled to the bike's mass
+// (esc/hbTorque ∝ I).
+const MOTO_K={m:300,I:300,L:1.5,a:.78,b:.72,cg:.12,mu:2.4,acc:25,turbo:40,vmax:56,vmaxTurbo:80,brake:44,esc:3200,hbTorque:400,lock:.5},
+ CRUISER_K={m:370,I:370,L:1.7,a:.9,b:.8,cg:.14,mu:1.9,acc:15,turbo:22,vmax:38,vmaxTurbo:48,brake:34,esc:3950,hbTorque:495,lock:.42},
+ TRAIL_K={m:150,I:160,L:1.46,a:.74,b:.72,cg:.2,mu:2,off:.96,dragOff:.92,acc:21,turbo:30,vmax:40,vmaxTurbo:52,brake:30,esc:1710,hbTorque:215,lock:.55},motos=[];
+const BS=new T.SphereGeometry(1,12,8),BIKE_G={};
+// Wheel: tyre torus (optionally knobby), rim ring, hub and either a star (few thick spokes) or crossed wire spokes, plus brake discs.
+function bikeWheel(e,ln,{R,tube,w,star=0,wire=0,disc=0,knob=0,rimK='chrome',rimC='#c9ccd0',starC='#c9a24a'}){const ri=R-tube*1.2;
+ e('trim',new T.TorusGeometry(R-tube,tube,10,28).rotateY(Math.PI/2),'#16181b',0,0,0,w/(2*tube));
+ e(rimK,new T.TorusGeometry(ri,.016,6,28).rotateY(Math.PI/2),rimC);
+ e('chrome',C12,'#fff',0,0,0,.04,w*.8,.04,0,0,Math.PI/2);
+ for(let k=0;k<star;k++){const a=k/star*Math.PI*2;ln('trim',starC,[0,Math.cos(a)*.04,Math.sin(a)*.04],[0,Math.cos(a)*ri,Math.sin(a)*ri],.02)}
+ for(let k=0;k<wire;k++){const a=k/wire*Math.PI*2,s=k%2?1:-1;ln('chrome','#fff',[s*.03,Math.cos(a)*.05,Math.sin(a)*.05],[0,Math.cos(a+.45*s)*ri,Math.sin(a+.45*s)*ri],.004)}
+ for(let k=0;k<disc;k++)e('trim',C12,'#8e959a',k?-.05:.05,0,0,R*.46,.006,R*.46,0,0,Math.PI/2);
+ for(let k=0;k<knob;k++){const a=k/knob*Math.PI*2;e('trim',GB,'#101214',0,Math.cos(a)*(R-.003),Math.sin(a)*(R-.003),w*.85,.022,.036,a)}}
+function bikeGeo(key,spec){return BIKE_G[key]??=(()=>{const out={};
+ for(const name of ['body','fork','fwheel','rwheel','rider']){const off=name==='fork'?spec.head:name==='rider'?spec.hip:[0,0,0],B={paint:mb(),trim:mb(),chrome:mb(),glass:mb(),lamp:mb()},
+  e=(k,g,c='#fff',x=0,y=0,z=0,sx=1,sy=1,sz=1,rx=0,ry=0,rz=0)=>madd(B[k],g,c,mx(x-off[0],y-off[1],z-off[2],sx,sy,sz,rx,ry,rz)),
+  ln=(k,c,a,b,r,g=C8)=>{const A=new T.Vector3(a[0]-off[0],a[1]-off[1],a[2]-off[2]),Z=new T.Vector3(b[0]-off[0],b[1]-off[1],b[2]-off[2]),d=Z.clone().sub(A);madd(B[k],g,c,new T.Matrix4().compose(A.clone().add(Z).multiplyScalar(.5),new T.Quaternion().setFromUnitVectors(_Y,d.clone().normalize()),new T.Vector3(r,d.length(),r)))};
+  spec[name](e,ln);out[name]={};for(const k in B)if(B[k].p.length)out[name][k]=mgeo(B[k])}
+ return out})()}
+function bikeBuild(key,spec,color,civil=false){const G=bikeGeo(key,spec),g=new T.Group(),body=new T.Group(),paint=PAINT[color]??=new T.MeshPhysicalMaterial({color,roughness:.44,metalness:0,clearcoat:.7,clearcoatRoughness:.16,envMap:ENV,envMapIntensity:.45}),
+ Ms={paint,trim:CM.trim,chrome:CM.chrome,glass:CM.glass,lamp:CM.lamp},fill=(part,par)=>{for(const k in G[part]){const m=new T.Mesh(G[part][k],Ms[k]);m.castShadow=k!=='lamp'&&k!=='glass';par.add(m)}return par},sub=(par,p,o=[0,0,0])=>{const q=new T.Group();q.position.set(p[0]-o[0],p[1]-o[1],p[2]-o[2]);par.add(q);return q};
+ g.add(body);fill('body',body);const rw=fill('rwheel',sub(body,spec.ra)),fork=fill('fork',sub(body,spec.head)),fw=fill('fwheel',sub(fork,spec.fa,spec.head)),rider=fill('rider',sub(body,spec.hip));
+ const wheels=[];for(const x of [-.3,.3])for(const z of [spec.ra[2],spec.fa[2]]){const pivot=new T.Group();pivot.position.set(x,.16,z);pivot.visible=false;g.add(pivot);const w=new T.Object3D();pivot.add(w);wheels.push({pivot,w,front:z>0})}
+ g.userData={body,wheels,size:spec.size,mass:spec.K.m,model:spec.model,K:spec.K,roof:spec.roof,wheelRadius:spec.fa[1],camScale:spec.cam,moto:{real:[rw,fw],fork,fw,fy0:fw.position.y,rider,hip:spec.hip,hang:spec.hang,tuck:spec.tuck,civil,lean:0,spin:0,pf:0,ac:0}};motos.push(g);return g}
+// Sport bike (race): full fairing with screen and twin headlights, gold star wheels with discs, side-exit silencer, race-suit rider tucked behind the screen.
+const SPORT={model:'Moto',K:MOTO_K,size:{w:.5,d:1.15},roof:1.6,cam:.75,hang:.5,tuck:.22,ra:[0,.315,-.72],fa:[0,.31,.72],head:[0,.9,.44],hip:[0,.95,-.2],
+ body(e,ln){const S='#8a9096',D='#24292d',W='#f4f1ea';
+  for(const s of [-1,1]){ln('trim',S,[s*.11,.9,.4],[s*.13,.58,-.28],.03);ln('trim',S,[s*.12,.55,-.28],[s*.1,.315,-.72],.028);ln('trim','#2b2f33',[s*.16,.42,-.12],[s*.25,.42,-.12],.012)}
+  ln('trim','#d5a431',[0,.78,-.24],[0,.5,-.36],.036);ln('trim',D,[0,.78,-.24],[0,.5,-.36],.02);
+  e('trim',GB,'#2e3438',0,.5,0,.26,.3,.44);e('trim',GB,'#2e3438',0,.66,.14,.2,.22,.2,.5);e('trim',GB,'#3a4147',0,.78,.2,.2,.08,.22,.5);e('chrome',C12,'#fff',.15,.48,-.1,.09,.04,.09,0,0,Math.PI/2);
+  ln('chrome','#fff',[.04,.68,.3],[.06,.38,.2],.028);ln('chrome','#fff',[.06,.38,.2],[.1,.34,-.2],.03);ln('chrome','#fff',[.1,.34,-.2],[.19,.52,-.4],.03);
+  e('chrome',C12,'#fff',.19,.58,-.6,.055,.56,.055,Math.PI/2);e('trim',C12,'#15171a',.19,.58,-.89,.05,.03,.05,Math.PI/2);
+  e('paint',BS,'#fff',0,.88,.6,.2,.17,.31);for(const s of [-1,1])e('paint',BS,'#fff',s*.16,.62,.3,.06,.2,.36);e('trim',BS,'#1d2024',0,.37,.12,.18,.08,.38);
+  e('glass',GB,'#fff',0,1.06,.52,.26,.2,.012,-.95);
+  for(const s of [-1,1]){e('trim',BS,'#14181b',s*.075,.88,.8,.085,.065,.05);e('lamp',BS,'#fff3c8',s*.075,.88,.87,.07,.055,.04)}
+  e('trim',GB,'#f6f3ea',0,.97,.86,.14,.1,.01,-.5);e('trim',GB,'#111',0,.97,.867,.018,.07,.004,-.5);
+  e('paint',BS,'#fff',0,.93,.14,.19,.15,.34);e('trim',BS,W,0,.936,.14,.028,.153,.343);
+  e('trim',BS,'#15181b',0,.85,-.14,.14,.05,.26);e('paint',BS,'#fff',0,.88,-.55,.12,.1,.32,.22);e('trim',BS,W,0,.9,-.55,.022,.1,.325,.22);e('trim',BS,'#15181b',0,.74,-.62,.1,.07,.22);
+  e('lamp',GB,'#ff2a1f',0,.9,-.86,.12,.025,.03);e('trim',GB,'#f1efe8',0,.72,-.84,.18,.11,.008,.35)},
+ fork(e,ln){for(const s of [-1,1]){ln('trim','#c9a24a',[s*.1,.95,.435],[s*.1,.63,.578],.027);ln('trim','#2b2f33',[s*.1,.63,.578],[s*.1,.31,.72],.03);
+   ln('trim','#1a1d20',[s*.1,.95,.43],[s*.3,.98,.4],.014);ln('trim','#0f1113',[s*.3,.98,.4],[s*.38,.98,.4],.02);e('paint',BS,'#fff',s*.07,.6,.77,.015,.1,.19);e('trim',GB,'#c0262d',s*.075,.4,.7,.025,.07,.05);
+   ln('trim','#14181b',[s*.14,1.02,.55],[s*.26,1.1,.5],.01);e('paint',BS,'#fff',s*.28,1.12,.49,.05,.03,.02);e('glass',GB,'#fff',s*.28,1.12,.48,.07,.04,.004)}
+  e('trim',GB,'#2b2f33',0,.93,.44,.26,.04,.08);e('paint',BS,'#fff',0,.69,.77,.07,.03,.2)},
+ fwheel(e,ln){bikeWheel(e,ln,{R:.31,tube:.075,w:.12,star:5,disc:2})},rwheel(e,ln){bikeWheel(e,ln,{R:.315,tube:.1,w:.18,star:5,disc:1})},
+ rider(e,ln){const K='#1b1f24';
+  ln('trim',K,[0,.98,-.2],[0,1.2,.24],.14);e('paint',BS,'#fff',0,1.2,-.06,.14,.1,.2,.5);e('trim',BS,K,0,1.22,.22,.22,.09,.1);
+  for(const s of [-1,1]){ln('trim',K,[s*.2,1.22,.22],[s*.3,1.1,.38],.052);ln('trim',K,[s*.3,1.1,.38],[s*.34,.99,.41],.045);e('trim',BS,'#2b2f33',s*.34,.985,.41,.05,.045,.06);e('paint',BS,'#fff',s*.22,1.24,.2,.07,.05,.08);
+   ln('trim',K,[s*.14,.95,-.2],[s*.21,.8,.14],.085);ln('trim',K,[s*.21,.8,.14],[s*.2,.45,-.1],.065);e('trim',GB,'#14181b',s*.2,.4,-.07,.09,.08,.24)}
+  e('paint',BS,'#fff',0,1.36,.33,.125,.14,.17);e('trim',BS,'#f4f1ea',0,1.37,.33,.02,.143,.172);e('glass',BS,'#fff',0,1.37,.4,.108,.058,.1);e('paint',BS,'#fff',0,1.3,.43,.08,.06,.08);e('paint',BS,'#fff',0,1.4,.2,.03,.05,.07)}};
+// Cruiser (Harley style): long raked chrome fork, wire wheels (thin 19" front, fat 16" rear), teardrop tank, V-twin with fins, two drag pipes,
+// fat fenders, saddlebags and sissy bar. The rider sits upright with legs forward on the floorboards and a half helmet.
+const CRUISER={model:'Moto custom',K:CRUISER_K,size:{w:.6,d:1.3},roof:1.75,cam:.85,hang:.2,tuck:0,ra:[0,.32,-.85],fa:[0,.33,.85],head:[0,1.05,.33],hip:[0,.88,-.28],
+ body(e,ln){const F='#14161a',L='#2a1c14',E='#202327';
+  for(const s of [-1,1]){ln('trim',F,[s*.06,1.0,.34],[s*.1,.45,.1],.03);ln('trim',F,[s*.1,.45,.1],[s*.12,.38,-.5],.028);ln('trim',F,[s*.12,.38,-.5],[s*.14,.32,-.85],.028);ln('trim',F,[s*.1,.78,-.3],[s*.12,.62,-.85],.025);
+   ln('chrome','#fff',[s*.13,.32,-.85],[s*.12,.7,-.7],.015);ln('chrome','#fff',[s*.14,.7,-.62],[s*.14,.4,-.85],.02);
+   e('chrome',C12,'#fff',s*.17,.44,0,.1,.045,.1,0,0,Math.PI/2);e('paint',BS,'#fff',s*.145,.54,-.88,.016,.17,.38);
+   ln('chrome','#fff',[s*.13,.72,-1.0],[s*.1,1.12,-1.1],.012);ln('chrome','#fff',[s*.2,.86,.12],[s*.31,.46,.2],.016);ln('chrome','#fff',[s*.31,.46,.2],[s*.29,.4,.5],.016);
+   e('trim',GB,'#33200f',s*.26,.64,-.78,.09,.12,.22);e('chrome',GB,'#fff',s*.345,.62,-.7,.012,.05,.035);
+   e('chrome',GB,'#fff',s*.28,.34,.4,.12,.018,.3);e('trim',GB,'#111',s*.28,.352,.4,.1,.012,.26);e('lamp',BS,'#ff9a1f',s*.12,.68,-1.22,.028,.028,.028)}
+  ln('trim',F,[0,1.0,.3],[0,.82,-.3],.035);
+  e('trim',GB,E,0,.46,.02,.3,.24,.36);e('chrome',BS,'#fff',-.185,.4,-.08,.04,.15,.22);e('chrome',C12,'#fff',.2,.7,0,.13,.07,.13,0,0,Math.PI/2);e('trim',C12,'#16181b',.236,.7,0,.09,.02,.09,0,0,Math.PI/2);
+  for(const s of [-1,1]){const t=.4*s,d=[0,Math.cos(t),Math.sin(t)],bz=s*.07;e('trim',C12,E,0,.52+d[1]*.15,bz+d[2]*.15+.04*s,.085,.3,.085,t);for(let k=0;k<5;k++)e('trim',C12,'#2c3034',0,.52+d[1]*(.05+k*.06),bz+d[2]*(.05+k*.06)+.04*s,.115,.012,.115,t);e('chrome',BS,'#fff',0,.52+d[1]*.34,bz+d[2]*.34+.04*s,.13,.05,.1,t)}
+  ln('chrome','#fff',[.08,.55,.3],[.2,.44,.2],.035);ln('chrome','#fff',[.2,.44,.2],[.2,.44,-.98],.05);e('trim',C12,'#101214',.2,.44,-.985,.042,.01,.042,Math.PI/2);
+  ln('chrome','#fff',[.07,.5,-.1],[.21,.31,-.12],.035);ln('chrome','#fff',[.21,.31,-.12],[.21,.31,-.98],.05);e('trim',C12,'#101214',.21,.31,-.985,.042,.01,.042,Math.PI/2);
+  e('paint',BS,'#fff',0,1.0,.02,.2,.17,.34);e('trim',BS,'#f0d27a',0,1.005,.02,.205,.012,.345);e('chrome',BS,'#fff',0,1.15,.02,.035,.03,.28);e('chrome',C12,'#fff',0,1.16,.12,.04,.025,.04);e('chrome',C12,'#fff',0,1.15,-.06,.05,.03,.05,-.3);
+  e('trim',BS,L,0,.84,-.3,.17,.05,.3);e('trim',BS,L,0,.85,-.66,.15,.045,.2);
+  e('paint',BS,'#fff',0,.71,-.88,.155,.045,.4,.1);e('lamp',BS,'#ff2a1f',0,.7,-1.27,.04,.03,.03);e('chrome',BS,'#fff',0,.7,-1.255,.05,.04,.03);e('trim',GB,'#f1efe8',0,.52,-1.27,.17,.1,.008,.15);
+  ln('chrome','#fff',[-.1,1.12,-1.1],[.1,1.12,-1.1],.012);e('trim',BS,L,0,.98,-1.09,.13,.1,.04)},
+ fork(e,ln){for(const s of [-1,1]){ln('chrome','#fff',[s*.105,1.1,.33],[s*.1,.33,.85],.03);ln('chrome','#fff',[s*.105,1.1,.33],[s*.1,.807,.528],.042);ln('chrome','#fff',[s*.1,.52,.76],[s*.1,.33,.85],.036);
+   ln('chrome','#fff',[s*.1,1.0,.37],[s*.1,.9,.5],.014);e('lamp',BS,'#fff0c0',s*.18,.72,.52,.04,.04,.04);ln('chrome','#fff',[s*.1,.72,.55],[s*.18,.72,.52],.01);
+   e('paint',BS,'#fff',s*.082,.58,.9,.014,.13,.28);
+   ln('chrome','#fff',[s*.07,1.12,.3],[s*.36,1.18,.28],.016);ln('chrome','#fff',[s*.36,1.18,.28],[s*.4,1.28,.14],.016);ln('trim','#0f1113',[s*.4,1.28,.14],[s*.5,1.28,.12],.024);
+   ln('chrome','#fff',[s*.4,1.28,.2],[s*.46,1.42,.16],.01);e('chrome',BS,'#fff',s*.46,1.44,.16,.05,.04,.012);e('lamp',BS,'#ff9a1f',s*.46,1.2,.3,.03,.03,.03)}
+  e('chrome',GB,'#fff',0,1.08,.33,.28,.04,.07);e('chrome',GB,'#fff',0,.94,.4,.26,.035,.06);
+  e('chrome',C12,'#fff',0,.9,.5,.105,.14,.105,Math.PI/2);e('lamp',BS,'#fff0c0',0,.9,.56,.085,.085,.04);e('chrome',C12,'#fff',0,.9,.565,.098,.02,.098,Math.PI/2);
+  e('paint',BS,'#fff',0,.71,.9,.09,.04,.3);e('chrome',BS,'#fff',0,.745,.9,.012,.012,.3)},
+ fwheel(e,ln){bikeWheel(e,ln,{R:.33,tube:.055,w:.09,wire:36})},rwheel(e,ln){bikeWheel(e,ln,{R:.32,tube:.11,w:.22,wire:36,disc:1})},
+ rider(e,ln){const K='#17181a',J='#2d3b55',skin='#c58a62';
+  ln('trim',K,[0,.9,-.3],[0,1.36,-.2],.15);e('paint',BS,'#fff',0,1.18,-.392,.12,.1,.018);e('trim',BS,K,0,1.34,-.2,.2,.08,.1);
+  for(const s of [-1,1]){ln('trim',K,[s*.22,1.32,-.2],[s*.36,1.15,-.02],.055);ln('trim',K,[s*.36,1.15,-.02],[s*.43,1.28,.13],.05);e('trim',BS,'#0f1011',s*.45,1.28,.12,.05,.045,.06);
+   ln('trim',J,[s*.15,.88,-.28],[s*.25,.84,.1],.09);ln('trim',J,[s*.25,.84,.1],[s*.27,.4,.38],.07);e('trim',GB,'#15171a',s*.28,.4,.42,.1,.1,.26)}
+  e('trim',BS,skin,0,1.38,-.2,.06,.07,.06);e('trim',BS,'#15171a',0,1.52,-.18,.125,.095,.15);e('paint',BS,'#fff',0,1.575,-.18,.028,.1,.152);e('trim',BS,skin,0,1.45,-.1,.095,.1,.09);e('glass',GB,'#fff',0,1.48,-.015,.16,.035,.02);e('trim',BS,'#2a1d16',0,1.4,-.08,.075,.06,.07)}};
+// Trail bike (enduro): tall, slim, long-travel gold inverted fork, knobby spoked wheels (21"/18"), beak fender, number plate, high silencer, MX-gear rider.
+const TRAIL={model:'Moto de trilha',K:TRAIL_K,size:{w:.5,d:1.15},roof:1.85,cam:.8,hang:.6,tuck:.08,ra:[0,.335,-.73],fa:[0,.345,.73],head:[0,1.14,.37],hip:[0,1.03,-.3],
+ body(e,ln){const F='#2a2d31',A='#9ea4a8',W='#f4f2ee';
+  ln('trim',F,[0,1.05,.35],[.09,.7,-.1],.03);ln('trim',F,[0,1.05,.35],[-.09,.7,-.1],.03);
+  for(const s of [-1,1]){ln('trim',F,[s*.04,1.0,.33],[s*.1,.42,.12],.025);ln('trim',F,[s*.1,.42,.12],[s*.1,.42,-.3],.022);ln('trim',F,[s*.1,.42,-.3],[s*.1,.5,-.3],.022);ln('trim','#c0c4c7',[s*.09,.82,-.2],[s*.07,.88,-.62],.02);
+   ln('trim','#c0c4c7',[s*.1,.5,-.3],[s*.09,.335,-.73],.03);ln('trim','#2a2d31',[s*.16,.4,-.2],[s*.27,.4,-.2],.012);
+   e('paint',BS,'#fff',s*.12,.9,.16,.055,.14,.26);e('trim',BS,W,s*.17,.9,.17,.012,.1,.17);e('trim',GB,W,s*.12,.97,-.5,.012,.14,.2)}
+  e('trim',GB,A,0,.5,.04,.2,.28,.36);e('trim',C12,A,0,.76,.12,.075,.22,.075,.18);e('trim',GB,'#7c8286',0,.9,.15,.14,.1,.16);for(let k=0;k<4;k++)e('trim',C12,'#8d9397',0,.62+k*.05,.1+k*.01,.1,.012,.1,.18);
+  e('chrome',C12,'#fff',.12,.5,-.05,.085,.04,.085,0,0,Math.PI/2);e('trim',C12,'#868c90',-.12,.55,.12,.07,.04,.07,0,0,Math.PI/2);e('trim',GB,'#b9bdc0',0,.3,.02,.15,.012,.46);
+  ln('chrome','#fff',[.03,.82,.22],[.14,.7,.26],.022);ln('chrome','#fff',[.14,.7,.26],[.17,.62,.1],.022);ln('chrome','#fff',[.17,.62,.1],[.17,.7,-.2],.022);ln('chrome','#fff',[.17,.7,-.2],[.17,.84,-.3],.022);
+  e('chrome',C12,'#fff',.17,.86,-.58,.055,.5,.055,Math.PI/2);e('trim',C12,'#14161a',.17,.86,-.835,.05,.012,.05,Math.PI/2);
+  e('paint',BS,'#fff',0,1.04,.14,.1,.1,.22);e('trim',C12,'#14161a',0,1.14,.15,.03,.02,.03);e('trim',BS,'#14161a',0,.99,-.3,.1,.035,.45);
+  e('paint',BS,'#fff',0,.95,-.78,.085,.03,.28,.12);e('trim',GB,'#14161a',0,.62,-1.02,.08,.15,.01,-.3);e('lamp',GB,'#ff2a1f',0,.9,-1.05,.07,.02,.02);
+  ln('trim','#14161a',[0,.92,-.34],[0,.55,-.5],.028);ln('trim','#e0a82e',[0,.88,-.35],[0,.62,-.46],.05);ln('trim','#1b1d20',[-.11,.48,-.22],[-.1,.34,-.73],.008)},
+ fork(e,ln){const G='#d9a63b',B='#2a2d31',C='#c0c4c7';
+  for(const s of [-1,1]){ln('trim',G,[s*.105,1.15,.38],[s*.1,.71,.572],.033);ln('trim',B,[s*.1,.71,.572],[s*.1,.345,.73],.029);ln('trim',B,[s*.09,.76,.58],[s*.07,.82,.62],.012);
+   ln('trim',B,[s*.08,1.17,.37],[s*.2,1.32,.31],.014);ln('trim','#0f1113',[s*.38,1.32,.31],[s*.5,1.32,.3],.022);ln('paint','#fff',[s*.5,1.33,.31],[s*.5,1.33,.5],.014);e('paint',BS,'#fff',s*.5,1.34,.42,.012,.065,.1);ln('chrome','#fff',[s*.4,1.32,.3],[s*.43,1.31,.4],.008)}
+  ln('trim',B,[-.42,1.32,.31],[.42,1.32,.31],.014);e('trim',BS,W2,0,1.34,.31,.09,.045,.02);
+  e('trim',GB,C,0,1.14,.37,.26,.04,.08);e('trim',GB,C,0,1.0,.43,.22,.035,.07);
+  e('paint',BS,'#fff',0,.82,.82,.07,.022,.24,-.05);e('paint',BS,'#fff',0,.78,.97,.06,.02,.1,-.35);
+  e('trim',GB,W2,0,1.02,.55,.22,.2,.012,-.45);e('paint',GB,'#fff',0,1.02,.545,.24,.22,.01,-.45);e('trim',GB,'#111',0,1.02,.558,.03,.12,.004,-.45);
+  e('trim',BS,'#14161a',0,1.2,.47,.08,.06,.05,-.2);e('lamp',BS,'#fff3c8',0,1.2,.5,.07,.05,.03,-.2)},
+ fwheel(e,ln){bikeWheel(e,ln,{R:.345,tube:.05,w:.09,wire:32,knob:28,disc:1})},rwheel(e,ln){bikeWheel(e,ln,{R:.335,tube:.06,w:.12,wire:32,knob:28,disc:1})},
+ rider(e,ln){const P='#1f2327',B='#e9e6df';
+  e('trim',BS,P,0,1.02,-.3,.17,.12,.17);ln('paint','#fff',[0,1.05,-.3],[0,1.42,-.04],.15);e('paint',BS,'#fff',0,1.4,-.04,.2,.08,.1);
+  for(const s of [-1,1]){ln('paint','#fff',[s*.2,1.4,-.02],[s*.37,1.28,.14],.052);ln('paint','#fff',[s*.37,1.28,.14],[s*.43,1.32,.3],.045);e('trim',BS,'#f1efe8',s*.45,1.325,.305,.05,.045,.06);
+   ln('trim',P,[s*.14,1.03,-.3],[s*.22,.95,.12],.09);ln('trim',P,[s*.22,.95,.12],[s*.22,.5,-.14],.07);e('trim',GB,B,s*.22,.42,-.12,.1,.09,.26);e('trim',BS,B,s*.24,.97,.14,.05,.07,.06)}
+  e('paint',BS,'#fff',0,1.6,.1,.135,.145,.17);e('trim',BS,'#f4f2ee',0,1.62,.1,.025,.148,.173);e('trim',BS,'#14161a',0,1.52,.26,.085,.07,.09);e('paint',GB,'#fff',0,1.665,.28,.13,.012,.12,-.18);e('glass',BS,'#fff',0,1.6,.23,.115,.055,.05);e('trim',BS,'#14161a',0,1.6,.1,.138,.04,.172)}};
+const W2='#f4f2ee',moto=c=>bikeBuild('sport',SPORT,c),cruiser=(c,civil=true)=>bikeBuild('cruiser',CRUISER,c,civil),trailBike=(c,civil=true)=>bikeBuild('trail',TRAIL,c,civil);
+// Lean into the turn by the lateral acceleration (atan(yaw rate × speed / g)); the rider hangs off the inside (more on the sport and trail
+// bikes), tucks behind the screen with speed and sways back/forward under acceleration/braking; the fork dives when braking. Wheels spin,
+// the fork follows the front ghost pivot, and the rider shows only while someone rides it (the player, a race pilot, or a city rider until
+// the bike is stolen). City bikes take their speed from their traffic entry.
+function motoPose(v,dt){const u=v.userData,M=u.moto,V=u.vel||{x:0,z:0},mine=v===car&&inCar,r=(mine?u.yawRate:u.spin)||0,tr=u.traffic,Mt=T.MathUtils,city=M.civil&&!mine&&!u.aiDriver&&!u.loose&&!stolenCars.has(v)&&!u.npcDriver&&tr;
+ const fwd=city?tr.actual||0:V.x*Math.sin(v.rotation.y)+V.z*Math.cos(v.rotation.y),ax=Mt.clamp((fwd-M.pf)/Math.max(dt,1e-3),-30,30);M.pf=fwd;M.ac+=(ax-M.ac)*(1-Math.exp(-dt*6));
  M.lean+=(Mt.clamp(-Math.atan(r*fwd/9.81),-.8,.8)*Mt.smoothstep(Math.abs(fwd),1,6)-M.lean)*(1-Math.exp(-dt*9));u.body.rotation.z=M.lean;u.body.rotation.x*=.4;
- M.spin=(M.spin+fwd*dt/.32)%(Math.PI*2);for(const w of M.real)w.rotation.x=M.spin;const fw=u.wheels.find(w=>w.front);M.fork.rotation.y=fw?fw.pivot.rotation.y*.7:0;M.rider.visible=mine||!!u.aiDriver}
+ M.spin=(M.spin+fwd*dt/.32)%(Math.PI*2);for(const w of M.real)w.rotation.x=M.spin;const fw=u.wheels.find(w=>w.front),st=fw?fw.pivot.rotation.y*.7:0;M.fork.rotation.y=st;
+ const R=M.rider,k=1-Math.exp(-dt*8);R.rotation.y+=(st*.3-R.rotation.y)*k;R.rotation.z+=(M.lean*M.hang-R.rotation.z)*k;R.position.x=M.hip[0]-M.lean*M.hang*.3;
+ R.rotation.x+=(M.tuck*Mt.smoothstep(fwd,12,45)-Mt.clamp(M.ac*.004,-.12,.12)-R.rotation.x)*k;M.fw.position.y=M.fy0-Mt.clamp(-M.ac*.0012,-.015,.04);
+ R.visible=mine||!!u.aiDriver||(M.civil&&!stolenCars.has(v))}
 // Kart: low tube-frame racer (nose cone, side pods, rear bumper, side-mounted engine) with a seated driver. Its four small wheels are
 // real wheel entries (pivot → spinning group), so steering, spin and ground contact use the shared code. Light and grippy, short
 // wheelbase, modest top speed; K follows the Fusca's model scaled to 230 kg (esc/hbTorque ∝ I).
@@ -1145,7 +1250,7 @@ function raceTry(){if(!raceNear())return false;if(Math.abs(velocity)>2){toast('P
  raceMenu.hidden=false;return true}
 // The player's vehicle for a mode: the current one when it already belongs to that class, else the mode's race vehicle (built once,
 // registered as a parked, already-owned traffic entry so it collides, can be re-entered and never counts as a theft).
-function raceClass(v){const m=v.userData.model;return m==='Caminhão'?'caminhao':m==='Moto'?'moto':m==='Kart'?'kart':'carro'}
+function raceClass(v){const m=v.userData.model;return m==='Caminhão'?'caminhao':/^Moto/.test(m)?'moto':m==='Kart'?'kart':'carro'}
 function raceVehicle(mode){if(raceClass(car)===mode)return car;let v=race.mine[mode];
  if(!v){v=race.mine[mode]=RACE_MODES[mode].make(RACE_MINE);scene.add(v);const t={g:v,road:0,axis:0,dir:1,pos:0,speed:0,raceOwned:true};traffic.push(t);v.userData.traffic=t;v.userData.vel={x:0,z:0};stolenCars.add(v);vehicleCache=[]}
  v.visible=true;return v}
@@ -2469,12 +2574,16 @@ people.forEach(resident);
 // Patrol cars cruise with ordinary traffic (lights off; they flash while the player is wanted). Fixed spots keep rand() untouched.
 for(let i=0;i<(LOW?3:5);i++){const model=['opala','fusca','kombi'][i%3],g=model==='fusca'?beetle('#f0eee3'):classic(model==='opala'?'opalaPolicia':model,'#f0eee3'),s=dressPolice(g,model);s.red.visible=s.blue.visible=false;g.userData.siren=s;g.userData.patrolCar=true;scene.add(g);traffic.push({g,road:roads[(i*3+2)%7],axis:i%2,dir:i%2?1:-1,pos:-200+i*97,speed:9+i%3,patrol:true})}
 // Spread the starting cars so none spawns overlapping another car, a crossing or the player's Fusca (an overlapping car never moves).
+// City motorcycles: custom (Harley style) and trail bikes ride the same lanes as the cars, a little quicker. Old town and east district.
+{const BC=['#c42f2a','#1f2a33','#e6e1d3','#2f6fae','#3e8a57','#7a1f2b'],TB=['#f26a1b','#f0c23a','#2f6fae','#e6e1d3','#3e8a57','#d23b2f'],add=(g,road,axis,dir,pos,speed,lo,hi)=>{scene.add(g);traffic.push({g,road,axis,dir,pos,speed,lo,hi})};
+ for(let i=0;i<(LOW?6:10);i++)add(i%2?trailBike(TB[(i>>1)%6]):cruiser(BC[(i>>1)%6]),roads[(i*3+1)%7],i%2?0:1,i%3===0?-1:1,-240+r2()*480,10+r2()*6);
+ for(let i=0;i<(LOW?2:4);i++)add(i%2?trailBike(TB[(i+2)%6]):cruiser(BC[(i+3)%6]),roads[(i*2+1)%7],1,i%2?-1:1,400+r2()*140,10+r2()*6,380,XMAX+4)}
 {const at=t=>t.axis?[t.pos,t.road+t.dir*4]:[t.road-t.dir*4,t.pos],seen=[];for(const t of traffic){const lo=(t.lo??-266)+2,hi=(t.hi??266)-2,cross=t.axis&&t.lo!==undefined?ROADX2:roads;
  for(let k=0;k<60;k++){const [x,z]=at(t);if(!seen.some(o=>{const [ox,oz]=at(o);return Math.hypot(ox-x,oz-z)<12})&&!cross.some(c=>Math.abs(c-t.pos)<14)&&Math.hypot(x-4,z-30)>12)break;t.pos+=9;if(t.pos>hi)t.pos=lo}seen.push(t)}}
 for(const t of traffic){t.g.position.set(t.axis?t.pos:t.road-t.dir*4,0,t.axis?t.road+t.dir*4:t.pos);t.g.rotation.y=t.axis?t.dir*Math.PI/2:t.dir<0?Math.PI:0}
 // Serra traffic: mostly trucks plus a few classics, spread over the mountain roads away from the tunnels.
 {const SC=['#d23b2f','#2f6fae','#f0c23a','#3e8a57','#e07a2e','#f2ece0'],total=SERRA_ROUTES.reduce((a,r)=>a+r.length,0),spots=[];
- for(let i=0;i<(LOW?10:14);i++){const g=i%2===0||i===3?classic('caminhao',SC[i%6]):i%3?classic(['kombi','opala','mustang'][i%3],SC[(i+2)%6]):beetle(SC[(i+3)%6]);
+ for(let i=0;i<(LOW?12:18);i++){const g=i>=(LOW?10:14)?trailBike(['#f26a1b','#f0c23a','#2f6fae','#e6e1d3'][i%4]):i%2===0||i===3?classic('caminhao',SC[i%6]):i%3?classic(['kombi','opala','mustang'][i%3],SC[(i+2)%6]):beetle(SC[(i+3)%6]);
   const t={g,speed:g.userData.model==='Caminhão'?9.5+r2()*3:10+r2()*4,actual:0};
   for(let k=0;k<40;k++){let x=Math.floor(r2()*total),r=0;while(x>=SERRA_ROUTES[r].length){x-=SERRA_ROUTES[r].length;r++}serraEnter(t,r,T.MathUtils.clamp(x,2,SERRA_ROUTES[r].length-3));const [px,pz]=serraPoint(t,t.idx,t.off);if(!tunnelAt(px,pz,10)&&!spots.some(s=>Math.hypot(s[0]-px,s[1]-pz)<25))break}
   const [px,pz]=serraPoint(t,t.idx,t.off),[qx,qz]=serraPoint(t,t.idx+t.dir,t.off);spots.push([px,pz]);g.position.set(px,surfaceY(px,pz),pz);g.rotation.y=Math.atan2(qx-px,qz-pz);scene.add(g);traffic.push(t)}}
@@ -2591,6 +2700,6 @@ function fit(){cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();re
 const context=document.modelContext;if(context?.registerTool){for(const tool of [{name:'start_driving',description:'Iniciar o jogo local.',execute:()=>{start();return{started,paused}}},{name:'reset_car',description:'Reposicionar fora de perseguições.',execute:()=>{reset();return{x:car.position.x,z:car.position.z,wanted}}}]){try{Promise.resolve(context.registerTool({...tool,inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:false},execute:input=>{if(input&&Object.keys(input).length)throw new Error('Nenhum argumento é aceito.');return tool.execute()}})).catch(()=>{})}catch{}}}
 
 // Test hook (only with ?debug=1): lets automated checks step the simulation and read state.
-if(DEBUG)window.__g={race,rivals,TRK,RL,raceTry,trkPose,physicalObstacles,get car(){return car},get velocity(){return velocity},set velocity(v){velocity=v},get angle(){return angle},set angle(v){angle=v},surfToPeak,T,scene,cam,renderer,PR,adapt,resetPerformance,surf,player,keys,DEBUG,SURF_CONFIG,surfStep,surfSample,updateSurf,waveAt,WS,OI,OC,spawnWave,oceanStep,oceanInfo,oceanHeight,seaU,start,startSurf,stopSurf,update,keysClear,shore,sandY,get heading(){return heading},set heading(v){heading=v},get simTime(){return simTime},get cash(){return cash},get inCar(){return inCar},set inCar(v){inCar=v;player.visible=!v?true:false},people,traffic,get grab(){return grab},arrested,crime,set simTime(v){simTime=v},get lastCrime(){return lastCrime},render(){renderer.render(scene,cam)},step(n=1,dt=1/60){for(let i=0;i<n;i++)update(dt);renderer.render(scene,cam)}};
+if(DEBUG)window.__g={moto,cruiser,trailBike,motos,racePick,raceStart,race,rivals,TRK,RL,raceTry,trkPose,physicalObstacles,get car(){return car},get velocity(){return velocity},set velocity(v){velocity=v},get angle(){return angle},set angle(v){angle=v},surfToPeak,T,scene,cam,renderer,PR,adapt,resetPerformance,surf,player,keys,DEBUG,SURF_CONFIG,surfStep,surfSample,updateSurf,waveAt,WS,OI,OC,spawnWave,oceanStep,oceanInfo,oceanHeight,seaU,start,startSurf,stopSurf,update,keysClear,shore,sandY,get heading(){return heading},set heading(v){heading=v},get simTime(){return simTime},get cash(){return cash},get inCar(){return inCar},set inCar(v){inCar=v;player.visible=!v?true:false},people,traffic,get grab(){return grab},arrested,crime,set simTime(v){simTime=v},get lastCrime(){return lastCrime},render(){renderer.render(scene,cam)},step(n=1,dt=1/60){for(let i=0;i<n;i++)update(dt);renderer.render(scene,cam)}};
 
 </script></body></html>
