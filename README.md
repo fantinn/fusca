@@ -6,6 +6,12 @@ Jogo 3D experimental de mundo aberto para navegador, ambientado em uma cidade li
 
 Baixe `index.html` e abra no Chrome, Edge ou Firefox com WebGL habilitado. O arquivo contém o jogo e a biblioteca 3D, e funciona sem instalação ou conexão com a internet.
 
+### Jogar com amigos (online)
+
+Em https://fantinn.github.io/fusca/, clique em **JOGAR COM AMIGOS**, escolha um nome e crie uma sala. O selo no topo mostra o código e tem o botão **COPIAR LINK**; quem abrir o link (`?sala=CÓDIGO`) entra direto na mesma sala. Cada jogador vê os outros na cidade — de carro, moto, kart, a pé ou surfando — com o nome em cima.
+
+Por enquanto só a posição é compartilhada: tráfego, polícia, ondas e missões continuam sendo simulados em cada navegador, e jogadores não colidem entre si. A conexão usa o Supabase Realtime (broadcast e presence, sem banco de dados) e só é carregada quando alguém entra numa sala; o jogo sozinho continua funcionando offline. Para testar sem rede, `?net=local` liga abas do mesmo navegador entre si.
+
 ## Controles
 
 | Tecla | Ação |
