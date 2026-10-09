@@ -71,3 +71,24 @@ A suíte verifica as quatro categorias, ausência de obstáculos no centro das p
 ## Tecnologia e atribuição
 
 JavaScript, WebGL e Three.js r170. Não há etapa de compilação. O Three.js é distribuído sob a licença MIT, reproduzida em `THIRD-PARTY-LICENSE.txt`.
+
+## Otimizações de desempenho
+
+- Colisões descartam veículos distantes antes dos cálculos de distância e contato, mantendo a resposta física e os passos de integração.
+- Consultas de obstáculos estáticos reutilizam listas por região, com limite de 512 entradas e invalidação quando os obstáculos são adicionados ou removidos.
+- A superfície plana do autódromo evita cálculos de serra, quebra-molas e consulta à linha da pista em cada roda.
+- Veículos parados e estabilizados não recalculam a suspensão. Em trânsito distante, a suspensão visual atualiza em até 10 Hz, mantendo movimento, altura central e colisões ativos.
+- Personagens distantes dispensam a animação detalhada. Hierarquias ocultas dispensam atualização das matrizes de renderização, sem impedir consultas de posição para a física.
+- O shader do mar calcula apenas as ondulações decorativas; o código gráfico de ondas surfáveis foi removido.
+
+Comparação local no Edge sem interface, perfil leve, 600 passos de simulação de 1/60 s após 120 passos de aquecimento:
+
+| Cenário | Antes (média por passo) | Depois | Redução |
+| --- | --- | --- | --- |
+| Cidade | 1,51 ms | 1,21 ms | 20% |
+| Corrida de carros | 1,81 ms | 1,44 ms | 20% |
+| Motocross | 1,88 ms | 1,21 ms | 35% |
+
+Esses números medem o tempo de CPU da simulação neste ambiente, não o FPS nem o desempenho de todos os aparelhos. O benchmark pode ser repetido com `node tests/performance.cjs [index.html] [relatorio.json]`.
+
+`node tests/optimization.cjs` compara 700 cenários de contato com uma busca exaustiva, verifica invalidação e limite do cache, consultas espaciais com objetos ocultos e reposicionamento imediato de veículos. Os testes existentes de corrida continuam cobrindo as quatro categorias, apostas, impulsos, saltos e controles móveis.
