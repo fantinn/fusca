@@ -60,6 +60,14 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   g.render();return out;
  });
  await page.screenshot({path:path.resolve(__dirname,'../moto-preview.png')});
+ // Actual race input drives the drift model, effects and HUD together.
+ const driveDrift=()=>{
+  const g=__g;g.endRace();g.hideField();g.openRaceHub();g.race.trackId='oval';g.race.selectedBet=0;g.racePick('carro');g.race.t=1;
+  for(const r of g.race.field){r.g.position.set(450,0,1800);r.done=true}
+  g.keys.w=true;g.step(80);g.keys.a=true;g.step(12);g.keys[' ']=true;g.step(19);g.keys[' ']=false;g.step(12);
+  const result={slip:g.car.userData.fx.slipAngle,drift:g.car.userData.fx.drift,visible:!document.querySelector('#drifthud').hidden,title:document.querySelector('#driftTitle').textContent};g.keysClear();return result;
+ };const drift=await page.evaluate(driveDrift);assert(drift.drift>.5);assert(Math.abs(drift.slip)>.12);assert(drift.visible);console.log('Drift in browser:',drift);
+ await page.screenshot({path:path.resolve(__dirname,'../drift-preview.png')});
  assert.deepEqual(errors,[]);console.log(JSON.stringify(results,null,2));
  // Touch menu remains reachable in a small landscape viewport.
  await page.goto(pathToFileURL(path.resolve(__dirname,'../index.html')).href+'?debug=1&manual=1&touch=1&low=1');
@@ -67,6 +75,9 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  await page.evaluate(()=>__g.start());assert(await page.locator('#racemenu').isVisible());
  await page.selectOption('#rmBet','0');await page.click('[data-mode="moto"]');
  assert(await page.evaluate(()=>__g.race.on&&__g.race.field.length===5));
+ const touchDrift=await page.evaluate(driveDrift);assert(touchDrift.visible);assert.equal(await page.locator('#touch [data-key=" "] .car').textContent(),'DRIFT');
+ const hud=await page.locator('#drifthud').boundingBox();assert(hud.x>=0&&hud.y>=0&&hud.x+hud.width<=896&&hud.y+hud.height<=414,'touch drift HUD fits viewport');
+ await page.screenshot({path:path.resolve(__dirname,'../drift-touch-preview.png')});
  assert.deepEqual(errors,[]);console.log('PASS: 4 classes, wallet, contacts, recovery, jumps, touch menu');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

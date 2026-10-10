@@ -6,6 +6,16 @@ Jogo 3D de corrida para navegador, com uma cidade litorânea aberta para explora
 
 Clique em **ESCOLHER CORRIDA**. Durante a exploração, use **CORRER** para voltar ao box e escolher outra categoria. **VOLTAR AO BOX** fecha o menu para treino livre e exploração.
 
+Escolha a **PISTA** no menu e confira a prévia do traçado antes de clicar na categoria. “Padrão da categoria” mantém as combinações abaixo. Também há três circuitos independentes, disponíveis para carro, caminhão, kart e moto:
+
+| Pista nova | Comprimento | Características |
+| --- | --- | --- |
+| Oval das Dunas | 1,52 km | Curvas amplas, retas rápidas e cenário de areia |
+| Jardim dos Esses | 1,51 km | Sequência de esses, hairpin e vegetação |
+| Porto Industrial | 1,47 km | Chicanes, frenagens fortes e contêineres |
+
+O Motocross é exclusivo para motos. As outras pistas aceitam as quatro categorias. Os circuitos novos são construídos apenas quando usados e têm superfície, barreiras, grid, linha de chegada e minimapa próprios.
+
 | Categoria | Pista | Comprimento | Voltas |
 | --- | --- | --- | --- |
 | Carro | Autódromo Costa do Sol | 3,45 km | 2 |
@@ -34,6 +44,10 @@ Os contatos transferem impulso e giro conforme a massa dos veículos. Rivais ati
 
 A direção tem entrada progressiva e maior estabilização ao soltar o volante. Freio de mão e turbo continuam disponíveis. Carros de corrida e motos recebem números de identificação.
 
+Nas corridas da categoria **Carro** em asfalto, a direção fica mais gradual em alta velocidade e o acelerador tem resposta progressiva. Para fazer drift, entre na curva acelerando e dê um toque no **Espaço**. Solte o freio de mão e mantenha **W + direção da curva** para sustentar o deslize. Contraesterce (vire para o lado oposto), alivie o acelerador ou freie com **S** para recuperar aderência. Segurar o freio de mão continua reduzindo velocidade; não é necessário mantê-lo pressionado para sustentar o drift.
+
+O painel mostra **DRIFT**, o ângulo do deslize e **ALINHANDO** durante a recuperação. Fumaça, marcas de pneus e som acompanham o deslizamento real. No celular, o botão de freio de mão passa a se chamar **DRIFT** nessa categoria. A assistência exige velocidade e asfalto, cede após colisões e não concede bônus de velocidade nem pontos. Motos, karts, caminhões e exploração mantêm seus perfis de pilotagem.
+
 As rampas do motocross chegam a aproximadamente 2,55 m. Motos têm velocidade vertical limitada a 7 m/s, com alinhamento para a aterrissagem. Nas corridas, batidas não ativam o salto de empinada e os comandos não provocam mortais acidentais. Fora das provas, as manobras continuam disponíveis, com impulso menor.
 
 ## Controles
@@ -58,13 +72,21 @@ A cidade, trânsito, pedestres, serra, túneis, veículos clássicos, polícia e
 
 O surf, a prancha interativa, sua pontuação e as ondas surfáveis foram removidos. A praia e o mar permanecem no cenário com pequenas ondulações decorativas.
 
-**JOGAR COM AMIGOS** cria ou entra em uma sala. A conexão usa Supabase Realtime e só é carregada quando alguém entra numa sala. Cada jogador vê os outros, mas as provas, apostas, trânsito e polícia são simulados localmente; não há colisão entre jogadores remotos. `?net=local` permite testar salas entre abas do mesmo navegador.
+**JOGAR COM AMIGOS** cria ou entra em uma sala. A conexão usa Supabase Realtime e só é carregada quando alguém entra numa sala. Qualquer participante pode escolher uma pista e uma categoria para iniciar a corrida da sala. Todos os participantes conectados são levados ao mesmo grid, inclusive quem estava a pé ou pausado. A sala aguarda a preparação de todos e inicia uma contagem de cinco segundos. Cada jogador ocupa uma posição exclusiva; cinco NPCs completam o grid, igual nos perfis leve e normal. Há suporte a até 16 jogadores por largada.
+
+As corridas online são gratuitas, sem impor apostas aos outros participantes. Um coordenador escolhido automaticamente controla os NPCs e transmite seus estados; os outros navegadores interpolam esses estados. A classificação inclui os jogadores remotos. Trânsito e polícia continuam locais; não há colisão entre jogadores remotos. O jogo não pausa a corrida online ao perder foco. Navegadores podem limitar a simulação de abas em segundo plano, portanto o coordenador deve manter o jogo aberto e ativo para melhor fluidez.
+
+Quem entra depois da preparação participa da próxima corrida. Novas largadas ficam bloqueadas até todos terminarem ou abandonarem (limite de dez minutos). Se o coordenador ou outro participante perder a conexão, a corrida é encerrada e a sala pode iniciar outra. Pedidos repetidos e mensagens duplicadas não reiniciam a prova. `?net=local` permite testar salas entre abas do mesmo navegador.
 
 ## Verificação
 
 `tests/racing.cjs` usa Playwright e Edge. Instale Playwright ou defina `PLAYWRIGHT_MODULE` para a instalação disponível e execute `node tests/racing.cjs`.
 
 A suíte verifica as quatro categorias, ausência de obstáculos no centro das pistas e nos grids, débito e pagamento das apostas, prevenção de pagamento duplicado, transferência de impulso, recuperação após colisão, limite vertical das motos, altura das rampas e menu no perfil móvel.
+
+`node tests/tracks-online.cjs` verifica os três circuitos novos com as quatro categorias e executa partidas entre abas via `BroadcastChannel`: pedido de largada por outro participante, jogador pausado/a pé, perfis gráficos diferentes, grid e contagem compartilhados, NPCs sincronizados, mensagens repetidas, entrada tardia, classificação, próxima corrida e desconexão do coordenador. Esses testes não dependem do serviço Supabase e não medem latência real entre dispositivos.
+
+`node tests/handling.cjs --check` exercita a física de pilotagem em uma superfície plana isolada: entrada e sustentação do drift, contraesterço, alívio do acelerador, frenagem, baixa velocidade, turbo, colisão, reposicionamento, simetria esquerda/direita e consistência entre taxas de atualização. A suíte `racing.cjs` também verifica uma manobra com o carro real e o indicador de drift no navegador.
 
 `?debug=1&manual=1` expõe os controles de diagnóstico sem iniciar o laço automático, permitindo passos determinísticos nos testes. `?touch=1` mostra controles móveis e `?low=1` aplica o perfil gráfico leve.
 
