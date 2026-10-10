@@ -1,0 +1,43 @@
+// Open-wheel monoposto: visible suspension, slick tyres, halo, driver and movable rear-wing flap.
+const FORMULA_K={m:800,I:1650,L:3.3,a:1.65,b:1.65,cg:.07,h:.003,mu:1.85,rear:1.04,Bf:19,Br:18,lock:.43,acc:31,turbo:42,vmax:84,vmaxTurbo:92,brake:65,drag:.16,dragOff:1.2,off:.46,roll:.28,esc:26000,latDamp:4,counter:.65,yawFollow:3.4,yawCenter:8,tract:80,tractMin:.35,cornerDecel:25,rev:8,revMax:8},formulas=[];
+const FORMULA_GEARS=[12,23,35,47,59,71,82,100];
+function formula(color){const g=new T.Group(),body=new T.Group(),P=mat(color),dark=mat('#141b22'),white=mat('#f4f4ee'),metal=mat('#647885');g.add(body);
+ const add=(par,geo,m,x,y,z,sx=1,sy=1,sz=1,rx=0,ry=0,rz=0)=>{const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.rotation.set(rx,ry,rz);o.castShadow=true;o.receiveShadow=true;par.add(o);return o};
+ const rod=(a,b,r=.025,m=dark)=>{const A=new T.Vector3(...a),B=new T.Vector3(...b),o=add(body,C8,m,0,0,0,r,A.distanceTo(B),r);o.position.copy(A).add(B).multiplyScalar(.5);o.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),B.sub(A).normalize());return o};
+ add(body,GB,dark,0,.18,-.05,1.62,.08,4.6);
+ add(body,coachLoft([[-2.1,.18,.25,.54],[-1.4,.36,.22,.78],[-.7,.46,.22,.82],[.5,.43,.22,.72],[1.5,.2,.26,.52],[2.5,.09,.22,.32]]),P,0,0,0);
+ for(const side of [-1,1]){
+  add(body,coachLoft([[-1.65,.16,.22,.44],[-.8,.28,.23,.62],[.45,.24,.23,.66],[.8,.15,.26,.57]]),P,side*.58,0,0);
+  add(body,GB,dark,side*.61,.48,.82,.3,.18,.04);
+  add(body,GB,white,side*.82,.44,-.15,.025,.16,1.35);
+  add(body,GB,dark,side*1.02,.36,2.32,.045,.35,.55);
+  add(body,GB,P,side*.94,.93,-2.18,.045,.68,.6);
+  rod([side*.4,.54,.55],[side*.74,.72,.68],.025,P);add(body,GB,P,side*.8,.73,.68,.2,.11,.1);
+  for(const axle of [-1.65,1.65]){rod([side*.22,.27,axle-.4],[side*.91,.36,axle]);rod([side*.22,.3,axle+.4],[side*.91,.36,axle]);rod([side*.25,.64,axle-.25],[side*.88,.37,axle],.021,metal)}
+ }
+ for(const [z,y,w] of [[2.48,.2,2.08],[2.23,.29,1.96],[-2.32,.85,1.92]])add(body,GB,dark,0,y,z,w,.065,.28);
+ for(const side of [-1,1])rod([side*.38,.25,-1.85],[side*.38,.93,-2.2],.045);
+ const flap=new T.Group();flap.position.set(0,1.09,-2.14);body.add(flap);add(flap,GB,P,0,0,0,1.87,.08,.38);
+ add(body,GB,dark,0,.35,-2.34,1.25,.24,.36);for(let i=-2;i<=2;i++)add(body,GB,dark,i*.22,.32,-2.5,.025,.28,.38);
+ add(body,geos.s,dark,0,.76,-.26,.39,.12,.67);
+ const driver=new T.Group();body.add(driver);add(driver,geos.s,dark,0,.75,-.36,.24,.26,.23);add(driver,geos.s,white,0,1.03,-.38,.19,.2,.21);add(driver,geos.s,dark,0,1.05,-.21,.16,.075,.07);
+ const wheel=add(body,new T.TorusGeometry(.15,.025,6,18),dark,0,.86,.14,1,.68,1,-.35);
+ for(const side of [-1,1])add(driver,geos.s,P,side*.14,.83,.12,.07,.06,.08);
+ add(body,new T.TorusGeometry(.45,.035,6,26),dark,0,1.17,-.16,1,1.55,1,Math.PI/2);
+ rod([0,.69,.62],[0,1.17,.51],.04);for(const side of [-1,1])rod([side*.36,.71,-.7],[side*.39,1.17,-.66],.035);
+ add(body,GB,dark,0,1.07,-.88,.22,.29,.25);add(body,GB,P,0,1.27,-.92,.2,.12,.3);
+ const wheels=[];for(const z of [-1.65,1.65])for(const side of [-1,1]){const pivot=new T.Group();pivot.position.set(side*.96,.36,z);g.add(pivot);const w=new T.Group();pivot.add(w);const width=z<0?.44:.36;
+  add(w,C12,dark,0,0,0,.36,width,.36,0,0,Math.PI/2);add(w,C12,metal,side*(width/2+.005),0,0,.21,.015,.21,0,0,Math.PI/2);
+  add(w,new T.TorusGeometry(.285,.011,5,24),mat('#e9d453'),side*(width/2+.012),0,0,1,1,1,0,Math.PI/2);
+  wheels.push({pivot,w,front:z>0,bar:new T.Object3D()});}
+ g.userData={body,wheels,size:{w:1.2,d:2.65},mass:800,model:'Fórmula 1',K:FORMULA_K,roof:1.35,wheelRadius:.36,camScale:.9,netColor:color.replace('#',''),formula:{flap,driver,wheel,gear:1,drs:false,available:false,aero:1}};formulas.push(g);return g;
+}
+function formulaPose(v,dt){const u=v.userData,F=u.formula,active=v===car&&inCar||u.aiDriver||u.netDriver;F.driver.visible=active;F.wheel.rotation.z=-(u.wheels.find(w=>w.front).pivot.rotation.y||0)*2;
+ F.flap.rotation.x+=((F.drs?-.5:0)-F.flap.rotation.x)*(1-Math.exp(-dt*12));u.body.rotation.x*=.55;u.body.rotation.z*=.4;}
+function formulaDRS(track,x,z){if(!track.drs)return false;return track.drs.some(b=>x>b.x0&&x<b.x1&&z>b.z0&&z<b.z1)}
+function formulaTelemetry(){const F=car.userData.formula;formulaHUD.hidden=!(race.on&&F&&inCar);if(formulaHUD.hidden)return;
+ $('formulaGear').textContent=velocity<-.5?'R':Math.abs(velocity)<.5?'N':F.gear;
+ $('formulaDrs').textContent=F.drs?'DRS ABERTO':F.available?'DRS DISPONÍVEL':'DRS FECHADO';$('formulaDrs').style.color=F.drs?'#8ff0c2':F.available?'#ffd85e':'#a9c2c8';
+ $('formulaAero').textContent='ADERÊNCIA '+F.aero.toFixed(1)+'× • MELHOR '+(race.bestLap?raceClock(race.bestLap):'—');
+ $('formulaRpm').style.width=Math.min(100,(Math.abs(velocity)-(FORMULA_GEARS[F.gear-2]||0))/(FORMULA_GEARS[F.gear-1]-(FORMULA_GEARS[F.gear-2]||0))*100)+'%';
+}
