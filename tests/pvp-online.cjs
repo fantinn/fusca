@@ -1,4 +1,4 @@
-// Two tabs in the same room (BroadcastChannel, no Supabase): punch, knock-down, grab/drag/throw, breaking free and running over.
+// Two tabs in the same room (BroadcastChannel, no Supabase): punch, knock-down, grab/drag/throw, breaking free, running over and car-to-car contact.
 // Run with PLAYWRIGHT_MODULE pointing to an installed Playwright package, or npm install playwright.
 const assert=require('node:assert/strict');
 const fs=require('node:fs');const path=require('node:path');const http=require('node:http');
@@ -32,7 +32,9 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   // Grab: holding X takes B; walking away drags B along; Q throws.
   await b.evaluate(()=>{__g.health=100});await place();
   await a.evaluate(()=>{__g.keys.x=true});await run(900);
-  assert(await a.evaluate(()=>!!__g.netGrab),'A holds B');assert(await b.evaluate(()=>!!__g.netHeld),'B knows it is held');
+  assert(await a.evaluate(()=>!!__g.netGrab),'A holds B');assert(await b.evaluate(()=>!!__g.netHeld),'B knows it is held');await run(400);
+  assert(await a.evaluate(()=>[...__g.net.peers.values()][0].cur?.m===4),'A sees B held');assert(await b.evaluate(()=>[...__g.net.peers.values()][0].holding),'B sees A holding');
+  if(process.env.PVP_SHOTS)for(const [p,n] of [[a,'a'],[b,'b']])await p.evaluate(()=>__g.render()).then(()=>p.screenshot({path:path.join(process.env.PVP_SHOTS,'grab-'+n+'.png')}));
   const b0=await b.evaluate(()=>__g.player.position.z);
   await run(1500,()=>a.evaluate(()=>{__g.player.position.z-=.08}));
   const b1=await b.evaluate(()=>__g.player.position.z);assert(b1<b0-1,'held player is dragged ('+b0.toFixed(2)+' → '+b1.toFixed(2)+')');
@@ -54,6 +56,13 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   assert(await b.evaluate(()=>__g.health<100&&!!__g.player.userData.rag),'running over knocks the remote player down');
   await run(5000);
 
-  assert.deepEqual(errors,[]);console.log('PASS: punch, knock-down, grab/drag/throw, break free, run over');
+  // Car against car: B parked in a car ahead; A drives into it. A is blocked by B's car and B's car is pushed.
+  await b.evaluate(([x,z])=>{const g=__g;g.inCar=true;g.car.position.set(x,0,z+10);g.car.rotation.set(0,0,0);g.angle=0;g.velocity=0;g.car.userData.vel={x:0,z:0}},[base.x,base.z]);
+  await run(1000);const bx=await b.evaluate(()=>__g.car.position.x),bz0=await b.evaluate(()=>__g.car.position.z);await a.evaluate(([x,z])=>{const g=__g;g.car.position.set(x,0,z-6);g.car.rotation.set(0,0,0);g.angle=0;g.velocity=0;g.car.userData.vel={x:0,z:0};g.car.userData.lastImpact=null},[bx,base.z]);await run(600);
+  let maxA=0;
+  let maxB=0;await run(1500,async()=>{await a.evaluate(bz=>{const g=__g;if(g.car.position.z<bz-5.5){g.velocity=12;g.car.userData.vel={x:0,z:12}}},bz0);maxA=Math.max(maxA,await a.evaluate(()=>__g.velocity));maxB=Math.max(maxB,await b.evaluate(()=>Math.hypot(__g.car.userData.vel?.x||0,__g.car.userData.vel?.z||0)))});
+  const az=await a.evaluate(()=>__g.car.position.z),bz=await b.evaluate(()=>__g.car.position.z);
+  assert(maxA>8,'A drives at B ('+maxA.toFixed(1)+' m/s)');assert(az<bz-3,'A does not drive through B ('+az.toFixed(1)+' vs '+bz.toFixed(1)+')');assert(maxB>1.5,'B\'s car is pushed ('+maxB.toFixed(2)+' m/s)');
+  assert.deepEqual(errors,[]);console.log('PASS: punch, knock-down, grab/drag/throw, break free, run over, car contact');
  }finally{await browser.close();server.close()}
 })().catch(e=>{console.error(e);process.exit(1)});
