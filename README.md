@@ -20,12 +20,12 @@ O Motocross é exclusivo para motos. As outras pistas aceitam as quatro categori
 | --- | --- | --- | --- |
 | Carro | Autódromo Costa do Sol | 3,45 km | 2 |
 | Caminhão | Autódromo Costa do Sol | 3,45 km | 1 |
-| Moto | Motocross Costa do Sol | 1,49 km | 2 |
+| Moto | Motocross Costa do Sol | 1,63 km | 2 |
 | Kart | Autódromo Costa do Sol | 3,45 km | 2 |
 
 O grid tem 8 participantes no computador e 6 no perfil leve. Os rivais fazem ultrapassagens, freiam para curvas e rampas e ajustam a dificuldade entre provas conforme o resultado. Não há bônus de velocidade por estarem atrás do jogador.
 
-O circuito de asfalto tem pista de 17 m de largura, áreas de escape verdes, zebras, boxes, arquibancadas e placas de referência de frenagem. O motocross fica em uma área própria ao sul, com pista de 10,4 m de largura, cercas, paddock e saltos menores. Os anéis azuis permitem ir e voltar entre os dois complexos.
+O circuito de asfalto tem pista de 17 m de largura, áreas de escape verdes, zebras, boxes, arquibancadas e placas de referência de frenagem. O motocross fica em uma área própria ao sul, com pista de 20 m de largura, retas longas com saltos, curvas abertas (raio mínimo de 50 m), uma curva com parede inclinada para andar no alto, cercas e paddock. Os anéis azuis permitem ir e voltar entre os dois complexos.
 
 ### Créditos e apostas
 

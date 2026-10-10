@@ -52,7 +52,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   // A high-speed moto launch is capped to a 2.5m ballistic rise above its take-off height.
   g.endRace();g.hideField();g.openRaceHub();g.racePick('moto');g.race.t=1;
   g.motoLaunch(g.car,24,0,0);check(g.car.userData.flight.vy<=7,'moto vertical speed cap');
-  let hmax=-Infinity;for(const h of g.MXH.h)hmax=Math.max(hmax,h);check(hmax<2.7,'lower MX ramps');
+  let hmax=-Infinity;for(const h of g.MXH.h)hmax=Math.max(hmax,h);check(g.MXT.jumpMax<2.7&&hmax<8,'lower MX ramps');
   out.moto={maxTerrainHeight:hmax,launchSpeed:g.car.userData.flight.vy};
   g.clearFlight(g.car);g.groundVehicle(g.car,0);g.keys.w=true;
   for(let i=0;i<120;i++){g.simTime+=1/120;g.drive(1/120)}g.keys.w=false;
