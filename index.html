@@ -130,7 +130,7 @@ const WATER_WAVES=`vec3 waterWave(vec2 p,float t){
 // Sea and canal share one look (shallow turquoise, soft foam, sandy seabed showing through). The sea adds the wave field: geometry normals,
 // turquoise faces, a dark underside for the barrel and foam from the breaking waves; the canal keeps the plain rolling swell.
 function waterMaterial(canal=false){
- const m=new T.MeshStandardMaterial({roughness:.32,metalness:0,envMap:ENV,envMapIntensity:.35,transparent:!canal,depthWrite:true,side:canal?T.FrontSide:T.DoubleSide});
+ const m=new T.MeshStandardMaterial({roughness:.32,metalness:0,envMap:ENV,envMapIntensity:.35,transparent:!canal,depthWrite:true,side:canal?T.FrontSide:T.DoubleSide,forceSinglePass:true});
  m.onBeforeCompile=s=>{
  Object.assign(s.uniforms,seaU,{uT:UW.uT,skyHor:skyU.hor,skyZen:skyU.zen});
  const depth=canal?'min(vW.x-296.,344.-vW.x)':'shore(vW.z)-vW.x';
@@ -1335,7 +1335,7 @@ let RT=TRK;
 // Rival vehicles per mode, built on first use and reused afterwards.
 function raceLivery(v,number){if(v.userData.raceNumber)return;v.userData.raceNumber=number;
  const c=document.createElement('canvas');c.width=128;c.height=128;const x=c.getContext('2d');x.fillStyle='#f8f3dc';x.beginPath();x.arc(64,64,57,0,Math.PI*2);x.fill();x.fillStyle='#142b36';x.textAlign='center';x.textBaseline='middle';x.font='900 72px Arial';x.fillText(String(number),64,67);
- const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;const m=new T.MeshBasicMaterial({map:tex,transparent:true,side:T.DoubleSide}),bike=!!v.userData.moto,w=bike?.35:v.userData.formula?.34:.68;
+ const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;const m=new T.MeshBasicMaterial({map:tex,transparent:true,side:T.DoubleSide,forceSinglePass:true}),bike=!!v.userData.moto,w=bike?.35:v.userData.formula?.34:.68;
  for(const side of [-1,1]){const plate=new T.Mesh(new T.PlaneGeometry(w,w),m);plate.position.set(side*(v.userData.formula?.9:(v.userData.size?.w||1.05)*.87),v.userData.formula?.42:bike?.85:.92,v.userData.formula?-.3:0);plate.rotation.y=side*Math.PI/2;v.userData.body.add(plate)}
 }
 function racePool(mode){return race.pools[mode]??=RIVAL_COL.slice(0,RACE_N-1).map((col,k)=>{const g=RACE_MODES[mode].make(col[0]);raceLivery(g,k+2);g.visible=false;g.userData.racer=col;scene.add(g);return g})}
