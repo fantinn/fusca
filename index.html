@@ -1331,8 +1331,8 @@ function raceStart(mode,session=null){if((!session&&!raceNear())||!RACE_MODES[mo
  raceLivery(car,1);nitro=100;race.slot=session?session.players.indexOf(net.id):Math.floor(RACE_N/2);raceGridCar();camSnap();race.me={i:trkNear(car.position.x,car.position.z,-1,10,RT),p:raceGridSlot(race.slot).s};
  // Rivals fill the other boxes, quicker ones mostly nearer the front: pace factors spread 1.02 → 0.94 of the level, with a little noise.
  const slots=session?Array.from({length:session.npcs},(_,i)=>session.players.length+i):[...Array(RACE_N).keys()].filter(k=>k!==race.slot),pool=racePool(mode).slice(0,slots.length),m=Math.max(1,pool.length-1);
- race.field=pool.map((v,k)=>{const sl=raceGridSlot(slots[k]),g=trkPose(sl.s,sl.dl,RT),u=v.userData;v.position.set(g.x,0,g.z);v.rotation.set(0,g.yaw,0);delete u.npcRoll;Object.assign(u,{aiDriver:true,vel:{x:0,z:0},spin:0,impactUntil:0,patrol:{carRepath:0,think:0},loose:false});v.visible=true;
-  return {g:v,col:u.racer,i:g.i,p:sl.s,k:(1.02-.08*k/m)*(.985+Math.random()*.03),off:0,pass:0,tgk:null,steer:0,trail:[null,null],smoke:0,stuck:0,nitro:100,turbo:false,mis:0,misAt:simTime+15+Math.random()*30,seed:Math.random()*9,style:.9+Math.random()*.25,done:false,fin:false,long:0,air:false,ready:false,vy:0,y:0,gy:0,gv:0,pitch:0,dust:0}});
+ race.field=pool.map((v,k)=>{const sl=raceGridSlot(slots[k]),g=trkPose(sl.s,sl.dl,RT),u=v.userData;v.position.set(g.x,0,g.z);v.rotation.set(0,g.yaw,0);delete u.npcRoll;delete u.hitDv;Object.assign(u,{aiDriver:true,vel:{x:0,z:0},spin:0,impactUntil:0,patrol:{carRepath:0,think:0},loose:false});v.visible=true;
+  return {g:v,col:u.racer,i:g.i,p:sl.s,k:(1.02-.08*k/m)*(.985+Math.random()*.03),off:0,pass:0,tgk:null,steer:0,trail:[null,null],smoke:0,stuck:0,nitro:100,turbo:false,mis:0,misAt:simTime+15+Math.random()*30,hurt:0,seed:Math.random()*9,style:.9+Math.random()*.25,done:false,fin:false,long:0,air:false,ready:false,vy:0,y:0,gy:0,gv:0,pitch:0,dust:0}});
  vehicleCache=[];for(const R of race.field)groundVehicle(R.g,0);setLights(0);
  toast(M.name+' • '+(race.bet?'aposta R$ '+race.bet:'corrida de estreia')+' • 1º leva R$ '+race.prize+' • '+race.laps+(race.laps>1?' voltas':' volta')+' • nível '+raceLevel()+(swapped?' • seu veículo ficou no box':''));return true}
 // Field level 1–10 from race.skill: a win makes the next field quicker, a podium a little quicker, anything else a little slower.
@@ -1378,7 +1378,11 @@ function rivalDrive(R,dt){if(race.online&&race.online.host!==net.id){netRivalSte
  raceTrack(R,p.x,p.z,8);
  // Racing until it crosses the line (or the race ends); then a cool-down lap at cruising speed, still on the line and still avoiding.
  // Pace = level (race.skill, adapts to the results) × its own factor × a gentle rubber band of ±6% on the gap to the player.
- const racing=(race.on||race.online&&!race.online.closed)&&!R.fin&&(!R.done||!!race.online),sp0=Math.hypot(V.x,V.z),rb=1,pace=rb*race.skill*R.k,al=RV.alat*pace*pace;
+ // A hit shakes the driver: pace drops by up to ~34% and comes back over several seconds (and slower after repeated knocks);
+ // on top, a slow drift of form so nobody laps like a metronome.
+ if(u.hitDv){R.hurt=Math.min(1,R.hurt+Math.min(.6,u.hitDv*.045));u.hitDv=0}R.hurt=Math.max(0,R.hurt-dt*(R.hurt>.5?.11:.18));
+ const form=1+.022*Math.sin(simTime*.31+R.seed)+.012*Math.sin(simTime*1.07+R.seed*3),shaken=1-.34*R.hurt;
+ const racing=(race.on||race.online&&!race.online.closed)&&!R.fin&&(!R.done||!!race.online),sp0=Math.hypot(V.x,V.z),rb=1,pace=rb*race.skill*R.k*form*shaken,al=RV.alat*Math.min(1,pace)*pace;
  // Traffic: keep the car it is passing while still alongside, else take the nearest car ahead on its line within the closing reach.
  // It moves to the roomier side (the other one if a third car sits there) and keeps that side until clear; right behind and still
  // overlapping it lifts to that car's speed instead of ramming.
@@ -1392,10 +1396,10 @@ function rivalDrive(R,dt){if(race.online&&race.online.host!==net.id){netRivalSte
  R.off+=Mt.clamp(want-R.off,-6*dt,6*dt);
  // Turbo (the player's budget: 23/s drain, 11/s refill) when ~150 m of nearly straight line lie ahead.
  let straight=true;for(let k=0;k<75;k+=5)if(Math.abs(RL.k[(R.i+k)%n])>1/140){straight=false;break}
- R.turbo=racing&&straight&&sp0>RV.vtop*.4&&rb>.985&&R.nitro>(R.turbo?3:40);R.nitro=R.turbo?Math.max(0,R.nitro-dt*23):Math.min(100,R.nitro+dt*11);
+ R.turbo=racing&&straight&&R.hurt<.15&&sp0>RV.vtop*.4&&rb>.985&&R.nitro>(R.turbo?3:40);R.nitro=R.turbo?Math.max(0,R.nitro-dt*23):Math.min(100,R.nitro+dt*11);
  // Target speed: the lowest corner speed (or jump take-off speed, on the dirt) ahead that the braking budget can still reach.
- let vt=racing?(R.turbo?RV.turbo*race.skill*R.k:RV.vtop*pace):Math.min(17,RV.vtop*.6);for(let k=1;k<95;k++){const j=(R.i+k)%n,vc=Math.min(RL.vc[j]*Math.sqrt(al),RT.cap?RT.cap[j]:1e3),lim=Math.sqrt(vc*vc+2*RV.brake*k*RT.ds);if(lim<vt)vt=lim}vt=Math.min(vt,cap);
- if(racing&&simTime>R.misAt&&Math.abs(RL.k[R.i])>1/45&&sp0>12){R.mis=.8;R.misAt=simTime+25+Math.random()*30}R.mis=Math.max(0,R.mis-dt);
+ let vt=racing?(R.turbo?RV.turbo*race.skill*R.k*form:RV.vtop*pace):Math.min(17,RV.vtop*.6);for(let k=1;k<95;k++){const j=(R.i+k)%n,vc=Math.min(RL.vc[j]*Math.sqrt(al),RT.cap?RT.cap[j]:1e3),lim=Math.sqrt(vc*vc+2*RV.brake*k*RT.ds);if(lim<vt)vt=lim}vt=Math.min(vt,cap);
+ if(racing&&simTime>R.misAt&&Math.abs(RL.k[R.i])>1/45&&sp0>12){R.mis=.8+Math.random()*.5;R.misAt=simTime+12+Math.random()*22}R.mis=Math.max(0,R.mis-dt);if(R.mis>0)vt*=.88;
  // Drift angle wanted for the curvature just ahead (sign = into the turn); a mistake over-rotates it.
  const ka=RL.k[(R.i+Math.round((3+.3*sp0)/RT.ds))%n],kn=RL.k[R.i],kd=Math.abs(ka)>Math.abs(kn)?ka:kn,drift=Mt.smoothstep(Math.abs(kd),1/150,1/45)*Mt.smoothstep(sp0,9,17)*(racing?1:0);
  const bt=Math.sign(kd)*drift*(RV.beta*R.style*(1+R.mis*1.2)+.05*RV.beta/.55*Math.sin(simTime*2.6+R.seed));
@@ -1404,7 +1408,7 @@ function rivalDrive(R,dt){if(race.online&&race.online.host!==net.id){netRivalSte
   const j=(R.i+Math.round((6+.4*sp)/RT.ds))%n,dT=Mt.clamp(RL.d[j]+R.off,1-RT.hw,RT.hw-1),ax=RT.x[j]+RT.lx[j]*dT-p.x,az=RT.z[j]+RT.lz[j]*dT-p.z;
   kc=2*Math.sin(wrapAngle(Math.atan2(ax,az)-th))/Math.max(4,Math.hypot(ax,az));const sv=Math.max(sp,3),amax=al*1.35,thd=Mt.clamp(sv*kc,-amax/sv,amax/sv)*ctrl;
   const K=u.K||CAR,engine=Math.min(R.turbo?(K.turbo||CAR.turbo):(K.acc||CAR.acc),R.turbo?RV.engine*1.3:RV.engine),drag=K.drag??CAR.drag;
-  acc=sp<vt?Math.max(0,engine*.9-drag*sp-(K.roll??CAR.roll))*Math.min(1,(vt-sp)/3)*ctrl:-Math.min(RV.brake,(sp-vt)*4+1);
+  acc=sp<vt?Math.max(0,engine*.9*(1-.45*R.hurt)-drag*sp-(K.roll??CAR.roll))*Math.min(1,(vt-sp)/3)*ctrl:-Math.min(RV.brake,(sp-vt)*4+1);
   acc-=.16*Math.abs(Math.sin(beta))*Math.min(sp,30);if(stun)acc=Math.min(acc,-1);if(air)acc=-.03*sp;
   // Yaw: follow the course change plus a pull toward the drift angle (this is the counter-steer when it overshoots).
   const rcmd=thd+Mt.clamp(3*(bt-beta),-2,2)*ctrl*(sp>5?1:0);u.spin+=(rcmd-u.spin)*(1-Math.exp(-h*(stun?.65:6*recovery+.65)));u.spin=Mt.clamp(u.spin,-5,5);
@@ -1412,7 +1416,7 @@ function rivalDrive(R,dt){if(race.online&&race.online.host!==net.id){netRivalSte
   if(stun){const sa=Math.sin(psi),ca=Math.cos(psi),lo=V.x*sa+V.z*ca;let la=V.x*ca-V.z*sa;la-=Mt.clamp(la*.9,-5,5)*h;V.x=lo*sa+la*ca;V.z=lo*ca-la*sa}
   const moves=Math.max(1,Math.ceil(nsp*h/.2)),mh=h/moves;
   for(let m=0;m<moves;m++){const ox=p.x,oz=p.z,oa=v.rotation.y;v.rotation.y+=u.spin*mh;p.x+=V.x*mh;p.z+=V.z*mh;
-   let hits=carContacts(v);for(let q=0;q<4&&hits.length;q++){for(const hit of hits)collidePair(v,hit,false);hits=carContacts(v)}if(hits.some(hit=>hit.depth>.04)){p.x=ox;p.z=oz;v.rotation.y=oa;V.x*=.92;V.z*=.92}
+   let hits=carContacts(v);for(let q=0;q<4&&hits.length;q++){for(const hit of hits)collidePair(v,hit,false);hits=carContacts(v)}if(hits.some(hit=>hit.depth>.04)){p.x=ox;p.z=oz;v.rotation.y=oa;V.x*=.92;V.z*=.92;R.hurt=Math.min(1,R.hurt+.02)}
    p.x=Mt.clamp(p.x,-259.7,XMAX-2.3);p.z=Mt.clamp(p.z,WORLD_Z_MIN+2.3,WORLD_Z_MAX-2.3);p.y=surfaceY(p.x,p.z);hitPedestrians(v,Math.hypot(V.x,V.z),mh)}
   R.i=trkNear(p.x,p.z,R.i,4,RT);const sa=Math.sin(v.rotation.y),ca=Math.cos(v.rotation.y);long=V.x*sa+V.z*ca;lat=V.x*ca-V.z*sa;
   // Dirt: the bike leaves the ground where it drops away faster than gravity can follow (the lip of a jump, the crest of a whoop),
@@ -1420,7 +1424,7 @@ function rivalDrive(R,dt){if(race.online&&race.online.host!==net.id){netRivalSte
   if(MX){const gy=surfaceY(p.x,p.z);if(R.air){R.vy-=9.81*h;R.y+=R.vy*h;if(R.y<=gy){R.air=R.ready=false;const imp=-R.vy;if(imp>4){const k=1-Math.min(.25,(imp-4)*.035);V.x*=k;V.z*=k}R.dust=imp}}
    else{const rise=R.ready?(gy-R.gy)/h:0;if(R.ready&&sp>7&&R.gv>1.2&&rise<R.gv-9.81*h*1.12){R.air=true;R.vy=Math.min(7,R.gv*.75);R.y=R.gy+R.vy*h}R.gv=rise;R.ready=true}R.gy=gy}}
  // Wedged (against a barrier or another car) or knocked over for a while: the marshals put it back on the line.
- R.stuck=race.on&&!R.done&&race.t>2&&(Math.hypot(V.x,V.z)<2||u.npcRoll)?R.stuck+dt:Math.max(0,R.stuck-dt);if(R.stuck>6){R.stuck=0;const g=trkPose(R.i*RT.ds,RL.d[R.i],RT);delete u.npcRoll;p.set(g.x,0,g.z);v.rotation.set(0,g.yaw,0);V.x=V.z=0;u.spin=0;u.impactUntil=0;R.air=R.ready=false}
+ R.stuck=race.on&&!R.done&&race.t>2&&(Math.hypot(V.x,V.z)<2||u.npcRoll)?R.stuck+dt:Math.max(0,R.stuck-dt);if(R.stuck>6){R.stuck=0;const g=trkPose(R.i*RT.ds,RL.d[R.i],RT);delete u.npcRoll;p.set(g.x,0,g.z);v.rotation.set(0,g.yaw,0);V.x=V.z=0;u.spin=0;u.impactUntil=0;R.hurt=.3;R.air=R.ready=false}
  if(MX&&R.air){p.y=R.y+.045;R.pitch+=(Mt.clamp(-Math.atan2(R.vy,Math.max(4,Math.hypot(V.x,V.z)))*.85,-.6,.6)-R.pitch)*(1-Math.exp(-dt*5));v.rotation.order='YXZ';v.rotation.x=R.pitch;v.rotation.z*=Math.exp(-dt*6)}else{groundVehicle(v,dt);R.pitch=v.rotation.x}
  const e=1-Math.exp(-dt*7);u.body.rotation.z+=(Mt.clamp(lat*.012+u.spin*long*.0016,-.1,.1)-u.body.rotation.z)*e;u.body.rotation.x+=(Mt.clamp(-(long-R.long)/Math.max(.001,dt)*.002,-.06,.065)-u.body.rotation.x)*e;R.long=long;
  R.steer+=(Mt.clamp(Math.atan(2.4*kc)-beta*.9,-.6,.6)-R.steer)*(1-Math.exp(-dt*12));for(const w of u.wheels){if(w.front)w.pivot.rotation.y=R.steer;w.w.rotation.x+=long*dt/(u.wheelRadius||.47)}
@@ -2160,7 +2164,7 @@ function updateNpcRoll(v,dt){const u=v.userData,r=u.npcRoll,p=v.position;if(!dt)
 function endNpcRoll(v){const u=v.userData,r=u.npcRoll;v.position.x-=r.sx;v.position.z-=r.sz;delete u.npcRoll;v.rotation.x=v.rotation.z=0;u.groundX=undefined}
 function bodyStore(B){if(!B.hit||!B.kind)return;const u=B.v.userData;if(!(Math.abs(B.vx)+Math.abs(B.vz)+Math.abs(B.w)<1e4))B.vx=B.vz=B.w=0;
  if(B.kind===1){u.vel.x=B.vx;u.vel.z=B.vz;u.yawRate=B.w;return} // driveStep re-reads vel/yawRate and derives `velocity`
- if(B.kind===3){const dv=Math.hypot(B.vx-u.vel.x,B.vz-u.vel.z),dw=Math.abs(B.w-(u.spin||0));u.vel.x=B.vx;u.vel.z=B.vz;u.spin=B.w;if(dv>.65||dw>.25){u.impactUntil=Math.max(u.impactUntil||0,simTime+Math.min(1.6,.5+dv*.065));u.patrol.carRepath=0;u.patrol.think=Math.max(u.patrol.think,.22)}return}
+ if(B.kind===3){const dv=Math.hypot(B.vx-u.vel.x,B.vz-u.vel.z),dw=Math.abs(B.w-(u.spin||0));u.vel.x=B.vx;u.vel.z=B.vz;u.spin=B.w;if(dv>.65||dw>.25){u.hitDv=Math.max(u.hitDv||0,dv+dw*2);u.impactUntil=Math.max(u.impactUntil||0,simTime+Math.min(1.6,.5+dv*.065));u.patrol.carRepath=0;u.patrol.think=Math.max(u.patrol.think,.22)}return}
  if(!u.loose){u.loose=true;u.looseT=0;if(u.traffic)u.traffic.actual=0}const vel=u.vel||(u.vel={x:0,z:0});vel.x=B.vx;vel.z=B.vz;u.spin=B.w;
  // One crash is resolved over several contact passes: sum its velocity change within the frame before judging a rollover.
  const hd=u.hitDv&&u.hitDv.t===simTime?u.hitDv:(u.hitDv={t:simTime,x:0,z:0});hd.x+=B.vx-B.vx0;hd.z+=B.vz-B.vz0;startNpcRoll(B.v,hd.x,hd.z)}
