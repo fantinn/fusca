@@ -21,7 +21,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   check(g.OC.waves===undefined,'breaking wave simulator removed');
   out.trackClearance={};
   for(const track of [g.TRK,g.MXT]){const blocked=[];for(let d=0;d<track.L;d+=10){const p=g.trkPose(d,0,track);g.car.position.set(p.x,0,p.z);g.car.rotation.set(0,p.yaw,0);if(g.carContacts(g.car).some(c=>!c.other))blocked.push(Math.round(d));}out.trackClearance[track.dirt?'moto':'asphalt']=blocked;check(!blocked.length,'track center obstructed '+blocked)}
-  for(const mode of ['carro','moto','kart','caminhao']){
+  for(const mode of ['carro','moto','kart','caminhao','formula']){
    g.openRaceHub();g.race.selectedBet=50;const before=g.cash;g.racePick(mode);
    check(g.race.on&&g.cash===before-50,mode+' entry debit');
    const grid=g.race.field.map(R=>g.carContacts(R.g).filter(c=>!c.other).length);
@@ -78,6 +78,6 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
  const touchDrift=await page.evaluate(driveDrift);assert(touchDrift.visible);assert.equal(await page.locator('#touch [data-key=" "] .car').textContent(),'DRIFT');
  const hud=await page.locator('#drifthud').boundingBox();assert(hud.x>=0&&hud.y>=0&&hud.x+hud.width<=896&&hud.y+hud.height<=414,'touch drift HUD fits viewport');
  await page.screenshot({path:path.resolve(__dirname,'../drift-touch-preview.png')});
- assert.deepEqual(errors,[]);console.log('PASS: 4 classes, wallet, contacts, recovery, jumps, touch menu');
+ assert.deepEqual(errors,[]);console.log('PASS: 5 classes, wallet, contacts, recovery, jumps, touch menu');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

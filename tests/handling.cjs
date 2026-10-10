@@ -32,6 +32,12 @@ if(require.main===module){
   const boost=simulation({speed:45});boost.run(.35,{w:true,a:true,' ':true});boost.run(2,{w:true,a:true,Shift:true});assert(Math.max(...boost.history.map(h=>Math.abs(h.slip)))<.9,'turbo slide stays controllable');
   const reset=simulation();reset.run(.5,{w:true,a:true,' ':true});reset.C.angle=0;reset.C.velocity=0;reset.run(.1,{});assert(reset.last().drift<.01,'teleport clears drift');
   const a=maneuver({hz:30}),b=maneuver({hz:120});assert(Math.abs(a.exit.speed-b.exit.speed)<1,'frame-rate independent speed');assert(Math.abs(a.exit.angle-b.exit.angle)<.1,'frame-rate independent heading');
+  // Fórmula 1: very quick but planted — top speed, launch, no spin in fast turns, slalom or with the handbrake.
+  const FK=eval('('+source.slice(source.indexOf('const FORMULA_K={')+16,source.indexOf(',formulas=[];'))+')'),f1=(speed=0)=>{const s=simulation({speed,racing:false});s.C.car.userData.K=FK;s.C.car.userData.formula={};return s},peak=s=>Math.max(...s.history.map(h=>Math.abs(h.slip)));
+  const top=f1();top.run(15,{w:true});assert(top.last().speed*3.6>290,'F1 top speed');const go=f1();go.run(4,{w:true});assert(go.last().speed*3.6>200,'F1 0-200 under 4 s');
+  for(const v of [40,80]){const t=f1(v);t.run(3,{w:true,a:true});assert(peak(t)<.15,'F1 stable fast turn '+v)}
+  const sl=f1(55);for(let k=0;k<8;k++)sl.run(.6,{w:true,[k%2?'d':'a']:true});sl.run(1.5,{w:true});assert(peak(sl)<.12&&Math.abs(sl.last().slip)<.01,'F1 slalom');
+  const hb=f1(55);hb.run(1.2,{w:true,a:true,' ':true});hb.run(2,{w:true});assert(peak(hb)<.5&&Math.abs(hb.last().slip)<.02,'F1 handbrake does not spin');
   console.log('PASS: initiation, sustained drift, counter-steer, lift, brakes, low speed, symmetry and timestep stability');
  }
 }
