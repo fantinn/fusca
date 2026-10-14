@@ -34,6 +34,14 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   // Explicit zero-time placement must bypass distant suspension throttling.
   const v=g.traffic.find(t=>t.g!==g.car&&!t.g.userData.aiDriver).g;g.clearFlight(v);v.position.set(400,100,-500);v.userData.groundBudget=.09;g.groundVehicle(v,0);
   check(v.userData.groundBudget===0&&Math.abs(v.position.y-100)>1,'immediate ground reset');
+  // Shadow budget must preserve detached fallen bodies without per-mesh world-position queries.
+  const fallen=g.fallenVisual(g.player);fallen.hips.position.copy(g.cam.position);g.visualBudget(1);
+  check(fallen.head.castShadow&&fallen.hips.castShadow,'near fallen character casts shadows');
+  fallen.hips.position.set(10000,0,10000);g.visualBudget(1);check(!fallen.head.castShadow,'far fallen character shadow disabled');
+  let queries=0;const original=g.T.Object3D.prototype.getWorldPosition;
+  g.T.Object3D.prototype.getWorldPosition=function(...args){queries++;return original.apply(this,args)};
+  try{g.visualBudget(1)}finally{g.T.Object3D.prototype.getWorldPosition=original}
+  check(queries===0,'shadow budget must avoid per-mesh world matrix queries');fallen.group.visible=false;
   g.update(1/60);g.render();return{collisionSamples:700,cacheEntries:g.staticQueryCache.size};
  });assert.deepEqual(errors,[]);console.log('PASS',result);
  }finally{await browser.close()}
