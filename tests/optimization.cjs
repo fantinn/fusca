@@ -42,6 +42,14 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   g.T.Object3D.prototype.getWorldPosition=function(...args){queries++;return original.apply(this,args)};
   try{g.visualBudget(1)}finally{g.T.Object3D.prototype.getWorldPosition=original}
   check(queries===0,'shadow budget must avoid per-mesh world matrix queries');fallen.group.visible=false;
+  g.simTime=110;g.updateRain(10);check(g.rain.visible,'rain starts during wet interval');g.render();
+  check(g.rain.geometry.attributes.position.count<=720,'bounded rain geometry');
+  g.simTime=200;g.updateRain(10);check(!g.rain.visible,'rain fades out during dry interval');
+  g.player.visible=true;g.player.userData.attack={t:.16,hand:0,done:true};g.animatePerson(g.player,0,g.simTime);
+  check(g.player.userData.elbows[0].rotation.x>-.02,'punch elbow reaches full extension');g.player.userData.attack=null;
+  g.beginFall(g.player,new g.T.Vector3(0,0,1),3.5,null,{hand:0});
+  for(let i=0;i<120;i++)g.updateFall(g.player,1/60);
+  check(g.player.userData.rag.points.every(v=>Number.isFinite(v.p.x+v.p.y+v.p.z)),'punch knockdown stays finite');
   g.update(1/60);g.render();return{collisionSamples:700,cacheEntries:g.staticQueryCache.size};
  });assert.deepEqual(errors,[]);console.log('PASS',result);
  }finally{await browser.close()}
