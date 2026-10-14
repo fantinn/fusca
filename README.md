@@ -116,3 +116,11 @@ Comparação local no Edge sem interface, perfil leve, 600 passos de simulação
 Esses números medem o tempo de CPU da simulação neste ambiente, não o FPS nem o desempenho de todos os aparelhos. O benchmark pode ser repetido com `node tests/performance.cjs [index.html] [relatorio.json]`.
 
 `node tests/optimization.cjs` compara 700 cenários de contato com uma busca exaustiva, verifica invalidação e limite do cache, consultas espaciais com objetos ocultos e reposicionamento imediato de veículos. Os testes existentes de corrida continuam cobrindo as quatro categorias, apostas, impulsos, saltos e controles móveis.
+
+## Desempenho do cenário
+
+Os 188 prédios residenciais foram substituídos por casas térreas com telhado simples, janelas planas e geometria agrupada por quarteirão. Os volumes de colisão continuam alinhados às paredes. As sombras usam mapas de 1024 px no computador e 512 px no perfil leve, atualizados a até 30 e 20 Hz respectivamente. A resolução adaptativa tem teto de 1,4× no computador e 1,15× no perfil leve.
+
+Na câmera fixa do teste `tests/residential-performance.cjs` (1280×720), os triângulos renderizados caíram de 500.363 para 427.782 no computador e de 435.992 para 360.734 no perfil leve. Isso mede redução de trabalho gráfico, não garante uma taxa de FPS específica. O teste também verifica colisões de todas as casas e erros no navegador.
+
+O botão DESEMPENHO no rodapé reinicia a sessão para aplicar o perfil leve (também disponível com ?performance=1). Esse perfil limita a resolução a 1× e reduz a distância de neblina. Sombras ficam restritas a veículos, personagens e casas próximos; detalhes não projetam sombras. A fumaça usa 40 partículas, ou 24 no perfil leve, e o mar tem malha mais simples. Marcas de pneu foram preservadas. Personagens fora da câmera deixam de atualizar suas animações; física e multiplayer continuam ativos.

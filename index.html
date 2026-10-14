@@ -74,10 +74,12 @@ function trailDistance(x,z){const a=TRAIL_GRID.get(Math.floor(x/24)+','+Math.flo
 function onMountainRoad(x,z){return z<-260&&trailDistance(x,z)<6.1}
 
 const physicalObstacles=[];let vehicleCache=[],gridCount=-1;const collisionGrid=new Map(),staticQueryCache=new Map(),navEdgeCache=new Map();const EMPTY_STATICS=Object.freeze([]);
-// Device tier: touch devices get the landscape touch layout and a lighter renderer (no MSAA, 1024 hard-edged shadow map, lower pixel-ratio cap).
+// Device tier: touch devices get the landscape touch layout and a lighter renderer (no MSAA, 512 shadow map, lower pixel-ratio cap).
 // PR: adaptive pixel ratio range, starting sharper on mobile (see adapt() by the render loop). ?touch=1 / ?low=1 force the tiers for testing on desktop.
-const TOUCH=/[?&]touch=1/.test(location.search)||matchMedia('(pointer:coarse)').matches&&matchMedia('(hover:none)').matches,LOW=TOUCH||/[?&]low=1/.test(location.search),SHADOW_RES=LOW?1024:2048,PR={max:Math.min(devicePixelRatio,LOW?1.5:1.7),min:Math.min(devicePixelRatio,LOW?.75:.8),cur:0};PR.cur=LOW?Math.min(PR.max,1.3):PR.max;document.body.classList.toggle('touch',TOUCH);
-const $=id=>document.getElementById(id),scene=new T.Scene();scene.background=new T.Color('#c3e3ee');scene.fog=new T.Fog('#c3e3ee',150,640);
+const PERF=new URLSearchParams(location.search).get('performance')==='1';
+const TOUCH=/[?&]touch=1/.test(location.search)||matchMedia('(pointer:coarse)').matches&&matchMedia('(hover:none)').matches,LOW=PERF||TOUCH||/[?&]low=1/.test(location.search),SHADOW_RES=LOW?512:1024,PR={max:Math.min(devicePixelRatio,PERF?1:LOW?1.15:1.4),min:Math.min(devicePixelRatio,LOW?.75:.8),cur:0};PR.cur=LOW?Math.min(PR.max,1.1):PR.max;document.body.classList.toggle('touch',TOUCH);
+const perfButton=document.createElement('button');perfButton.textContent=PERF?'DESEMPENHO: ON':'DESEMPENHO: OFF';perfButton.title='Reinicia o jogo para aplicar o perfil gráfico';perfButton.onclick=()=>{const u=new URL(location.href);u.searchParams.set('performance',PERF?'0':'1');location.href=u.href};document.querySelector('footer>div').prepend(perfButton);
+const $=id=>document.getElementById(id),scene=new T.Scene();scene.background=new T.Color('#c3e3ee');scene.fog=new T.Fog('#c3e3ee',PERF?100:150,PERF?380:640);
 const renderer=new T.WebGLRenderer({antialias:!LOW,powerPreference:'high-performance'});renderer.setPixelRatio(PR.cur);renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.type=LOW?T.PCFShadowMap:T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.NeutralToneMapping;renderer.toneMappingExposure=.98;$('game').appendChild(renderer.domElement);
 // Opaque draws go strictly front to back (three groups them by material first): nearer buildings and cars fill the depth buffer before the
 // costly ground and wall shaders behind them, so far fewer hidden pixels get shaded. Same image, less fill on the GPU.
@@ -104,7 +106,8 @@ function wmat(o,frag,vert=''){const m=new T.MeshStandardMaterial({vertexColors:t
 const KM={flat:wmat({roughness:.95},'float ty=vColor.a,fd=1.-smoothstep(20.,90.,distance(vW,cameraPosition)),wv=sin((vW.x+.9*sin(vW.z*1.2))*2.7),aa=fwidth(wv)+.001;vec3 k=vec3(1.);if(ty<.1){float xr=vW.x-shore(vW.z),wet=1.-smoothstep(0.,6.,xr);k*=mix(1.,.72,wet)*(.9+.14*vn(vW.xz*5.)*fd+.07*vn(vW.xz*.7))*(1.+.05*sin(vW.x*2.1+vn(vW.xz*.3)*7.)*(1.-wet)*fd);k*=mix(vec3(1.),vec3(.35,.72,.76),smoothstep(0.,35.,-xr));}else if(ty<.3){float b=mix(smoothstep(-aa,aa,wv),.55,smoothstep(.4,1.4,aa));k*=mix(mix(.16,1.,b),1.,step(vN.y,.7))*(.95+.08*vn(vW.xz*2.));}else if(ty<.5){float n=vn(vW.xz*.045)*.55+vn(vW.xz*.21)*.3+vn(vW.xz*1.7)*.15;k*=mix(vec3(.8,.93,.7),vec3(1.1,1.05,.8),n);}else if(ty<.7){vec2 q=vW.xz*1.15,e=abs(fract(q)-.5);float ln=smoothstep(.43,.49,max(e.x,e.y))*step(.7,vN.y)*fd;k*=(1.-ln*.25)*(1.+(h21(mod(floor(q),289.))-.5)*.12*fd)*(.93+.1*vn(vW.xz*.4));}else if(ty<.9){float n=vn(vW.xz*.7)*.45+vn(vW.xz*3.3)*.35*fd+vn(vW.xz*13.)*.2*fd;vec2 rd=abs(mod(vW.xz+252.,72.)-36.);float tk=rd.x<9.5&&rd.y>9.5?rd.x:rd.y<9.5&&rd.x>9.5?rd.y:0.;tk=smoothstep(1.5,.2,abs(tk-4.))*step(.1,tk);k*=(.84+.3*n)*(.93+.12*vn(vW.xz*.05))*(1.-tk*.08*(.5+.5*vn(vW.xz*.4)));}diffuseColor.rgb*=k;'),
  wall:wmat({roughness:.86},'float ao=mix(.7,1.,smoothstep(0.,1.8,vW.y));diffuseColor.rgb*=mix(1.,ao,step(abs(vN.y),.6))*(.97+.06*vn(vW.xz*.45+vW.y*.7));'),
  glass:new T.MeshStandardMaterial({vertexColors:true,roughness:.07,metalness:.25,envMap:ENV})},SB={};
-function sadd(k,g,c,M,cell,a=1){madd(SB[k+'|'+cell]??=Object.assign(mb(),{k}),g,c,M,a)}const cellOf=(x,z)=>Math.floor((x+216)/72)+','+Math.floor((z+216)/72);
+let houseBatch=false;
+function sadd(k,g,c,M,cell,a=1){madd(SB[k+'|'+cell+(houseBatch?'|house':'')]??=Object.assign(mb(),{k,house:houseBatch}),g,c,M,a)}const cellOf=(x,z)=>Math.floor((x+216)/72)+','+Math.floor((z+216)/72);
 function sb(k,w,h,d,c,x,y,z,ry=0,a=1){sadd(k,G5,c,mx(x,y,z,w,h,d,0,ry),cellOf(x,z),a)}function sq(k,w,h,c,x,y,z,ry=0,a=1){sadd(k,GQ,c,mx(x,y,z,w,h,1,0,ry),cellOf(x,z),a)}function sh(k,w,d,c,x,y,z,a=1,ry=0){sadd(k,GH,c,mx(x,y,z,w,1,d,0,ry),cellOf(x,z),a)}function sg(k,g,c,x,y,z,sx=1,sy=1,sz=1,rx=0,ry=0,rz=0,a=1){sadd(k,g,c,mx(x,y,z,sx,sy,sz,rx,ry,rz),cellOf(x,z),a)}
 let r2s=7;const r2=()=>(r2s=(r2s*1664525+1013904223)>>>0)/4294967296,pick=a=>a[Math.floor(r2()*a.length)];
 sadd('flat',GH,'#8fb872',mx(475,-.15,0,1450,1,2600),'G',.4);
@@ -211,7 +214,7 @@ function seaGeometry(k=1){
  const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(P,3));g.setIndex(new T.BufferAttribute(I,1));g.computeBoundingSphere();return g;
 }
 // Sea LOD: a coarse (decorative) grid while walking/driving; the detailed grid only exists while surfing.
-const SEA_COARSE=4,seaGeo={coarse:seaGeometry(SEA_COARSE),fine:null};
+const SEA_COARSE=LOW?10:7,seaGeo={coarse:seaGeometry(SEA_COARSE),fine:null};
 
 const sea=new T.Mesh(seaGeo.coarse,seaMat);sea.frustumCulled=false;sea.receiveShadow=true;scene.add(sea);
 const canalMat=waterMaterial(true);
@@ -220,17 +223,20 @@ const roads=[-216,-144,-72,0,72,144,216],obstacles=[],RE=[-270,...roads,270];for
  for(let z=-261;z<=261;z+=12){if(roads.some(s=>Math.abs(z-s)<17))continue;sh('flat',.24,4.2,'#f0c03a',r,.075,z,.8);if(z>-226)sh('flat',4.2,.24,'#f0c03a',z,.075,r,.8)}for(const s of roads)for(const sg2 of [-1,1])for(let k=-6;k<=6;k++){sh('flat',.62,3,'#f3f0e6',r+k*1.3,.075,s+sg2*12.6,.8);if(s+sg2*12.6>-226)sh('flat',3,.62,'#f3f0e6',s+sg2*12.6,.075,r+k*1.3,.8)}}
 let seed=48;function rand(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}const PALMS=[],LAMPS=[],BUSH=[];function palm(x,z,s=1){physicalObstacles.push({x,z,w:.35*s,d:.35*s,brk:{kind:'palm',i:PALMS.length/3,min:9,loss:.45}});PALMS.push(x,z,s)}function lamp(x,z,ry){physicalObstacles.push({x,z,w:.2,d:.2,brk:{kind:'lamp',i:LAMPS.length/3,min:4.5,loss:.2}});LAMPS.push(x,z,ry)}
 const TRIMS=['#fbf7ee','#f6efe0','#fffaf1','#efe5d3'],GLS=['#3b6978','#335e6d','#43788a','#2e5563','#4a7282'],ACC=['#2f8f83','#2f6f96','#c65a3c','#5d8a3a','#e0a33c','#8a5aa8','#d04f6a'],ROOF=['#c4643f','#b4553a','#cf7a4c','#a9573d'],AW=['#e0703e','#2f8f83','#d6453d','#3e7cc0','#e8b23a','#6aa84f','#e46f95'];
-const BLD=[];function building(x,z,w,h,d,col){BLD.push({x,z,w,h,d});const tr=pick(TRIMS),gl=pick(GLS),ac=pick(ACC),low=h<10,tall=h>=13,shut=low||r2()<.25,balc=tall&&r2()<.7,rows=[];for(let y=2.1;y<h-1.3;y+=3.4)rows.push(y);
- sb('wall',w,h,d,col,x,h/2,z);sb('wall',w+.14,.75,d+.14,'#'+_C2.set(col).multiplyScalar(.7).getHexString(),x,.375,z);for(let k=1;k<rows.length;k++)sb('wall',w+.1,.2,d+.1,tr,x,rows[k]-1.7,z);
- for(const [fx,fz] of [[0,1],[0,-1],[1,0],[-1,0]]){const len=fz?w:d,dep=fz?d/2:w/2,ry=Math.atan2(fx,fz),n=Math.max(1,Math.floor((len-2.5)/4)),front=fz>0,at=(a,o)=>[x+fx*(dep+o)+fz*a,z+fz*(dep+o)-fx*a];
-  for(let ki=0;ki<rows.length;ki++){const y=rows[ki];for(let i=0;i<n;i++){const a=(i-(n-1)/2)*4;if(ki===0&&front&&(low||Math.abs(a)<2.6))continue;let p=at(a,.04);sq('wall',1.9,2.25,tr,p[0],y,p[1],ry);p=at(a,.06);const v=r2();sq('glass',1.46,1.82,v<.1?'#d8c7a3':v<.25?'#6e98a6':gl,p[0],y+.02,p[1],ry);
-   if(balc&&fz&&ki>0){p=at(a,.6);sb('wall',2.9,.16,1.2,tr,p[0],y-1.1,p[1],ry);p=at(a,1.17);sb('glass',2.9,.9,.06,'#8fc6cb',p[0],y-.6,p[1],ry)}else{p=at(a,.14);sb('wall',2.1,.14,.28,tr,p[0],y-1.08,p[1],ry)}
-   if(shut&&!(balc&&fz))for(const sd of [-1.13,1.13]){p=at(a+sd,.07);sq('wall',.62,1.85,ac,p[0],y,p[1],ry)}}}
-  if(front){if(low){let p=at(0,.05);sq('glass',w-1.6,2.1,'#5d8b98',p[0],1.45,p[1],ry);p=at(0,.09);sq('wall',1.7,2.5,'#2f4a52',p[0],1.25,p[1],ry);const c2=pick(AW),ns=Math.max(3,Math.floor(w-1));for(let s=0;s<ns;s++){const sx=-(w-1)/2+(s+.5)*(w-1)/ns;p=at(sx,1.1);sb('wall',(w-1)/ns+.01,.14,2.2,s%2?'#fbf7ee':c2,p[0],2.95,p[1],ry);p=at(sx,2.18);sb('wall',(w-1)/ns+.01,.34,.05,s%2?'#fbf7ee':c2,p[0],2.75,p[1],ry)}p=at(0,.08);sb('wall',Math.min(8,w*.5),.7,.12,ac,p[0],3.75,p[1],ry)}
-   else{let p=at(0,.05);sq('glass',2.3,2.5,'#557f8c',p[0],1.25,p[1],ry);p=at(0,.8);sb('wall',3.6,.18,1.6,tr,p[0],2.75,p[1],ry)}}}
- if(low&&r2()<.75)sg('wall',PYR,pick(ROOF),x,h,z,(w/2+.5)/.7071,1.5+r2()*1.3,(d/2+.5)/.7071);
- else{sb('wall',w+.5,.3,d+.5,tr,x,h-.15,z);sh('flat',w-.2,d-.2,'#bdb4a4',x,h+.05,z,1);sb('wall',w+.3,.7,.25,tr,x,h+.35,z+d/2+.02);sb('wall',w+.3,.7,.25,tr,x,h+.35,z-d/2-.02);sb('wall',.25,.7,d-.2,tr,x+w/2+.02,h+.35,z);sb('wall',.25,.7,d-.2,tr,x-w/2-.02,h+.35,z);
-  const tx=x+(r2()-.5)*(w-8),tz=z+(r2()-.5)*(d-8);if(tall){sb('wall',4,2.6,3.4,col,tx,h+1.3,tz);sg('wall',TANK,'#2f7bbd',tx,h+3.3,tz,1.15,1.4,1.15);sg('wall',C12,'#2a6aa3',tx,h+4.05,tz,1.2,.12,1.2)}else sg('wall',TANK,'#3584c6',tx,h+.7,tz,1,1.4,1);for(let k=0,n=1+r2()*3;k<n;k++)sb('wall',1.1,.7,.8,'#dedbd3',x+(r2()-.5)*(w-4),h+.35,z+(r2()-.5)*(d-4))}}
+// Low-poly residential blocks: one wall shell, one roof, flat windows; same footprint for navigation and collision.
+const BLD=[];function building(x,z,w,h,d,col){
+ houseBatch=true;h=3.2+((Math.abs(x*13+z*7)|0)%4)*.25;BLD.push({x,z,w,h:h+2,d});
+ const tr='#fbf7ee',gl='#3b6978';
+ sb('wall',w,h,d,col,x,h/2,z);
+ sb('wall',w+.18,.25,d+.18,tr,x,.2,z);
+ sg('wall',PYR,ROOF[(Math.abs(x+z)|0)%ROOF.length],x,h,z,(w/2+.55)/.7071,2,(d/2+.55)/.7071);
+ for(const side of [-1,1]){
+  const ry=side>0?0:Math.PI,fz=z+side*(d/2+.025);
+  for(const dx of [-w*.29,w*.29]){sq('wall',2.1,1.55,tr,x+dx,1.95,fz,ry);sq('wall',1.8,1.25,gl,x+dx,1.95,fz+side*.015,ry)}
+ }
+ sq('wall',1.5,2.5,'#53685e',x,1.25,z+d/2+.05,0);
+ sb('wall',2.4,.18,1.2,tr,x,.18,z+d/2+.6);houseBatch=false;
+}
 const colors=['#f1c9a5','#f4dc9c','#bfe0d4','#fbf2df','#e9a58c','#a9cfe0','#f2b8b2','#d6e4ad'];for(let ix=0;ix<6;ix++)for(let iz=0;iz<6;iz++){let cx=-180+ix*72,cz=-180+iz*72;sb('flat',51.4,.35,51.4,'#d9d1bf',cx,0,cz,0,.6);lamp(cx-25.1,cz,Math.PI);lamp(cx+25.1,cz,0);lamp(cx,cz-25.1,Math.PI/2);lamp(cx,cz+25.1,-Math.PI/2);
  if((ix+iz)%5===0){sb('flat',44,.4,44,'#8cbd69',cx,.11,cz,0,.4);sh('flat',3,44,'#e2dac8',cx,.33,cz,.6);sh('flat',44,3,'#e2dac8',cx,.33,cz,.6);for(let n=0;n<6;n++)palm(cx+(rand()-.5)*37,cz+(rand()-.5)*37,.7+rand()*.4);sg('wall',C12,'#ebe4d2',cx,.55,cz,5,.6,5);sg('glass',C12,'#58bccb',cx,.88,cz,4.5,.04,4.5);sg('wall',C12,'#e6ded0',cx,1.5,cz,.4,2,.4);sg('wall',TANK,'#ebe4d2',cx,2.55,cz,1.4,.35,1.4);sg('glass',C12,'#6fd0dc',cx,2.76,cz,1.2,.04,1.2);physicalObstacles.push({x:cx,z:cz,w:4.5,d:4.5});
   for(let k=0;k<4;k++){const a=Math.PI/4+k*Math.PI/2;for(let j=-1;j<=1;j++)BUSH.push(cx+Math.cos(a+j*.28)*7.6,cz+Math.sin(a+j*.28)*7.6,.9+r2()*.4);BUSH.push(cx+Math.cos(a)*27.5*.7,cz+Math.sin(a)*27.5*.7,1.2)}continue}
@@ -977,7 +983,7 @@ function updateSignals(dt){sigTimer-=dt;if(sigTimer>0)return;sigTimer=.2;let n=0
 // Speed cap for a traffic car approaching a red (or a yellow it can still stop for): brakes to the stop line before the crosswalk.
 function signalLimit(t){const g=t.g,along=t.axis?g.position.x:g.position.z,half=(g.userData.size?g.userData.size.d:2);let lim=1e9;
  for(const c of t.axis?(t.lo!==undefined?ROADX2:roads):roads){const stop=(c-along)*t.dir-12.8-half;if(stop<=0||stop>30)continue;const st=t.axis?sigState(c,t.road,1):sigState(t.road,c,0);if(st===2||st===1&&stop>4)lim=Math.min(lim,Math.sqrt(12*Math.max(0,stop-.4)))}return lim}
-for(const k in SB){const b=SB[k],m=new T.Mesh(mgeo(b),KM[b.k]);m.receiveShadow=k!=='wall|M';m.castShadow=b.k==='wall'&&k!=='wall|M';m.matrixAutoUpdate=false;scene.add(m);delete SB[k]}
+for(const k in SB){const b=SB[k],m=new T.Mesh(mgeo(b),KM[b.k]);m.receiveShadow=k!=='wall|M';m.userData.house=!!b.house;m.castShadow=!!b.house;m.matrixAutoUpdate=false;scene.add(m);delete SB[k]}
 // Extra traffic: Cadillacs in both districts plus the east district's own traffic (wraps within x 380..XMAX).
 {const CC=['#35b8cc','#c93b4a','#f2e6d0','#e889a8','#2f6f96','#3fb9a8'],add=(g,road,axis,dir,pos,speed,lo,hi)=>{scene.add(g);traffic.push({g,road,axis,dir,pos,speed,lo,hi})};
  for(let i=0;i<4;i++)add(cadillac(CC[i]),roads[(i*3+1)%7],i%2,i%2?1:-1,-200+r2()*400,8+r2()*5);
@@ -1859,7 +1865,7 @@ function moveActor(g,dx,dz){const n=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.18))
 // the ground. Negative speed walks backwards. Punches wind up, snap out along the centre line with the torso and recover to guard.
 function smooth01(a,b,x){const k=T.MathUtils.clamp((x-a)/(b-a),0,1);return k*k*(3-2*k)}
 function twistArms(u,tw){for(let i=0;i<2;i++){const s=i?1:-1;u.arms[i].position.set(s*.32*Math.cos(tw),1.35,-s*.32*Math.sin(tw))}u.torso.rotation.y=tw}
-function animatePerson(g,speed,t){const u=g.userData;if(u.rag)return;
+function animatePerson(g,speed,t){if(!g.visible)return;const u=g.userData;if(u.rag)return;
  if(g!==player&&g.position.distanceToSquared(cam.position)>250*250){u.lastAnim=simTime;u.moveSpeed=Math.abs(speed);return}const dt=T.MathUtils.clamp(simTime-(u.lastAnim??simTime),0,.1);u.lastAnim=simTime;u.moveSpeed=Math.abs(speed);
  u.gaitSpeed=(u.gaitSpeed||0)+(speed-(u.gaitSpeed||0))*(1-Math.exp(-dt*9));const sp=Math.abs(u.gaitSpeed),run=smooth01(2.6,5.6,sp),amp=smooth01(.05,1.1,sp),cycle=T.MathUtils.clamp(.95+sp*.27,1.15,3.5),back=u.gaitSpeed<0?-1:1;
  u.gait=((u.gait??Math.random()*6.28)+back*sp/cycle*Math.PI*2*dt)%(Math.PI*2);const ph=u.gait,A=amp*T.MathUtils.clamp(.2+sp*.09,.2,.72),rest=1-amp;let lift=Infinity;
@@ -2371,13 +2377,13 @@ function flushMarks(){if(markHi<0)return;const m=marks.instanceMatrix,c=marks.in
  if(markUsed===MARKS)for(let j=0;j<MARK_FADE;j++){const i=(markHead+j)%MARKS,v=1-markBase[i]*.52*(j+1)/MARK_FADE;marks.setColorAt(i,fxC.setRGB(v,v,v,T.SRGBColorSpace))}
  m.addUpdateRange(markLo*16,(markHi-markLo+1)*16);m.needsUpdate=true;c.needsUpdate=true;markLo=MARKS;markHi=-1}
 // Tyre smoke: soft round points with per-particle size/alpha, simulated in onBeforeRender so puffs keep drifting on foot.
-const SMOKE=80,smokeP=new Float32Array(SMOKE*3),smokeSA=new Float32Array(SMOKE*2),smokeV=new Float32Array(SMOKE*3),smokeL=new Float32Array(SMOKE*3),smokeGeo=new T.BufferGeometry();
+const SMOKE=LOW?24:40,smokeP=new Float32Array(SMOKE*3),smokeSA=new Float32Array(SMOKE*2),smokeV=new Float32Array(SMOKE*3),smokeL=new Float32Array(SMOKE*3),smokeGeo=new T.BufferGeometry();
 smokeGeo.setAttribute('position',new T.BufferAttribute(smokeP,3).setUsage(T.DynamicDrawUsage));smokeGeo.setAttribute('sa',new T.BufferAttribute(smokeSA,2).setUsage(T.DynamicDrawUsage));
 const SMOKE_C=new T.Color(.93,.92,.89),DUST_C=new T.Color(.62,.5,.38),smoke=new T.Points(smokeGeo,new T.ShaderMaterial({uniforms:{scale:{value:500},tint:{value:SMOKE_C.clone()}},transparent:true,depthWrite:false,
  vertexShader:'attribute vec2 sa;varying float va;uniform float scale;void main(){vec4 mv=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mv;gl_PointSize=sa.x*scale/max(.5,-mv.z);va=sa.y;}',
  fragmentShader:'uniform vec3 tint;varying float va;void main(){vec2 p=gl_PointCoord*2.-1.;float d=1.-dot(p,p);if(d<=0.)discard;gl_FragColor=vec4(tint,va*d*d);}'}));
 smoke.frustumCulled=false;smoke.renderOrder=2;scene.add(smoke);
-function puff(x,z,vx,vz,k){const i=smokeHead,j=i*3;smokeHead=(i+1)%SMOKE;smokeP[j]=x+(Math.random()-.5)*.3;smokeP[j+1]=surfaceY(x,z)+.35;smokeP[j+2]=z+(Math.random()-.5)*.3;smokeV[j]=vx*.3+(Math.random()-.5)*1.6;smokeV[j+1]=.5+Math.random()*.7;smokeV[j+2]=vz*.3+(Math.random()-.5)*1.6;smokeL[j]=0;smokeL[j+1]=.9+Math.random()*.7;smokeL[j+2]=k}
+function puff(x,z,vx,vz,k){if(Math.hypot(x-cam.position.x,z-cam.position.z)>(PERF?55:100))return;const i=smokeHead,j=i*3;smokeHead=(i+1)%SMOKE;smokeP[j]=x+(Math.random()-.5)*.3;smokeP[j+1]=surfaceY(x,z)+.35;smokeP[j+2]=z+(Math.random()-.5)*.3;smokeV[j]=vx*.3+(Math.random()-.5)*1.6;smokeV[j+1]=.5+Math.random()*.7;smokeV[j+2]=vz*.3+(Math.random()-.5)*1.6;smokeL[j]=0;smokeL[j+1]=.9+Math.random()*.7;smokeL[j+2]=k}
 smoke.onBeforeRender=()=>{smoke.material.uniforms.tint.value.copy(mxIn(cam.position.x,cam.position.z)?DUST_C:SMOKE_C);const dt=Math.min(.05,Math.max(0,simTime-smokeClock));smokeClock=simTime;if(!dt)return;
  // Car left behind (player on foot): let the body springs settle instead of freezing mid-roll.
  if(fxCar&&simTime-fxT>.1)springs(dt,0,0,fxCar);
@@ -2575,6 +2581,13 @@ scene.onBeforeRender=(r,s,camera)=>{IC_M.multiplyMatrices(camera.projectionMatri
   if(n!==c.n)same=false;c.n=dst.count=n;if(!n)continue;
   if(!same){for(let j=0;j<n;j++)D.set(A.subarray(sel[j]*16,sel[j]*16+16),j*16);icUpload(dst.instanceMatrix,n,16)}
   if(CD&&(!same||c.colors!==src.instanceColor.version)){c.colors=src.instanceColor.version;for(let j=0;j<n;j++){const i=sel[j]*3;CD[j*3]=CA[i];CD[j*3+1]=CA[i+1];CD[j*3+2]=CA[i+2]}icUpload(dst.instanceColor,n,3)}}};
+const visualFrustum=new T.Frustum(),visualMatrix=new T.Matrix4(),visualSphere=new T.Sphere();let visualTimer=0;
+function visualBudget(dt){if((visualTimer-=dt)>0)return;visualTimer=.2;cam.updateMatrixWorld();visualMatrix.multiplyMatrices(cam.projectionMatrix,cam.matrixWorldInverse);visualFrustum.setFromProjectionMatrix(visualMatrix);
+ const actors=new Set([...vehicleList(),...people.map(p=>p.g),...police.map(p=>p.g),player]);for(const p of net?.peers?.values()||[]){actors.add(p.body);if(p.veh)actors.add(p.veh)}
+ scene.traverse(o=>{if(!o.isMesh)return;let root=o,allowed=!!o.userData.house;while(root&&!allowed){allowed=actors.has(root);root=root.parent}if(!allowed)o.castShadow=false;else{const p=o.getWorldPosition(fxO.position);if(o.userData.house){if(!o.geometry.boundingSphere)o.geometry.computeBoundingSphere();p.copy(o.geometry.boundingSphere.center).applyMatrix4(o.matrixWorld)}o.castShadow=p.distanceToSquared(cam.position)<(PERF?65:95)**2}});
+ for(const b of birds){visualSphere.set(b.g.position,6);b.g.visible=b.g.position.distanceToSquared(cam.position)<CULL.b&&visualFrustum.intersectsSphere(visualSphere)}
+ for(const p of people){visualSphere.set(p.g.position,5);p.g.visible=!p.driving&&p.g.position.distanceToSquared(cam.position)<CULL.p&&visualFrustum.intersectsSphere(visualSphere)}
+}
 const clock=new T.Clock(),target=new T.Vector3(),look=new T.Vector3();let elapsed=0,hudTimer=0;cam.position.set(11,7,44);
 function update(dt){
  if(paused){if(gain)gain.gain.value=0;if(siren)siren.g.gain.value=0;return}
@@ -2588,13 +2601,13 @@ function update(dt){
    if(shake>0){cam.position.x+=Math.sin(simTime*91)*shake*.17;cam.position.y+=Math.cos(simTime*79)*shake*.12}
    carAudio(dt);sirenAudio(dt);
   }else{target.set(car.position.x+10+Math.sin(elapsed*.1)*2,5.5,car.position.z-11);cam.position.lerp(target,dt*2);cam.lookAt(car.position.x-2,1.3,car.position.z+1)}
-  const pos=actorPos();sun.position.set(pos.x-60,100,pos.z+40);sun.target.position.copy(pos);updateWorld(dt);shadowLod(dt,pos);vehicleLods();serraLod();netStep(dt);
+  const pos=actorPos();sun.position.set(pos.x-60,100,pos.z+40);sun.target.position.copy(pos);updateWorld(dt);shadowLod(dt,pos);visualBudget(dt);vehicleLods();serraLod();netStep(dt);
  }
  destinationRing.visible=destinationLabel.visible=cargo;destinationRing.position.copy(destination());destinationRing.position.y=.3;destinationLabel.position.copy(destination());destinationLabel.position.y=4+Math.sin(elapsed*2)*.2;
  hudTimer+=dt;if(hudTimer>.12){hudTimer=0;updateHUD()}
 }
 // Resolution changes require sustained load / headroom; ignore stalls and reset on resume.
-// Mobile starts at 1.3x (was 1.1x), with a 1.5x cap and a 0.75x fallback.
+// Keep fill cost bounded: mobile starts at 1.1x, capped at 1.15x, with a 0.75x fallback.
 // Shadow LOD: heavy meshes (cars, 14-28k tris) only cast shadows near the player, cutting the shadow pass.
 var lodScanT=0,lodSceneCount=-1,lodNearT=0,lodHeavy=[],LOD_SHADOW_DIST=LOW?48:62;
 function shadowLod(dt,pos){lodScanT-=dt;if(lodScanT<=0||lodSceneCount!==scene.children.length){lodScanT=10;lodSceneCount=scene.children.length;lodHeavy=[];scene.traverse(o=>{if(!o.isMesh||!o.matrixAutoUpdate||o.isInstancedMesh||o.isSkinnedMesh||!(o.castShadow||o.userData.lodHeavy))return;const g=o.userData.lod0||o.geometry,n=g.index?g.index.count:g.attributes.position.count;if(n>(LOW?6000:24000)){o.userData.lodHeavy=true;lodHeavy.push(o)}})}
@@ -2619,7 +2632,7 @@ function tick(){
  adapt(dt);update(Math.min(dt,.045));
  // Reuse the shadow map between updates, especially on high-refresh displays.
  shadowTimer-=Math.min(dt,.1);
- if(shadowTimer<=0||!sun.shadow.map){renderer.shadowMap.needsUpdate=true;shadowTimer=Math.max(shadowTimer,-1/(LOW?30:60))+1/(LOW?30:60)}
+ if(shadowTimer<=0||!sun.shadow.map){renderer.shadowMap.needsUpdate=true;shadowTimer=Math.max(shadowTimer,-1/(LOW?20:30))+1/(LOW?20:30)}
  renderer.render(scene,cam);pausedDrawn=paused;
 }
 if(!(DEBUG&&new URLSearchParams(location.search).has('manual')))tick();
@@ -2808,7 +2821,7 @@ function netRaceBroadcast(){
 function netRivalStep(R,dt){const q=R.target;if(!q)return;const g=R.g,k=1-Math.exp(-dt*14);if(g.position.distanceTo(new T.Vector3(q[0],q[1],q[2]))>25)g.position.set(q[0],q[1],q[2]);else g.position.lerp(new T.Vector3(q[0],q[1],q[2]),k);g.rotation.y=netLerpA(g.rotation.y,q[3],k);g.rotation.x=q[8];g.userData.vel.x=q[4];g.userData.vel.z=q[5];R.p=q[6];R.fin=!!q[7];for(const w of g.userData.wheels||[])w.w.rotation.x+=Math.hypot(q[4],q[5])*dt/(g.userData.wheelRadius||.34)}
 
 // Test hook (only with ?debug=1): lets automated checks step the simulation and read state.
-if(DEBUG)window.__g={TRACKS,trackGet,chosenTrack,trackPreview,net,netJoin,netRecv,netSend,netRaceRequest,racePos,updateRace,sleepHiddenMatrices,localStatics,staticQueryCache,contactCircle,obbContact,rectFor,surfaceY,patrolGround,vehicleList,animatePerson,groundVehicleAttached,openRaceHub,finishRace,endRace,hideField,rivalDrive,raceCars,collidePair,carContacts,bodyLoad,clearFlight,groundVehicle,drive,driveStep,MXP,motoRamp,motoLaunch,raceVehicle,set car(v){car=v},get angle0(){return angle},MXT,MXH,mxHeight,mxRingTry,get RT(){return RT},moto,cruiser,trailBike,motos,racePick,raceStart,race,rivals,TRK,RL,raceTry,trkPose,physicalObstacles,get car(){return car},get velocity(){return velocity},set velocity(v){velocity=v},get angle(){return angle},set angle(v){angle=v},T,scene,cam,renderer,PR,adapt,resetPerformance,player,keys,DEBUG,OC,oceanStep,oceanHeight,seaU,start,update,keysClear,shore,sandY,get heading(){return heading},set heading(v){heading=v},get simTime(){return simTime},get cash(){return cash},get inCar(){return inCar},set inCar(v){inCar=v;player.visible=!v?true:false},people,traffic,get grab(){return grab},arrested,crime,set simTime(v){simTime=v},get lastCrime(){return lastCrime},render(){renderer.render(scene,cam)},step(n=1,dt=1/60){for(let i=0;i<n;i++)update(dt);renderer.render(scene,cam)},get dayClock(){return dayClock},get netGrab(){return netGrab},punch,netPunch,resolvePlayerPunch,netTryGrab,get netHeld(){return netHeld},get health(){return health},netPvpRecv,set dayClock(v){dayClock=v},FLOOD,formulas,formula,trackStraight};
+if(DEBUG)window.__g={PERF,visualBudget,BLD,SHADOW_RES,TRACKS,trackGet,chosenTrack,trackPreview,net,netJoin,netRecv,netSend,netRaceRequest,racePos,updateRace,sleepHiddenMatrices,localStatics,staticQueryCache,contactCircle,obbContact,rectFor,surfaceY,patrolGround,vehicleList,animatePerson,groundVehicleAttached,openRaceHub,finishRace,endRace,hideField,rivalDrive,raceCars,collidePair,carContacts,bodyLoad,clearFlight,groundVehicle,drive,driveStep,MXP,motoRamp,motoLaunch,raceVehicle,set car(v){car=v},get angle0(){return angle},MXT,MXH,mxHeight,mxRingTry,get RT(){return RT},moto,cruiser,trailBike,motos,racePick,raceStart,race,rivals,TRK,RL,raceTry,trkPose,physicalObstacles,get car(){return car},get velocity(){return velocity},set velocity(v){velocity=v},get angle(){return angle},set angle(v){angle=v},T,scene,cam,renderer,PR,adapt,resetPerformance,player,keys,DEBUG,OC,oceanStep,oceanHeight,seaU,start,update,keysClear,shore,sandY,get heading(){return heading},set heading(v){heading=v},get simTime(){return simTime},get cash(){return cash},get inCar(){return inCar},set inCar(v){inCar=v;player.visible=!v?true:false},people,traffic,get grab(){return grab},arrested,crime,set simTime(v){simTime=v},get lastCrime(){return lastCrime},render(){renderer.render(scene,cam)},step(n=1,dt=1/60){for(let i=0;i<n;i++)update(dt);renderer.render(scene,cam)},get dayClock(){return dayClock},get netGrab(){return netGrab},punch,netPunch,resolvePlayerPunch,netTryGrab,get netHeld(){return netHeld},get health(){return health},netPvpRecv,set dayClock(v){dayClock=v},FLOOD,formulas,formula,trackStraight};
 
 // ===== Polícia compartilhada (online) =====
 // Each player broadcasts the police units its own game simulates (its pursuit and the units answering residents' calls); the room
