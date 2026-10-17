@@ -10,7 +10,7 @@ Escolha a **PISTA** no menu e confira a prévia do traçado antes de clicar na c
 
 | Pista nova | Comprimento | Características |
 | --- | --- | --- |
-| Oval das Dunas | 1,52 km | Curvas amplas, retas rápidas e cenário de areia |
+| Speedway Copa Pistão | 1,52 km | Oval de 32 m de largura, curvas inclinadas e arquibancadas |
 | Jardim dos Esses | 1,51 km | Sequência de esses, hairpin e vegetação |
 | Porto Industrial | 1,47 km | Chicanes, frenagens fortes e contêineres |
 
@@ -18,14 +18,20 @@ O Motocross é exclusivo para motos. As outras pistas aceitam as quatro categori
 
 | Categoria | Pista | Comprimento | Voltas |
 | --- | --- | --- | --- |
+| Copa Pistão | Speedway Copa Pistão | 1,52 km | 5 |
+| Fórmula 1 | Autódromo Costa do Sol | 3,45 km | 3 |
 | Carro | Autódromo Costa do Sol | 3,45 km | 2 |
 | Caminhão | Autódromo Costa do Sol | 3,45 km | 1 |
 | Moto | Motocross Costa do Sol | 1,63 km | 2 |
 | Kart | Autódromo Costa do Sol | 3,45 km | 2 |
 
-O grid tem 8 participantes no computador e 6 no perfil leve. Os rivais fazem ultrapassagens, freiam para curvas e rampas e ajustam a dificuldade entre provas conforme o resultado. Não há bônus de velocidade por estarem atrás do jogador.
+A **Copa Pistão** tem 26 participantes (você + 25 rivais), inclusive no modo desempenho. São stock cars de carroceria fechada, aerofólio e números, com configuração de 317 km/h e turbo de 346 km/h; a velocidade real depende da curva, aderência e colisões. Essa categoria sempre usa o oval. Nas outras categorias, o grid tem 8 participantes no computador e 6 no perfil leve. Os rivais fazem ultrapassagens, freiam para curvas e rampas e ajustam a dificuldade entre provas conforme o resultado. Não há bônus de velocidade por estarem atrás do jogador.
 
 O circuito de asfalto tem pista de 17 m de largura, áreas de escape verdes, zebras, boxes, arquibancadas e placas de referência de frenagem. O motocross fica em uma área própria ao sul, com pista de 20 m de largura, retas longas com saltos, curvas abertas (raio mínimo de 50 m), uma curva com parede inclinada para andar no alto, cercas e paddock. Os anéis azuis permitem ir e voltar entre os dois complexos.
+
+Os **caminhões de corrida** recebem motor, aderência e freios reforçados: configuração de 281 km/h, ou 317 km/h com turbo. O ajuste vale para jogador e rivais durante a prova; o caminhão do jogador recupera a configuração de rua ao encerrar a corrida.
+
+Um **juiz com bandeira quadriculada** fica no centro da pista, à frente do grid. Ele mantém a bandeira levantada durante a contagem e a abaixa no “VAI!”. Pode ser atingido pelos veículos, cai com a física dos personagens e volta à posição inicial na próxima largada.
 
 ### Créditos e apostas
 
@@ -62,7 +68,7 @@ As rampas do motocross chegam a aproximadamente 2,55 m. Motos têm velocidade ve
 | C | Alternar câmera |
 | E | Entrar / sair do veículo; abrir corridas nos anéis laranja |
 | Esc | Pausar; fechar menu de corridas |
-| 1–4 ou setas + Enter | Escolher categoria no menu |
+| 1–6 ou setas + Enter | Escolher categoria no menu |
 
 No celular, jogue na horizontal. Botões de direção, pedais, turbo, freio de mão e ações aparecem na tela.
 
@@ -123,6 +129,10 @@ Os 188 prédios residenciais foram substituídos por casas térreas com telhado 
 
 Na câmera fixa do teste `tests/residential-performance.cjs` (1280×720), os triângulos renderizados caíram de 500.363 para 427.782 no computador e de 435.992 para 360.734 no perfil leve. Isso mede redução de trabalho gráfico, não garante uma taxa de FPS específica. O teste também verifica colisões de todas as casas e erros no navegador.
 
-O botão DESEMPENHO no rodapé reinicia a sessão para aplicar o perfil leve (também disponível com ?performance=1). Esse perfil limita a resolução a 1× e reduz a distância de neblina. Sombras ficam restritas a veículos, personagens e casas próximos; detalhes não projetam sombras. A fumaça usa 40 partículas, ou 24 no perfil leve, e o mar tem malha mais simples. Marcas de pneu foram preservadas. Personagens fora da câmera deixam de atualizar suas animações; física e multiplayer continuam ativos.
+O botão **DESEMPENHO** no rodapé reinicia a sessão para aplicar o perfil leve (`?performance=1`). Nesse modo, **todas as sombras ficam desligadas**, sem criar mapas de sombra nem executar seu passe de renderização. A resolução começa em no máximo 0,85× e pode baixar até 0,55× sob carga; a distância de visão também diminui. Chuva e fumaça ficam desativadas. Durante corridas, rotinas de moradores e trânsito distantes ficam suspensas, mantendo os carros do grid e os atores próximos ativos. Barreiras e arquibancadas dos circuitos adicionais são agrupadas por material para reduzir chamadas de desenho. Os stock cars usam carroceria mesclada e rodas de geometria compartilhada.
 
 Socos têm maior extensão do cotovelo e avanço do ombro; quedas por soco recebem impulso e torção conforme a mão. Chuva decorativa aparece por cerca de 48 segundos a cada 260 segundos de jogo, com entrada e saída suaves e suspensão em túneis. O efeito usa um único conjunto de linhas animadas na GPU (360 gotas, 180 no perfil leve e 120 no modo desempenho), sem sombras, física adicional ou alterações nas marcas de pneu.
+
+### Validação da Copa Pistão
+
+`node tests/pistao.cjs` verifica os 26 carros, grid sem sobreposição, curvas inclinadas, bandeira sincronizada, colisão e reinício do juiz, progresso dos 25 rivais, caminhões rápidos e ausência de mapas de sombra no modo desempenho. Use `PLAYWRIGHT_MODULE` para indicar o pacote Playwright; os testes usam Edge headless.

@@ -39,6 +39,13 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   await host.evaluate(()=>{__g.race.me.p=500;__g.netSend()});await guest.waitForFunction(()=>[...__g.net.peers.values()].some(p=>p.race?.p===500));assert(await guest.evaluate(()=>__g.racePos()>1));
   for(const p of [a,b])await p.evaluate(()=>{__g.endRace();__g.netSend()});
   await host.waitForFunction(()=>__g.race.online.closed);await guest.waitForFunction(()=>__g.race.online.closed);
+  // Three humans replace three slots: Copa Pistão always totals 26 in mixed quality rooms.
+  await c.evaluate(()=>__g.racePick('pistao'));
+  for(const p of [a,b,c])await p.waitForFunction(()=>__g.race.on&&__g.race.mode==='pistao'&&__g.race.online.startAt);
+  for(const p of [a,b,c])assert(await p.evaluate(()=>__g.race.total===26&&__g.race.field.length===23&&__g.car.userData.stock&&__g.race.online.track==='oval'));
+  for(const p of [a,b,c])await p.evaluate(()=>{__g.endRace();__g.netSend()});
+  for(const p of [a,b,c])await p.waitForFunction(()=>__g.race.online.closed);
+  console.log('PASS: Copa Pistão online, 3 humans + 23 NPCs, stock car model and oval');
   await c.evaluate(()=>{__g.race.trackId='mx';__g.racePick('moto')});for(const p of [a,b,c])await p.waitForFunction(()=>__g.race.on&&__g.race.online.track==='mx'&&__g.race.online.startAt);
   const slots=await Promise.all([a,b,c].map(p=>p.evaluate(()=>({slot:__g.race.slot,x:__g.car.position.x,z:__g.car.position.z,n:__g.race.total}))));assert.equal(new Set(slots.map(s=>s.slot)).size,3);for(const s of slots)assert.equal(s.n,8);
   for(const p of [a,b,c])assert(await p.evaluate(()=>{const g=__g,sl=g.race.slot,q=g.trkPose(-9-10*sl,sl%2?-3.2:3.2,g.RT);return Math.hypot(g.car.position.x-q.x,g.car.position.z-q.z)<.01}));
