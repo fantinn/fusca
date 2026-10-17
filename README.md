@@ -33,6 +33,10 @@ Os **caminhões de corrida** recebem motor, aderência e freios reforçados: con
 
 Um **juiz com bandeira quadriculada** fica no centro da pista, à frente do grid. Ele mantém a bandeira levantada durante a contagem e a abaixa no “VAI!”. Pode ser atingido pelos veículos, cai com a física dos personagens e volta à posição inicial na próxima largada.
 
+### McQueen #95
+
+No menu de corridas, compre o **McQueen por R$ 1.000** em créditos do jogo. Ele tem pintura vermelha, olhos, sorriso e raios com o número 95. A compra desconta uma única vez e equipa o carro para a Copa Pistão; trocar de categoria não perde o carro. A compra, assim como os créditos, vale para a sessão atual e reinicia ao recarregar o jogo.
+
 ### Créditos e apostas
 
 A sessão começa com R$ 300 em créditos fictícios. Escolha treino sem aposta ou R$ 25, 50, 100, 250 ou 500. Valores acima do saldo ficam indisponíveis e o saldo é validado novamente na largada.
