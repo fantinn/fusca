@@ -142,3 +142,6 @@ Socos têm maior extensão do cotovelo e avanço do ombro; quedas por soco receb
 `node tests/pistao.cjs` verifica os 34 carros, grid sem sobreposição, curvas inclinadas, bandeira sincronizada, colisão e reinício do juiz, progresso dos 33 rivais, caminhões rápidos e ausência de mapas de sombra no modo desempenho. Use `PLAYWRIGHT_MODULE` para indicar o pacote Playwright; os testes usam Edge headless.
 
 Carros da Copa Pistão com carroceria afilada, pneus largos e adesivos de equipes fictícias. O oval inclui boxes e uma faixa de serviço interna.
+
+## Novos carros low poly
+No menu de corridas, use SEDÃ CLÁSSICO ou HATCH COMPACTO para selecionar gratuitamente os novos modelos. Vidros grandes, pilares inclinados, para-choques escuros e rodas simples seguem as referências. Podem disputar a categoria Carro e ser usados na exploração, com aparência compartilhada online.
