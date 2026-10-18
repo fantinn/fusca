@@ -263,16 +263,16 @@ for(let i=0;i<24;i++){const b=mb(),S=geos.cs,n=4+Math.floor(r2()*4);if(++lowClou
 const FUSCA_SCALE=1.15; // Slightly enlarged for readability beside the other vehicles.
 let CARG=null;const PAINT={},CM={glass:new T.MeshStandardMaterial({color:'#1b2f38',roughness:.04,metalness:.4,envMap:ENV}),chrome:new T.MeshStandardMaterial({color:'#f4f5f4',metalness:1,roughness:.18,envMap:ENV}),trim:new T.MeshStandardMaterial({vertexColors:true,roughness:.7}),lamp:new T.MeshBasicMaterial({vertexColors:true,toneMapped:false})};
 const FUSCA_LENS=new T.MeshStandardMaterial({color:'#d5ded8',roughness:.19,metalness:.12,envMap:ENV,envMapIntensity:.40});
-const FUSCA_GLASS=new T.MeshStandardMaterial({color:'#29444c',roughness:.22,metalness:.08,envMap:ENV,envMapIntensity:.22,side:T.DoubleSide});
+const FUSCA_GLASS=new T.MeshLambertMaterial({color:'#35413a',side:T.DoubleSide});
 function carGeo(){
  if(CARG)return CARG;
- const B={paint:mb(),glass:mb(),chrome:mb(),trim:mb(),lamp:mb(),lens:mb()},small=new T.SphereGeometry(1,LOW?8:10,LOW?5:6);
+ const B={paint:mb(),glass:mb(),chrome:mb(),trim:mb(),lamp:mb(),lens:mb()},small=new T.SphereGeometry(1,8,4);
  geos.s??=new T.SphereGeometry(1,16,10); // also used by the shared classic-car catalogue
  const e=(k,g,c,x=0,y=0,z=0,sx=1,sy=1,sz=1,rx=0,ry=0,rz=0)=>madd(B[k],g,c,mx(x,y,z,sx,sy,sz,rx,ry,rz));
  const mesh=(v,ix)=>{const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(v,3));g.setIndex(ix);g.computeVertexNormals();return g};
  let bodySurface;const surfaceRay=new T.Raycaster();
  const projectSurface=(p,axis,pad=.004)=>{const origin=p.clone(),dir=new T.Vector3();if(axis==='top'){origin.y=3;dir.y=-1}else{origin.x=axis*3;dir.x=-axis}surfaceRay.set(origin,dir);const hit=surfaceRay.intersectObject(bodySurface,false)[0];if(hit){p.copy(hit.point);if(axis==='top')p.y+=pad;else p.x+=axis*pad}return p};
- const line=(k,pts,r=.012,closed=false,c='#fff',steps=24)=>{const base=new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(...p)),closed);let curve=base;if(pts.surface){curve=new T.Curve();curve.getPoint=(t,target=new T.Vector3())=>projectSurface(base.getPoint(t,target),pts.surface,r*.45)}e(k,new T.TubeGeometry(curve,Math.min(steps,LOW?24:40),r,4,closed),c)};
+ const line=(k,pts,r=.012,closed=false,c='#fff',steps=24)=>{const base=new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(...p)),closed);let curve=base;if(pts.surface){curve=new T.Curve();curve.getPoint=(t,target=new T.Vector3())=>projectSurface(base.getPoint(t,target),pts.surface,r*.45)}e(k,new T.TubeGeometry(curve,Math.min(steps,10),r,3,closed),c)};
  const surfacePath=(pts,axis)=>{pts.surface=axis;return pts};
 
  // Narrow central shell: a long sloping luggage hood and a rounded rear engine lid.
@@ -285,13 +285,15 @@ function carGeo(){
  const roofY=(x,z)=>{const r=roofSection(z);return .91+(r.top-.91)*Math.pow(Math.max(0,1-Math.pow(Math.abs(x)/r.w,r.n)),1/r.n)};
  const flankX=(y,z)=>{const r=roofSection(z);return r.w*Math.pow(Math.max(0,1-Math.pow(T.MathUtils.clamp((y-.91)/(r.top-.91),0,1),r.n)),1/r.n)};
  const shellTop=(x,z)=>{const [w,top]=sample(z);return .35+(top-.35)*(1+Math.sqrt(Math.max(0,1-(x/w)**2)))*.5};
- const onHood=points=>{const c=new T.CatmullRomCurve3(points.map(([x,y,z])=>new T.Vector3(x,0,z)));return surfacePath(c.getPoints(LOW?24:40).map(p=>projectSurface(p,'top',.004).toArray()),'top')};
+ const onHood=points=>{const c=new T.CatmullRomCurve3(points.map(([x,y,z])=>new T.Vector3(x,0,z)));return surfacePath(c.getPoints(12).map(p=>projectSurface(p,'top',.004).toArray()),'top')};
  const sidePoint=(side,y,z)=>projectSurface(new T.Vector3(side,y,z),side,.004).toArray();
  // Curved tinted panes sit on the continuous shell, matching the classic catalogue finish.
 
- function windowPanel(map){
+ function windowPanel(source){
+  const paneCenter=source(.5,.5),axis=Math.abs(paneCenter[0])>.5?Math.sign(paneCenter[0]):'top';
+  const map=(u,v,pad=0)=>projectSurface(new T.Vector3(...source(u,v,0)),axis,.045+pad).toArray();
   // The glass grid and its flat rubber border use exactly the same perimeter samples.
-  const nx=LOW?8:12,ny=LOW?6:8,r=.14,uv=(u,v)=>{const d=Math.min(v,1-v),inset=d<r?r*(1-Math.sqrt(Math.max(0,1-(1-d/r)**2))):0;return[inset+(1-2*inset)*u,v]},v=[],ix=[],edge=[];
+  const nx=6,ny=4,r=.14,uv=(u,v)=>{const d=Math.min(v,1-v),inset=d<r?r*(1-Math.sqrt(Math.max(0,1-(1-d/r)**2))):0;return[inset+(1-2*inset)*u,v]},v=[],ix=[],edge=[];
   for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++)v.push(...map(...uv(i/nx,j/ny),.019));
   for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){const a=j*(nx+1)+i,b=a+nx+1;ix.push(a,a+1,b,b,a+1,b+1)}e('glass',mesh(v,ix),'#fff');
   for(let i=0;i<nx;i++)edge.push(uv(i/nx,0));for(let j=0;j<ny;j++)edge.push(uv(1,j/ny));for(let i=nx;i>0;i--)edge.push(uv(i/nx,1));for(let j=ny;j>0;j--)edge.push(uv(0,j/ny));
@@ -307,7 +309,7 @@ function carGeo(){
  }
  // One continuous central shell: smoothly unite the luggage compartment, door skin and roof.
  // The same surface supplies the glazing, panel seams and surface normals.
- {const v=[],ix=[],rows=LOW?48:64,n=LOW?28:36;
+ {const v=[],ix=[],rows=20,n=12;
   const bodyPoint=(z,a)=>{const [w,top]=sample(z),cabin=z>=-1.50&&z<=.94,r=cabin?roofSection(z):null,hi=r?Math.max(top,r.top):top;
    const y=.35+(hi-.35)*(Math.sin(a)+1)*.5,h=2*(y-.35)/(top-.35)-1;
    let x=w*Math.sqrt(Math.max(0,1-h*h));
@@ -339,7 +341,7 @@ function carGeo(){
    const y=t*t*t*start+3*t*t*q*p1+3*t*q*q*p2+q*q*q*p3;
    return new T.Vector3(side*x,y,z)};
  for(const side of [-1,1])for(const axle of [-1.2,1.2]){
-  const v=[],ix=[],nz=LOW?24:32,nx=LOW?8:10,wing=(dz,q)=>wingSurface(side,axle,dz,q);
+  const v=[],ix=[],nz=LOW?24:32,nx=8,wing=(dz,q)=>wingSurface(side,axle,dz,q);
   const normals=[];
   for(let j=0;j<=nz;j++){const dz=-.78+1.56*j/nz;for(let i=0;i<=nx;i++){const q=i/nx,p=wing(dz,q);v.push(...p.toArray());
    const dq=wing(dz,Math.min(1,q+.0001)).sub(wing(dz,Math.max(0,q-.0001))),dd=wing(Math.min(.78,dz+.0001),q).sub(wing(Math.max(-.78,dz-.0001),q));
@@ -350,9 +352,9 @@ function carGeo(){
 
  }
  // Rounded lower closures bridge the narrow hood and the four wings.
- for(const end of [-1,1])e('paint',geos.s,'#fff',0,.59,end*1.77,.91,.29,.28);
+ for(const end of [-1,1])e('paint',small,'#fff',0,.59,end*1.77,.91,.29,.28);
  // Close each valance onto the actual hood/wing surface; no freestanding upper edge.
- for(const front of [-1,1]){const v=[],ix=[],nx=LOW?16:24,ny=4;for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++){
+ for(const front of [-1,1]){const v=[],ix=[],nx=10,ny=2;for(let j=0;j<=ny;j++)for(let i=0;i<=nx;i++){
   const x=-.93+1.86*i/nx,t=j/ny,z=front*(2.008-.90*(x/.93)**2),w=sample(z)[0];let top=shellTop(x,z);
   if(Math.abs(x)>Math.min(.65,w*.96)){let lo=0,hi=1;for(let n=0;n<12;n++){const q=(lo+hi)/2;if(Math.abs(wingSurface(1,front*1.2,z-front*1.2,q).x)<Math.abs(x))lo=q;else hi=q}top=wingSurface(1,front*1.2,z-front*1.2,(lo+hi)/2).y;}
   const bottom=.37+.12*(Math.abs(x)/.93)**4;v.push(x,bottom+(top-.015-bottom)*t,z);
@@ -360,16 +362,16 @@ function carGeo(){
 
  for(const side of [-1,1]){
   // Black running boards, sill trim and a visible door outline below the glazing.
-  e('trim',geos.s,'#292c2d',side*.96,.43,0,.18,.030,.73);
+  e('trim',small,'#292c2d',side*.96,.43,0,.18,.030,.73);
   line('chrome',[[side*1.10,.442,-.58],[side*1.135,.442,0],[side*1.10,.442,.58]],.009,false,'#fff',8);
   const door=[sidePoint(side,1.335,.805),sidePoint(side,1.335,-.48),sidePoint(side,.78,-.50),sidePoint(side,.53,-.41),sidePoint(side,.53,.61),sidePoint(side,.76,.78),sidePoint(side,1.335,.805)];line('trim',surfacePath(door,side),.004,false,'#4a4841',40);
   const belt=[];for(let i=0;i<=24;i++){const z=.84-2.02*i/24;belt.push(sidePoint(side,1.28,z))}line('chrome',surfacePath(belt,side),.007,false,'#fff',36);
   const handle=sidePoint(side,1.23,-.37);e('chrome',small,'#fff',handle[0],handle[1],handle[2],.024,.024,.095);
   if(side<0){const base=sidePoint(side,1.42,.63);line('chrome',[base,[side*1.065,1.55,.63]],.014,false,'#fff',8);e('chrome',small,'#fff',side*1.09,1.57,.63,.10,.067,.030);e('glass',small,'#fff',side*1.09,1.57,.604,.082,.053,.008);}
   // Round headlamps sunk into the forward wings, with thin chrome bezels.
-  e('paint',geos.s,'#fff',side*.925,.90,1.59,.215,.235,.255,-.43);
-  e('chrome',new T.TorusGeometry(.173,.014,8,28),'#fff',side*.925,.947,1.837,1,1,1,-.43);
-  e('chrome',geos.s,'#fff',side*.925,.947,1.837,.145,.145,.020,-.43);e('lens',geos.s,'#fff',side*.925,.950,1.844,.148,.148,.022,-.43);
+  e('paint',small,'#fff',side*.925,.90,1.59,.215,.235,.255,-.43);
+  e('chrome',new T.TorusGeometry(.173,.014,3,10),'#fff',side*.925,.947,1.837,1,1,1,-.43);
+  e('chrome',small,'#fff',side*.925,.947,1.837,.145,.145,.020,-.43);e('lens',small,'#fff',side*.925,.950,1.844,.148,.148,.022,-.43);
 
   const turn=wingSurface(side,1.2,.11,.45);e('chrome',small,'#fff',turn.x,turn.y+.015,turn.z,.078,.024,.122);e('lamp',small,'#f4ad3c',turn.x,turn.y+.033,turn.z+.008,.063,.014,.100);
   // Small early-style rear lamps, twin exhaust tips and bumper overriders.
@@ -383,10 +385,10 @@ function carGeo(){
  // Curved blade bumpers, rather than a straight cylindrical bar.
  for(const front of [-1,1]){
   const pts=[[-1.09,.54,front*1.87],[-.89,.54,front*2.02],[-.48,.54,front*2.105],[0,.54,front*2.13],[.48,.54,front*2.105],[.89,.54,front*2.02],[1.09,.54,front*1.87]];
-  const g=new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(...p))),32,1,6,false),P=g.attributes.position;
+  const g=new T.TubeGeometry(new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(...p))),8,1,4,false),P=g.attributes.position;
   // Squash the tube into a polished vertical blade around its own centreline.
   const curve=new T.CatmullRomCurve3(pts.map(p=>new T.Vector3(...p)));
-  for(let i=0;i<P.count;i++){const c=curve.getPointAt(Math.floor(i/7)/32);P.setXYZ(i,c.x+(P.getX(i)-c.x)*.035,c.y+(P.getY(i)-c.y)*.068,c.z+(P.getZ(i)-c.z)*.035)}g.computeVertexNormals();e('chrome',g,'#fff');
+  for(let i=0;i<P.count;i++){const c=curve.getPointAt(Math.floor(i/5)/8);P.setXYZ(i,c.x+(P.getX(i)-c.x)*.035,c.y+(P.getY(i)-c.y)*.068,c.z+(P.getZ(i)-c.z)*.035)}g.computeVertexNormals();e('chrome',g,'#fff');
   for(const x of [-.50,.50]){e('chrome',small,'#fff',x,.61,front*2.11,.044,.17,.06);e('trim',GB,'#293034',x,.61,front*2.165,.025,.15,.012)}
   e('trim',GB,'#242c30',0,.64,front*2.033,.43,.135,.027);e('trim',GB,'#f2ecda',0,.64,front*2.052,.39,.103,.014);
   for(let i=0;i<6;i++)e('trim',GB,'#39404a',-.125+i*.05,.64,front*2.062,.020,.047,.006);
@@ -397,27 +399,23 @@ function carGeo(){
  e('chrome',small,'#fff',0,shellTop(0,1.86)+.025,1.86,.034,.055,.025,-.40);
  for(const x of [-.28,.28]){const z=.86;line('trim',[[x,roofY(x,z)+.025,z],[x+.20,roofY(x+.20,.77)+.025,.77]],.008,false,'#262d30',6)}
  line('trim',onHood([[-.57,1.26,-1.30],[-.48,1.14,-1.64],[-.26,.96,-1.88],[0,.88,-1.98],[.26,.96,-1.88],[.48,1.14,-1.64],[.57,1.26,-1.30]]),.006,false,'#414748',32);
- for(let i=0;i<16;i++){const x=-.45+i*.06,points=[];for(let j=0;j<=4;j++){const z=-1.28-.14*j/4;points.push([x,Math.max(roofY(x,z),shellTop(x,z))+.018,z])}line('trim',surfacePath(points,'top'),.005,false,'#293335',12)}
+ for(let i=0;i<8;i++){const x=-.42+i*.12,points=[];for(let j=0;j<=4;j++){const z=-1.28-.14*j/4;points.push([x,Math.max(roofY(x,z),shellTop(x,z))+.018,z])}line('trim',surfacePath(points,'top'),.005,false,'#293335',12)}
  // Raised VW medallion follows the bonnet surface, with a dark backing for legibility.
- const badgeDisc=new T.CircleGeometry(.087,24),bp=badgeDisc.attributes.position;for(let i=0;i<bp.count;i++){const x=bp.getX(i),z=1.18+bp.getY(i);bp.setXYZ(i,x,shellTop(x,z)+.022,z)}const bi=badgeDisc.index;for(let i=0;i<bi.count;i+=3){const b=bi.getX(i+1);bi.setX(i+1,bi.getX(i+2));bi.setX(i+2,b)}badgeDisc.computeVertexNormals();e('trim',badgeDisc,'#243137');
- const badge=[];for(let i=0;i<24;i++){const a=i/24*Math.PI*2;badge.push([.087*Math.cos(a),shellTop(.087*Math.cos(a),1.18+.087*Math.sin(a))+.031,1.18+.087*Math.sin(a)])}line('chrome',badge,.007,true,'#fff',24);
+ const badgeDisc=new T.CircleGeometry(.087,8),bp=badgeDisc.attributes.position;for(let i=0;i<bp.count;i++){const x=bp.getX(i),z=1.18+bp.getY(i);bp.setXYZ(i,x,shellTop(x,z)+.022,z)}const bi=badgeDisc.index;for(let i=0;i<bi.count;i+=3){const b=bi.getX(i+1);bi.setX(i+1,bi.getX(i+2));bi.setX(i+2,b)}badgeDisc.computeVertexNormals();e('trim',badgeDisc,'#243137');
+ const badge=[];for(let i=0;i<8;i++){const a=i/8*Math.PI*2;badge.push([.087*Math.cos(a),shellTop(.087*Math.cos(a),1.18+.087*Math.sin(a))+.031,1.18+.087*Math.sin(a)])}line('chrome',badge,.007,true,'#fff',24);
  for(const points of [[[-.040,0,1.232],[0,0,1.184],[.040,0,1.232]],[[-.061,0,1.188],[-.035,0,1.132],[0,0,1.174],[.035,0,1.132],[.061,0,1.188]]])line('chrome',onHood(points).map(p=>[p[0],p[1]+.019,p[2]]),.008,false,'#fff',12);
  e('chrome',small,'#fff',0,shellTop(0,-1.91)+.014,-1.91,.070,.018,.024);
  e('trim',GB,'#22272a',0,.33,0,1.10,.10,2.9);
  CARG={};for(const k in B)CARG[k]=mgeo(B[k]).scale(.67,.725,.938).translate(0,-.055,0).scale(FUSCA_SCALE,FUSCA_SCALE,FUSCA_SCALE);
- // Slim whitewalls, steel rims and domed chrome hubcaps, shared by all four wheels.
- const tire=mb(),hub=mb();madd(tire,new T.CylinderGeometry(.47,.47,.26,24),'#25292b',mx());
- for(const side of [1]){
-  madd(tire,new T.TorusGeometry(.382,.073,5,20),'#25292b',mx(0,side*.092,0,1,1,1,Math.PI/2));
-  madd(tire,new T.RingGeometry(.320,.404,20),'#e9e4d6',mx(0,side*.171,0,1,1,1,-side*Math.PI/2));
-  madd(tire,new T.RingGeometry(.23,.312,20),'#bcb4a1',mx(0,side*.172,0,1,1,1,-side*Math.PI/2));
-  madd(hub,new T.TorusGeometry(.298,.014,5,20),'#fff',mx(0,side*.164,0,1,1,1,Math.PI/2));
-  madd(hub,new T.SphereGeometry(1,16,8),'#fff',mx(0,side*.156,0,.237,.060,.237));
-  for(let i=0;i<5;i++){const a=i/5*Math.PI*2;madd(tire,new T.CircleGeometry(1,10),'#33383a',mx(Math.cos(a)*.274,side*.177,Math.sin(a)*.274,.023,.034,1,-side*Math.PI/2,0,a))}
- }
+ // Ten-sided tires and simple steel caps; geometry is shared by all four wheels.
+ const tire=mb(),hub=mb();madd(tire,new T.CylinderGeometry(.47,.47,.26,10),'#25292b',mx());
+ madd(hub,new T.CylinderGeometry(.29,.29,.035,10),'#fff',mx(0,.15,0));
+ madd(tire,new T.CylinderGeometry(.11,.11,.04,8),'#424a51',mx(0,.18,0));
+ for(let i=0;i<5;i++){const a=i/5*Math.PI*2;madd(tire,new T.CircleGeometry(.035,4),'#20272c',mx(Math.cos(a)*.23,.172,Math.sin(a)*.23,1,1,1,-Math.PI/2))}
+
  CARG.tire=mgeo(tire).scale(.725*FUSCA_SCALE,.725*FUSCA_SCALE,.725*FUSCA_SCALE);CARG.hub=mgeo(hub).scale(.725*FUSCA_SCALE,.725*FUSCA_SCALE,.725*FUSCA_SCALE);return CARG;
 }
-function beetle(color){let g=new T.Group();const body=new T.Group(),G=carGeo();g.add(body);for(const k of ['paint','glass','chrome','trim','lamp','lens']){const m=new T.Mesh(G[k],k==='paint'?PAINT[color]??=new T.MeshPhysicalMaterial({color,roughness:.44,metalness:0,clearcoat:.7,clearcoatRoughness:.16,envMap:ENV,envMapIntensity:.45}):k==='glass'?FUSCA_GLASS:k==='lens'?FUSCA_LENS:CM[k]);m.castShadow=k!=='lamp'&&k!=='glass';m.receiveShadow=k==='paint';body.add(m)}const wheels=[];for(let x of [-.645,.645])for(let z of [-1.2,1.2]){let pivot=new T.Group();pivot.position.set(x*FUSCA_SCALE,.30*FUSCA_SCALE,z*FUSCA_SCALE);g.add(pivot);let w=new T.Mesh(G.tire,CM.trim);w.rotation.z=-Math.sign(x)*Math.PI/2;w.castShadow=true;pivot.add(w);let hub=new T.Mesh(G.hub,CM.chrome);hub.rotation.z=-Math.sign(x)*Math.PI/2;pivot.add(hub);wheels.push({pivot,w,hub,front:z>0})}g.userData={body,wheels,size:{w:.82*FUSCA_SCALE,d:2.07*FUSCA_SCALE},roof:1.47*FUSCA_SCALE,wheelRadius:.47*.725*FUSCA_SCALE};return g}
+function beetle(color){let g=new T.Group();const body=new T.Group(),G=carGeo();g.add(body);for(const k of ['paint','glass','chrome','trim','lamp','lens']){const m=new T.Mesh(G[k],k==='paint'?PAINT[color]??=new T.MeshLambertMaterial({color,flatShading:true}):k==='glass'?FUSCA_GLASS:k==='lens'?FUSCA_LENS:CM[k]);m.castShadow=k!=='lamp'&&k!=='glass';m.receiveShadow=k==='paint';body.add(m)}const wheels=[];for(let x of [-.645,.645])for(let z of [-1.2,1.2]){let pivot=new T.Group();pivot.position.set(x*FUSCA_SCALE,.30*FUSCA_SCALE,z*FUSCA_SCALE);g.add(pivot);let w=new T.Mesh(G.tire,CM.trim);w.rotation.z=-Math.sign(x)*Math.PI/2;w.castShadow=true;pivot.add(w);let hub=new T.Mesh(G.hub,CM.chrome);hub.rotation.z=-Math.sign(x)*Math.PI/2;pivot.add(hub);wheels.push({pivot,w,hub,front:z>0})}g.userData={body,wheels,lowpolyFusca:true,size:{w:.82*FUSCA_SCALE,d:2.07*FUSCA_SCALE},roof:1.47*FUSCA_SCALE,wheelRadius:.47*.725*FUSCA_SCALE};return g}
 let car=beetle('#ffc94d');scene.add(car);car.position.set(4,0,30);let angle=Math.PI,velocity=0,steer=0,distance=0,nitro=100,started=false,paused=false,cameraMode=0;
 // Classic car catalogue: each model is merged per material once (paint/glass/chrome/trim/lamp) and shared by every copy.
 // spec: wheels {x,z,r}, collision half-size, mass, display name and handling overrides (K) read by driveStep.
@@ -1409,23 +1407,27 @@ function stockCar(color){
 }
 const streetGarage={};
 function lowpolyCar(kind){const hatch=kind==='hatch',color=hatch?'#72af42':'#e45555',g=new T.Group(),body=new T.Group();g.add(body);
- const rear=hatch?-1.72:-2.15,front=hatch?1.82:2.2,backRoof=hatch?-1.45:-1.15;
+ const rear=hatch?-1.72:-2.15,front=hatch?1.82:2.2,backRoof=hatch?-1.08:-1.15;
  const parts=[[PB,color,0,.68,(rear+front)/2,1.7,.62,front-rear],
- [geos['lpCab'+kind]??=coachLoft([[backRoof-.22,.83,.98,1.05],[backRoof,.74,1.0,1.83],[.35,.74,1,1.83],[1.02,.83,.98,1.07]]),'#8dd6ed',0,0,0,1,1,1],
+ [geos['lpCab'+kind]??=coachLoft([[backRoof-(hatch?.52:.22),.83,.98,1.05],[backRoof,.74,1.0,1.83],[.35,.74,1,1.83],[1.02,.83,.98,1.07]]),hatch?'#354b50':'#637f88',0,0,0,1,1,1],
  [PB,color,0,1.85,(backRoof+.35)/2,1.56,.10,.35-backRoof],
  [PB,'#343b3e',0,.38,front+.04,1.8,.23,.16],[PB,'#343b3e',0,.38,rear-.04,1.8,.23,.16],
  [PB,'#263238',0,.76,front+.012,.85,.32,.025],[PB,'#ffffae',-.65,.8,front+.02,.32,.32,.03],[PB,'#ffffae',.65,.8,front+.02,.32,.32,.03],
  [PB,'#e73727',-.64,.75,rear-.02,.28,.32,.03],[PB,'#e73727',.64,.75,rear-.02,.28,.32,.03],
  [PB,'#f9f4ce',0,.40,front+.13,.42,.12,.02]];
  for(const side of [-1,1]){parts.push([PB,color,side*.756,1.42,-.45,.07,.84,.09],[PB,'#394046',side*.86,.72,0,.025,.045,front-rear-.12],[PB,'#30383b',side*.87,1.01,-.65,.035,.055,.19],[PB,'#30383b',side*.95,1.14,.7,.22,.12,.17]);}
+ if(hatch)for(const side of [-1,1]){
+  parts.push([PB,'#f5ad32',side*.65,.55,front+.025,.32,.12,.035],[PB,'#f5ad32',side*.855,.88,.72,.025,.09,.13]);
+  for(let i=0;i<3;i++)parts.push([PB,'#343c40',side*.855,.89+i*.06,-1.28,.025,.025,.30]);
+ }
  pmesh('lpBody'+kind,parts,body);
  // Narrow painted pillars follow the sloped windshield edges.
- for(const side of [-1,1])for(const [a,b] of [[[side*.74,1.83,.35],[side*.83,1.03,1.02]],[[side*.74,1.83,backRoof],[side*.83,1.03,backRoof-.22]]]){const A=new T.Vector3(...a),B=new T.Vector3(...b),m=new T.Mesh(geos.lpPillar??=new T.BoxGeometry(.065,1,.065),mat(color));m.position.copy(A).add(B).multiplyScalar(.5);m.scale.y=A.distanceTo(B);m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),B.sub(A).normalize());body.add(m)}
+ for(const side of [-1,1])for(const [a,b] of [[[side*.74,1.83,.35],[side*.83,1.03,1.02]],[[side*.74,1.83,backRoof],[side*.83,1.03,backRoof-(hatch?.52:.22)]]]){const A=new T.Vector3(...a),B=new T.Vector3(...b),m=new T.Mesh(geos.lpPillar??=new T.BoxGeometry(.065,1,.065),mat(color));m.position.copy(A).add(B).multiplyScalar(.5);m.scale.y=A.distanceTo(B);m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),B.sub(A).normalize());body.add(m)}
  const wheels=[];for(const z of [rear+.57,front-.57])for(const side of [-1,1]){const pivot=new T.Group();pivot.position.set(side*.84,.39,z);g.add(pivot);const w=pmesh('lpWheel',[[PC,'#262c30',0,0,0,.39,.24,.39],[PC,'#8c979d',0,.13,0,.25,.025,.25],[PC,'#505b62',0,.15,0,.10,.025,.10]],pivot);w.rotation.z=-side*Math.PI/2;wheels.push({pivot,w,front:z>0,bar:new T.Object3D()})}
  g.userData={body,wheels,size:{w:.96,d:Math.max(front,-rear)+.1},mass:hatch?850:1050,model:hatch?'Hatch Low Poly':'Sedã Low Poly',lowpoly:kind,K:{m:hatch?850:1050,I:1800,acc:24,turbo:35,vmax:55,vmaxTurbo:73,mu:2.5},roof:1.9,wheelRadius:.39,netColor:color.slice(1)};return g;}
 function useLowpoly(kind){if(!['sedan','hatch'].includes(kind)||!started||paused||!raceNear())return false;let v=streetGarage[kind];if(!v){v=streetGarage[kind]=lowpolyCar(kind);scene.add(v);const t={g:v,road:0,axis:0,dir:1,pos:0,speed:0,raceOwned:true};traffic.push(t);v.userData.traffic=t;v.userData.vel={x:0,z:0};stolenCars.add(v);vehicleCache=[]}if(car!==v){parkInBox(car);car=v;inCar=true;player.visible=false;mxPlace(car,RACE_RING.x,RACE_RING.z,Math.PI/2);camSnap(true)}updateHUD();toast(v.userData.model+' selecionado • use a categoria Carro ou explore a cidade.');return true;}
 // Garage previews use one cached render per model, never another animation loop.
-const GARAGE_MODELS=[['fusca','Fusca clássico',()=>beetle('#ffc94d')],['sedan','Sedã Clássico',()=>lowpolyCar('sedan')],['hatch','Hatch Compacto',()=>lowpolyCar('hatch')],['mcqueen','McQueen #95',mcqueen],['stock','Stock Car',()=>stockCar('#287ac1')],['opala','Opala SS',()=>classic('opala','#de513e')],['mustang','Mustang 67',()=>classic('mustang','#428765')],['kombi','Kombi',()=>classic('kombi','#73bfcb')],['truck','Caminhão',()=>classic('caminhao','#cf7436')],['kart','Kart',()=>kart('#e8ba32')],['moto','Moto de trilha',()=>trailBike('#ef7e25')],['formula','Fórmula 1',()=>formula('#ce353c')]];
+const GARAGE_MODELS=[['fusca','Fusca Low Poly',()=>beetle('#ffc94d')],['sedan','Sedã Clássico',()=>lowpolyCar('sedan')],['hatch','Hatch Compacto',()=>lowpolyCar('hatch')],['mcqueen','McQueen #95',mcqueen],['stock','Stock Car',()=>stockCar('#287ac1')],['opala','Opala SS',()=>classic('opala','#de513e')],['mustang','Mustang 67',()=>classic('mustang','#428765')],['kombi','Kombi',()=>classic('kombi','#73bfcb')],['truck','Caminhão',()=>classic('caminhao','#cf7436')],['kart','Kart',()=>kart('#e8ba32')],['moto','Moto de trilha',()=>trailBike('#ef7e25')],['formula','Fórmula 1',()=>formula('#ce353c')]];
 const garageCars={},garageImages={};let garageChoice='fusca';
 const garage=document.createElement('div');garage.id='garage';garage.hidden=true;
  garage.innerHTML='<section><button id="garageClose" aria-label="Fechar garagem">✕</button><small>SUA GARAGEM</small><h2>Escolha seu veículo</h2><p>Selecione um modelo e clique em USAR. A troca leva você ao box.</p><div id="garageGrid"></div><div id="garageDetail"><img id="garagePreview" alt="Prévia do veículo"><div><h3 id="garageName"></h3><p id="garageStatus"></p><button id="garageUse">USAR NO JOGO</button></div></div></section>';

@@ -148,3 +148,5 @@ No menu de corridas, use SEDÃ CLÁSSICO ou HATCH COMPACTO para selecionar gratu
 
 ## Garagem
 Abra GARAGEM no rodapé ou no menu de corridas, selecione um dos 12 veículos e clique em USAR NO JOGO. A prévia mostra o modelo escolhido. Trocar leva ao box; corridas em andamento bloqueiam a troca.
+
+O Fusca agora usa carroceria facetada, pneus de dez lados e pintura Lambert sem clearcoat. A geometria e as rodas são compartilhadas entre cópias. `node tests/fusca-lowpoly.cjs` verifica o orçamento de menos de 8 mil triângulos e a prévia da garagem.
