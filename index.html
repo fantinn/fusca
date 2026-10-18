@@ -1316,17 +1316,65 @@ function trackGet(id){const D=TRACKS[id];if(!D)return TRK;if(D.track)return D.tr
   for(let d=0;d<K.L;d+=8){const p=trkPose(d,side*(K.hw+6),K),m=mesh(new T.BoxGeometry(.6,.7,7.9),Math.floor(d/8)%2?D.color:'#f1eee5',p.x,.35+surfaceY(p.x,p.z),p.z);m.rotation.y=p.yaw;const c=Math.abs(Math.cos(p.yaw)),ss=Math.abs(Math.sin(p.yaw));physicalObstacles.push({x:p.x,z:p.z,w:.3,d:3.95,a:p.yaw,ex:.3*c+3.95*ss,ez:.3*ss+3.95*c})}}
  for(let j=0;j<20;j++){const p=trkPose(0,(j-9.5)*K.hw/10,K),m=mesh(new T.BoxGeometry(K.hw/10,.02,1.4),j%2?'#fff':'#151c23',p.x,.065+surfaceY(p.x,p.z),p.z);m.rotation.y=p.yaw}
  for(let k=0;k<(id==='oval'?34:20);k++){const sl=K.slot(k),p=trkPose(sl.s,sl.dl,K),m=mesh(new T.BoxGeometry(2.6,.02,.24),'#f5f0dc',p.x,.065+surfaceY(p.x,p.z),p.z);m.rotation.y=p.yaw}
- for(let i=0;i<14;i++){const x=-160+i*40,z=D.z-45;
+ for(let i=0;i<(id==='oval'?0:14);i++){const x=-160+i*40,z=D.z-45;
   if(id==='porto'){for(let h=0;h<2;h++)mesh(new T.BoxGeometry(14,5,7),[D.color,'#cc7255','#d9b96f'][i%3],x,2.5+h*5,z)}
   else{mesh(new T.CylinderGeometry(.35,.6,7,6),'#7b6348',x,3.5,z);mesh(new T.ConeGeometry(id==='jardim'?5:3.5,8,7),id==='jardim'?'#285f49':'#6c8050',x,9,z)}}
  const start=trkPose(0,0,K),sign=netTrackLabel(D.name);sign.position.set(start.x,6,start.z);sign.rotation.y=start.yaw+Math.PI;group.add(sign);trackLights(K);
  for(const side of [-1,1]){const p=trkPose(0,side*(K.hw+3),K);mesh(new T.BoxGeometry(.35,7,.35),'#344b59',p.x,3.5,p.z)}
  for(let i=0;i<4;i++){const p=trkPose(-.3,(i-1.5)*.65,K),light=new T.Mesh(new T.SphereGeometry(.23,10,8),new T.MeshBasicMaterial({color:'#3a0d0b',toneMapped:false}));light.position.set(p.x,4.5,p.z);group.add(light);K.lights.push(light)}
  if(id==='oval'){
-  // Pit apron and painted separation, kept clear of the racing lanes.
-  mesh(new T.BoxGeometry(280,.06,12),'#59636b',100,.01,D.z+35);
-  for(let i=0;i<14;i++){mesh(new T.BoxGeometry(17,3.2,8),i%2?'#d8dfe2':'#be3334',-30+i*20,1.6,D.z+47);mesh(new T.BoxGeometry(17.8,.18,10),'#edf0e8',-30+i*20,3.3,D.z+47)}
-  for(const side of [-1,1])for(let row=0;row<5;row++)mesh(new T.BoxGeometry(300,1,3.8),row%2?'#e9bd78':'#e6e9e8',100,1+row*1.4,D.z+(side<0?-38-row*4:318+row*4));
+  // Speedway scenery is static and merged by material below, including the safety fence.
+  const box=(w,h,d,c,x,y,z)=>mesh(new T.BoxGeometry(w,h,d),c,x,y,z);
+  const paint=['#c83c35','#edf0e8','#29759b'];
+  // Wide pit lane, individual stalls and garages on the infield side of the front straight.
+  box(326,.06,18,'#59636b',100,.015,D.z+34);
+  for(const z of [25.5,42.5])box(326,.02,.22,'#f4cf55',100,.055,D.z+z);
+  for(let i=0;i<14;i++){
+   const x=-30+i*20,c=paint[i%3];
+   box(.2,.02,12,'#f5f0dc',x-9,.06,D.z+36);
+   box(12,.02,2,c,x,.065,D.z+39);
+   box(17,3.6,9,c,x,1.8,D.z+51);
+   box(14,2.6,.08,'#233640',x,1.4,D.z+46.45);
+   box(17.8,.25,11,'#edf0e8',x,3.7,D.z+50);
+   box(17.8,.35,.3,c,x,3.5,D.z+44.5);
+   box(1.2,3.4,1.2,'#e9e6d8',x-8,1.7,D.z+45);
+  }
+  // Grandstands: alternating seating blocks, aisles, back panels and a light roof.
+  for(const side of [-1,1])for(let section=0;section<6;section++){
+   const x=-50+section*60,z=D.z+(side<0?-38:318);
+   for(let row=0;row<8;row++){
+    box(55,1.1,3.8,paint[(section+row)%3],x,1+row*1.25,z+side*row*4);
+    box(1.6,.14,4,'#c3c7c5',x,1.62+row*1.25,z+side*row*4);
+   }
+   box(56,3,.6,'#233e51',x,11.5,z+side*30);
+   box(57,.35,22,'#dce4e5',x,15,z+side*22);
+   for(const dx of [-26,26])box(.5,15,.5,'#344b59',x+dx,7.5,z+side*30);
+  }
+  // Outer catch fence follows the same banking as the road; no per-post draw calls.
+  for(let d=0;d<K.L;d+=12){
+   const center=trkPose(d,0,K),candidate=trkPose(d,23,K);
+   const radial=p=>Math.hypot(p.x-Math.max(-60,Math.min(260,p.x)),p.z-(D.z+140));
+   const outer=radial(candidate)>radial(center)?1:-1;
+   const p=trkPose(d,outer*22.8,K),y=surfaceY(p.x,p.z);
+   const post=box(.18,4,.18,'#617580',p.x,y+2,p.z);post.rotation.y=p.yaw;
+   for(const h of [1.2,2.2,3.2,4]){const rail=box(.06,.055,12.2,'#8e9da3',p.x,y+h,p.z);rail.rotation.y=p.yaw;}
+  }
+  // Infield service road and large painted speedway emblem.
+  box(290,.03,8,'#626c70',100,.01,D.z+79);
+  box(8,.03,145,'#626c70',235,.01,D.z+147);
+  const emblem=netTrackLabel('COPA PISTÃO  •  SPEEDWAY');emblem.rotation.x=-Math.PI/2;emblem.scale.set(6,6,6);emblem.position.set(100,.08,D.z+143);group.add(emblem);
+  for(let i=0;i<4;i++){
+   box(36,.025,1.4,paint[i%3],100,.035,D.z+162+i*3);
+   const x=-30+i*80;
+   box(.7,24,.7,'#344b59',x,12,D.z-72);
+   box(8,1.1,1.2,'#e9ecdc',x,24,D.z-72);
+  }
+  // Control tower and visible start/finish gantry, outside the usable track width.
+  box(16,12,10,'#d9dfdb',285,6,D.z+51);
+  box(18,3,12,'#244452',285,12,D.z+51);
+  box(19,.5,13,'#edf0e8',285,13.7,D.z+51);
+  const banner=netTrackLabel('COPA PISTÃO  •  LARGADA');banner.position.set(start.x,8.3,start.z);banner.rotation.y=start.yaw+Math.PI;banner.scale.x=1.6;group.add(banner);
+  for(const side of [-1,1]){const p=trkPose(0,side*19,K);box(.7,9,.7,'#344b59',p.x,4.5,p.z);}
   for(const d of [-5.5,5.5])ribbon(d-.10,d+.10,.07,'#d6d7cd');
  }
  // Merge scenery by material once: barriers and stands no longer cost one draw per block.
