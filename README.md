@@ -25,7 +25,7 @@ O Motocross é exclusivo para motos. As outras pistas aceitam as quatro categori
 | Moto | Motocross Costa do Sol | 1,63 km | 2 |
 | Kart | Autódromo Costa do Sol | 3,45 km | 2 |
 
-A **Copa Pistão** tem 26 participantes (você + 25 rivais), inclusive no modo desempenho. São stock cars de carroceria fechada, aerofólio e números, com configuração de 317 km/h e turbo de 346 km/h; a velocidade real depende da curva, aderência e colisões. Essa categoria sempre usa o oval. Nas outras categorias, o grid tem 8 participantes no computador e 6 no perfil leve. Os rivais fazem ultrapassagens, freiam para curvas e rampas e ajustam a dificuldade entre provas conforme o resultado. Não há bônus de velocidade por estarem atrás do jogador.
+A **Copa Pistão** tem 34 participantes (você + 33 rivais), inclusive no modo desempenho. São stock cars de carroceria fechada, aerofólio e números, com configuração de 317 km/h e turbo de 346 km/h; a velocidade real depende da curva, aderência e colisões. Essa categoria sempre usa o oval. Nas outras categorias, o grid tem 8 participantes no computador e 6 no perfil leve. Os rivais fazem ultrapassagens, freiam para curvas e rampas e ajustam a dificuldade entre provas conforme o resultado. Não há bônus de velocidade por estarem atrás do jogador.
 
 O circuito de asfalto tem pista de 17 m de largura, áreas de escape verdes, zebras, boxes, arquibancadas e placas de referência de frenagem. O motocross fica em uma área própria ao sul, com pista de 20 m de largura, retas longas com saltos, curvas abertas (raio mínimo de 50 m), uma curva com parede inclinada para andar no alto, cercas e paddock. Os anéis azuis permitem ir e voltar entre os dois complexos.
 
@@ -35,7 +35,7 @@ Um **juiz com bandeira quadriculada** fica no centro da pista, à frente do grid
 
 ### McQueen #95
 
-No menu de corridas, compre o **McQueen por R$ 1.000** em créditos do jogo. Ele tem pintura vermelha, olhos, sorriso e raios com o número 95. A compra desconta uma única vez e equipa o carro para a Copa Pistão; trocar de categoria não perde o carro. A compra, assim como os créditos, vale para a sessão atual e reinicia ao recarregar o jogo.
+O **McQueen está temporariamente liberado de graça**. No menu de corridas, clique em **USAR McQueen #95 • GRÁTIS** e escolha Copa Pistão. Nenhum crédito é descontado. Ele tem pintura vermelha, olhos, sorriso e raios com o número 95; trocar de categoria não perde o carro. Ao recarregar, basta selecioná-lo novamente gratuitamente.
 
 ### Créditos e apostas
 
@@ -139,4 +139,6 @@ Socos têm maior extensão do cotovelo e avanço do ombro; quedas por soco receb
 
 ### Validação da Copa Pistão
 
-`node tests/pistao.cjs` verifica os 26 carros, grid sem sobreposição, curvas inclinadas, bandeira sincronizada, colisão e reinício do juiz, progresso dos 25 rivais, caminhões rápidos e ausência de mapas de sombra no modo desempenho. Use `PLAYWRIGHT_MODULE` para indicar o pacote Playwright; os testes usam Edge headless.
+`node tests/pistao.cjs` verifica os 34 carros, grid sem sobreposição, curvas inclinadas, bandeira sincronizada, colisão e reinício do juiz, progresso dos 33 rivais, caminhões rápidos e ausência de mapas de sombra no modo desempenho. Use `PLAYWRIGHT_MODULE` para indicar o pacote Playwright; os testes usam Edge headless.
+
+Carros da Copa Pistão com carroceria afilada, pneus largos e adesivos de equipes fictícias. O oval inclui boxes e uma faixa de serviço interna.

@@ -14,10 +14,10 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
   const result=await page.evaluate(()=>{
    const g=__g,check=(v,m)=>{if(!v)throw Error(m)};
    g.start();g.race.selectedBet=0;g.racePick('pistao');
-   check(g.race.on&&g.race.total===26&&g.race.field.length===25,'26 cars including player');
+   check(g.race.on&&g.race.total===34&&g.race.field.length===33,'34 cars including player');
    check(g.RT===g.TRACKS.oval.track&&g.race.laps===5,'oval race');
    check(g.car.userData.stock,'stock car model');
-   check(new Set(g.race.field.map(r=>r.g.userData.raceNumber)).size===25,'unique rival numbers');
+   check(new Set(g.race.field.map(r=>r.g.userData.raceNumber)).size===33,'unique rival numbers');
    const vehicles=[g.car,...g.race.field.map(r=>r.g)];
    for(const v of vehicles)check(!g.carContacts(v).length,'clear grid '+v.userData.raceNumber);
    check(g.ovalHeight(400,1680)>5&&g.ovalHeight(100,1540)===0,'banked turns, flat start');
@@ -38,11 +38,11 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
     g.simTime+=1/60;g.race.t+=1/60;g.race.cars=g.raceCars();for(const r of g.race.field)g.rivalDrive(r,1/60);
     top=Math.max(top,Math.hypot(first.g.userData.vel.x,first.g.userData.vel.z));
    }
-   check(g.race.field.every(r=>Number.isFinite(r.g.position.x+r.g.position.y+r.g.position.z)&&r.p>200),'all 25 rivals progress');
+   check(g.race.field.every(r=>Number.isFinite(r.g.position.x+r.g.position.y+r.g.position.z)&&r.p>200),'all 33 rivals progress');
    check(top>65,'stock cars exceed 234 km/h');
    g.cam.position.set(100,70,1480);g.cam.lookAt(100,0,1660);g.visualBudget(1);g.render();
    if(g.PERF){check(!g.renderer.shadowMap.enabled,'shadows disabled');check(!g.rain.visible,'rain off');let maps=0;g.scene.traverse(o=>{if(o.isLight&&o.shadow?.map)maps++});check(!maps,'zero allocated shadow maps')}
-   const out={performance:g.PERF,cars:26,topKmh:Math.round(top*3.6),minProgress:Math.round(Math.min(...g.race.field.map(r=>r.p))),aiMs:Math.round(performance.now()-start),drawCalls:g.renderer.info.render.calls,triangles:g.renderer.info.render.triangles,pixelRatio:g.PR.cur};
+   const out={performance:g.PERF,cars:34,topKmh:Math.round(top*3.6),minProgress:Math.round(Math.min(...g.race.field.map(r=>r.p))),aiMs:Math.round(performance.now()-start),drawCalls:g.renderer.info.render.calls,triangles:g.renderer.info.render.triangles,pixelRatio:g.PR.cur};
    g.endRace();g.hideField();g.openRaceHub();g.race.trackId='oval';g.racePick('caminhao');
    check(g.car.userData.K.vmax===78&&g.car.userData.K.acc===32,'player racing truck tune');
    check(g.race.field.every(r=>r.g.userData.K.vmax===78),'rival racing truck tune');
