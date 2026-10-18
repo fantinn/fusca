@@ -145,3 +145,6 @@ Carros da Copa Pistão com carroceria afilada, pneus largos e adesivos de equipe
 
 ## Novos carros low poly
 No menu de corridas, use SEDÃ CLÁSSICO ou HATCH COMPACTO para selecionar gratuitamente os novos modelos. Vidros grandes, pilares inclinados, para-choques escuros e rodas simples seguem as referências. Podem disputar a categoria Carro e ser usados na exploração, com aparência compartilhada online.
+
+## Garagem
+Abra GARAGEM no rodapé ou no menu de corridas, selecione um dos 12 veículos e clique em USAR NO JOGO. A prévia mostra o modelo escolhido. Trocar leva ao box; corridas em andamento bloqueiam a troca.
