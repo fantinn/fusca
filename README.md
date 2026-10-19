@@ -150,3 +150,6 @@ No menu de corridas, use SEDÃ CLÁSSICO ou HATCH COMPACTO para selecionar gratu
 Abra GARAGEM no rodapé ou no menu de corridas, selecione um dos 12 veículos e clique em USAR NO JOGO. A prévia mostra o modelo escolhido. Trocar leva ao box; corridas em andamento bloqueiam a troca.
 
 O Fusca agora usa carroceria facetada, pneus de dez lados e pintura Lambert sem clearcoat. A geometria e as rodas são compartilhadas entre cópias. `node tests/fusca-lowpoly.cjs` verifica o orçamento de menos de 8 mil triângulos e a prévia da garagem.
+
+## Estilo low poly do mundo
+Veículos, personagens e cenário usam materiais foscos e faces marcadas, com materiais compartilhados e aplicação única por objeto. Carros clássicos usam superfícies de menor resolução. A Kombi preserva a geometria e os materiais originais, inclusive na garagem. `node tests/world-lowpoly.cjs` verifica a exceção da Kombi e os demais veículos.
