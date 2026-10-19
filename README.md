@@ -143,6 +143,8 @@ Socos têm maior extensão do cotovelo e avanço do ombro; quedas por soco receb
 
 Carros da Copa Pistão com carroceria afilada, pneus largos e adesivos de equipes fictícias. O oval inclui boxes e uma faixa de serviço interna.
 
+O estádio da Copa Pistão tem torcida nas arquibancadas, painel central, placas numeradas nas curvas e publicidade na reta. O asfalto recebe faixas de rodagem escuras, linha amarela dupla na borda interna e chegada quadriculada de duas fileiras. O gramado interno tem faixas de corte. A torcida usa geometria estática agrupada e população reduzida no perfil leve.
+
 ## Novos carros low poly
 No menu de corridas, use SEDÃ CLÁSSICO ou HATCH COMPACTO para selecionar gratuitamente os novos modelos. Vidros grandes, pilares inclinados, para-choques escuros e rodas simples seguem as referências. Podem disputar a categoria Carro e ser usados na exploração, com aparência compartilhada online.
 

@@ -1323,8 +1323,18 @@ function trackGet(id){const D=TRACKS[id];if(!D)return TRK;if(D.track)return D.tr
  const group=new T.Group();group.name=D.name;scene.add(group);
  const mesh=(geo,color,x=0,y=0,z=0)=>{const m=new T.Mesh(geo,mat(color));m.position.set(x,y,z);m.receiveShadow=true;group.add(m);return m};
  const ground=mesh(new T.PlaneGeometry(800,480),D.ground,100,-.03,D.z+140);ground.rotation.x=-Math.PI/2;
- function ribbon(a,b,y,color){const p=[],ix=[];for(let i=0;i<=K.n;i++){const j=i%K.n;for(const d of [a,b])p.push(K.x[j]+K.lx[j]*d,y+ovalHeight(K.x[j]+K.lx[j]*d,K.z[j]+K.lz[j]*d),K.z[j]+K.lz[j]*d);if(i<K.n){const q=i*2;ix.push(q,q+2,q+1,q+1,q+2,q+3)}}const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));g.setIndex(ix);g.computeVertexNormals();mesh(g,color)}
- ribbon(-K.hw-5,K.hw+5,.01,D.color);ribbon(-K.hw,K.hw,.04,'#3d4850');
+ function ribbon(a,b,y,color){
+  // Sample across the width too: banking is curved, so a single wide quad
+  // lets the underlying shoulder cut through the asphalt in transitions.
+  const p=[],ix=[],cols=id==='oval'?Math.max(1,Math.ceil((b-a)/.5)):1,stride=cols+1;
+  for(let i=0;i<=K.n;i++){
+   const j=i%K.n;
+   for(let c=0;c<=cols;c++){const d=a+(b-a)*c/cols,x=K.x[j]+K.lx[j]*d,z=K.z[j]+K.lz[j]*d;p.push(x,y+ovalHeight(x,z),z)}
+   if(i<K.n)for(let c=0;c<cols;c++){const q=i*stride+c;ix.push(q,q+stride,q+1,q+1,q+stride,q+stride+1)}
+  }
+  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));g.setIndex(ix);g.computeVertexNormals();mesh(g,color);
+ }
+ ribbon(-K.hw-5,K.hw+5,.01,id==='oval'?'#51585c':D.color);ribbon(-K.hw,K.hw,.04,'#3d4850');
  for(const side of [-1,1]){ribbon(side*K.hw-.18,side*K.hw+.18,.06,'#f5f0dc');
   for(let d=0;d<K.L;d+=8){const p=trkPose(d,side*(K.hw+6),K),m=mesh(new T.BoxGeometry(.6,.7,7.9),Math.floor(d/8)%2?D.color:'#f1eee5',p.x,.35+surfaceY(p.x,p.z),p.z);m.rotation.y=p.yaw;const c=Math.abs(Math.cos(p.yaw)),ss=Math.abs(Math.sin(p.yaw));physicalObstacles.push({x:p.x,z:p.z,w:.3,d:3.95,a:p.yaw,ex:.3*c+3.95*ss,ez:.3*ss+3.95*c})}}
  for(let j=0;j<20;j++){const p=trkPose(0,(j-9.5)*K.hw/10,K),m=mesh(new T.BoxGeometry(K.hw/10,.02,1.4),j%2?'#fff':'#151c23',p.x,.065+surfaceY(p.x,p.z),p.z);m.rotation.y=p.yaw}
@@ -1339,6 +1349,13 @@ function trackGet(id){const D=TRACKS[id];if(!D)return TRK;if(D.track)return D.tr
   // Speedway scenery is static and merged by material below, including the safety fence.
   const box=(w,h,d,c,x,y,z)=>mesh(new T.BoxGeometry(w,h,d),c,x,y,z);
   const paint=['#c83c35','#edf0e8','#29759b'];
+  // Keep the racing surface continuous, with only white edge markings.
+  // Alternating mown grass strips, kept entirely inside the oval.
+  for(let i=0;i<9;i++)box(400,.025,14,i%2?'#73935d':'#86a46c',100,.005,D.z+88+i*16);
+  // Two rows of checks make the finish readable at racing speed.
+  for(let row=0;row<2;row++)for(let col=0;col<32;col++){
+   const p=trkPose(row*1.1,(col-15.5),K),m=box(1,.025,1.1,(col+row)%2?'#f5f0dc':'#151c23',p.x,.09+surfaceY(p.x,p.z),p.z);m.rotation.y=p.yaw;
+  }
   // Wide pit lane, individual stalls and garages on the infield side of the front straight.
   box(326,.06,18,'#59636b',100,.015,D.z+34);
   for(const z of [25.5,42.5])box(326,.02,.22,'#f4cf55',100,.055,D.z+z);
@@ -1358,6 +1375,13 @@ function trackGet(id){const D=TRACKS[id];if(!D)return TRK;if(D.track)return D.tr
    for(let row=0;row<8;row++){
     box(55,1.1,3.8,paint[(section+row)%3],x,1+row*1.25,z+side*row*4);
     box(1.6,.14,4,'#c3c7c5',x,1.62+row*1.25,z+side*row*4);
+    // Deterministic low-poly crowd, batched with the rest of the stadium.
+    for(let seat=0;seat<24;seat++){
+     if(seat===11||seat===12||(LOW&&seat%2))continue;
+     const sx=x-25+seat*2.15,sy=1.55+row*1.25,sz=z+side*row*4;
+     box(.7,.8,.55,paint[(seat*7+row+section)%3],sx,sy+.4,sz);
+     box(.42,.42,.42,'#cba783',sx,sy+1,sz);
+    }
    }
    box(56,3,.6,'#233e51',x,11.5,z+side*30);
    box(57,.35,22,'#dce4e5',x,15,z+side*22);
@@ -1386,9 +1410,22 @@ function trackGet(id){const D=TRACKS[id];if(!D)return TRK;if(D.track)return D.tr
   box(16,12,10,'#d9dfdb',285,6,D.z+51);
   box(18,3,12,'#244452',285,12,D.z+51);
   box(19,.5,13,'#edf0e8',285,13.7,D.z+51);
+  // A stadium screen and turn markers provide landmarks around the oval.
+  const screen=netTrackLabel('COPA PISTÃO  •  34 PILOTOS');
+  screen.scale.set(2.6,2.6,2.6);screen.position.set(100,18,D.z+241);group.add(screen);
+  box(49,7,.8,'#233e51',100,18,D.z+241.5);
+  for(const x of [80,120])box(1.2,18,1.2,'#344b59',x,9,D.z+242);
+  for(let turn=0;turn<4;turn++){
+   const s=K.L*(.10+turn*.25),p=trkPose(s,30,K);
+   const board=netTrackLabel('CURVA '+(turn+1)+'  •  COPA PISTÃO');
+   board.position.set(p.x,surfaceY(p.x,p.z)+7,p.z);board.lookAt(100,7,D.z+140);group.add(board);
+  }
+  for(let i=0;i<7;i++){
+   const label=netTrackLabel(['PISTÃO RACING','SOL & ASFALTO','VELOCIDADE PURA'][i%3]);
+   label.position.set(-60+i*50,2.1,D.z-23);label.scale.set(2,.9,1);group.add(label);
+  }
   const banner=netTrackLabel('COPA PISTÃO  •  LARGADA');banner.position.set(start.x,8.3,start.z);banner.rotation.y=start.yaw+Math.PI;banner.scale.x=1.6;group.add(banner);
   for(const side of [-1,1]){const p=trkPose(0,side*19,K);box(.7,9,.7,'#344b59',p.x,4.5,p.z);}
-  for(const d of [-5.5,5.5])ribbon(d-.10,d+.10,.07,'#d6d7cd');
  }
  // Merge scenery by material once: barriers and stands no longer cost one draw per block.
  const batches=new Map();for(const o of [...group.children])if(o.isMesh&&!K.lights.includes(o)&&!o.material.map){o.updateMatrix();let b=batches.get(o.material);if(!b)batches.set(o.material,b=[]);b.push([o.geometry,o.matrix.clone()]);group.remove(o)}
